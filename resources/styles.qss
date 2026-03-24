@@ -105,6 +105,16 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     letter-spacing: 2px;
 }
 
+#headerTitleInput {
+    background: rgba(0, 212, 255, 0.08);
+    color: #00d4ff;
+    border: 1px solid #00d4ff;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 16px;
+    font-weight: bold;
+}
+
 #headerClock {
     color: #f0a500;
     font-size: 16px;
@@ -262,7 +272,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 
 #cardTimerInfo2 {
     color: #3498db;
-    font-size: 11px;
+    font-size: 12px;
     font-family: "Consolas", "Courier New", monospace;
 }
 
@@ -776,4 +786,17 @@ QTextEdit#memoInput {
 
 QTextEdit#memoInput:focus {
     border-color: #00d4ff;
+}
+
+/* === Operation List Item === */
+#opListItem {
+    background: rgba(15, 35, 65, 0.9);
+    border: 1px solid #1e3a5f;
+    border-radius: 8px;
+    margin: 2px 0;
+}
+
+#opListItem:hover {
+    border-color: #00d4ff;
+    background: rgba(0, 80, 120, 0.3);
 }

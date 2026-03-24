@@ -91,11 +91,11 @@ class PersonnelCard(QFrame):
 
         if p.location == "base":
             if p.has_been_deployed:
-                total = p.total_deploy_seconds
                 rest = p.get_rest_elapsed()
-                self.timer_line1.setText(f"총 이함시간: {format_time_hm(total)}")
-                self.timer_line1.setObjectName("cardTimerInfo")
-                self.timer_line2.setText(f"복귀 후 경과: {format_time_hm(rest)}")
+                total = p.total_deploy_seconds
+                self.timer_line1.setText(f"복귀 후 경과: {format_time_hm(rest)}")
+                self.timer_line1.setObjectName("cardTimerInfo2")
+                self.timer_line2.setText(f"총 이함시간: {format_time_hm(total)}")
                 self.timer_line2.setObjectName("cardTimerInfo2")
                 self.timer_line2.show()
             else:
@@ -112,7 +112,7 @@ class PersonnelCard(QFrame):
             self.timer_line1.setText(f"이함 경과: {format_time_hm(elapsed)}")
             self.timer_line1.setObjectName("cardTimerInfo")
             self.timer_line2.setText(f"총 이함: {format_time_hm(total_away)}")
-            self.timer_line2.setObjectName("cardTimerInfoTotal")
+            self.timer_line2.setObjectName("cardTimerInfo2")
             self.timer_line2.show()
 
             # 위험 알람 (4시간 초과)

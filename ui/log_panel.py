@@ -9,13 +9,18 @@ from PySide6.QtWidgets import (
     QTextEdit
 )
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QWheelEvent
 from core.data_manager import DataManager
 
+# 로그 텍스트 폰트 크기 (전역, Ctrl+휠로 조절)
+_log_font_size = 11
 
-def _wrap_html(text: str) -> str:
+
+def _wrap_html(text: str, font_size: int = None) -> str:
     """HTML로 감싸서 word-break: break-all 적용"""
+    sz = font_size or _log_font_size
     escaped = html_mod.escape(text)
-    return f'<div style="word-break:break-all;white-space:pre-wrap;">{escaped}</div>'
+    return f'<div style="word-break:break-all;white-space:pre-wrap;font-size:{sz}px;">{escaped}</div>'
 
 
 class LogEntryWidget(QFrame):
@@ -175,12 +180,13 @@ class LogEntryWidget(QFrame):
 
 
 class LogPanel(QWidget):
-    """세로형 로그 패널 - 채팅창 스타일"""
+    """세로형 로그 패널 - 채팅창 스타일, Ctrl+휠로 텍스트 확대/축소"""
 
     def __init__(self, data_manager: DataManager, parent=None):
         super().__init__(parent)
         self.dm = data_manager
         self.entry_widgets: list[LogEntryWidget] = []
+        self._font_size = _log_font_size
         self.setObjectName("logPanelVertical")
         self._setup_ui()
         self._load_existing_logs()
@@ -232,6 +238,7 @@ class LogPanel(QWidget):
         layout.addWidget(input_frame)
 
         self.memo_input.installEventFilter(self)
+        self.scroll.installEventFilter(self)
 
     def eventFilter(self, obj, event):
         if obj == self.memo_input and event.type() == event.Type.KeyPress:
@@ -239,6 +246,11 @@ class LogPanel(QWidget):
                 if event.modifiers() & Qt.ControlModifier:
                     self._add_memo()
                     return True
+        # Ctrl+휠 줌: 스크롤 영역에서도 동작
+        if obj == self.scroll and event.type() == event.Type.Wheel:
+            if event.modifiers() & Qt.ControlModifier:
+                self.wheelEvent(event)
+                return True
         return super().eventFilter(obj, event)
 
     def _load_existing_logs(self):
@@ -296,6 +308,39 @@ class LogPanel(QWidget):
         for log in self.dm.logs:
             self._add_entry_widget(log)
         self._scroll_to_bottom()
+
+    def wheelEvent(self, event: QWheelEvent):
+        """Ctrl+휠로 로그 텍스트 확대/축소"""
+        if event.modifiers() & Qt.ControlModifier:
+            global _log_font_size
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self._font_size = min(self._font_size + 1, 24)
+            elif delta < 0:
+                self._font_size = max(self._font_size - 1, 8)
+            _log_font_size = self._font_size
+            self._apply_font_size()
+            event.accept()
+        else:
+            super().wheelEvent(event)
+
+    def _apply_font_size(self):
+        """모든 로그 항목에 현재 폰트 크기 적용"""
+        sz = self._font_size
+        for widget in self.entry_widgets:
+            widget.time_label.setStyleSheet(
+                widget.time_label.styleSheet().replace(
+                    widget.time_label.styleSheet(), ""
+                )
+            )
+            # 시간 라벨 폰트 크기
+            ts = f"font-size: {sz}px;"
+            widget.time_label.setStyleSheet(ts)
+            # 메시지 라벨 - HTML 재생성
+            msg = widget.log_entry.get("message", "")
+            is_memo = widget.log_entry.get("type") == "memo"
+            prefix = "[메모] " if is_memo else ""
+            widget.text_label.setText(_wrap_html(f'{prefix}{msg}', sz))
 
     def _scroll_to_bottom(self):
         from PySide6.QtCore import QTimer

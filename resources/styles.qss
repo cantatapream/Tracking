@@ -285,6 +285,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 #cardTimerInfo2 {
     color: #3498db;
     font-size: 12px;
+    font-weight: bold;
     font-family: "Consolas", "Courier New", monospace;
 }
 

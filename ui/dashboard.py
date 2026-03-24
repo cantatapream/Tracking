@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QWheelEvent
-from ui.vessel_container import VesselContainer, EquipmentMiniCard
+from ui.vessel_container import VesselContainer, EquipmentMiniCard, DraggableVesselList
 from core.data_manager import DataManager
 from typing import List, Set
 import re
@@ -69,9 +69,9 @@ class DashboardView(QWidget):
         # 제목 행: 본함 이름 (클릭 편집) + 인원 뱃지
         title_frame = QFrame()
         title_frame.setObjectName("sectionTitle")
-        title_frame.setFixedHeight(36)
+        title_frame.setMinimumHeight(36)
         title_h = QHBoxLayout(title_frame)
-        title_h.setContentsMargins(10, 0, 10, 0)
+        title_h.setContentsMargins(10, 4, 10, 4)
         title_h.setSpacing(8)
 
         base_name = self.dm.vessels.get("base", {}).get("name", "본함 (KCG 3012)")
@@ -83,10 +83,21 @@ class DashboardView(QWidget):
 
         self.base_title_input = QLineEdit(base_name)
         self.base_title_input.setObjectName("headerTitleInput")
-        self.base_title_input.setFixedHeight(28)
+        self.base_title_input.setMinimumHeight(28)
         self.base_title_input.returnPressed.connect(self._save_base_name_edit)
         self.base_title_input.hide()
         title_h.addWidget(self.base_title_input)
+
+        # 확인 버튼
+        from PySide6.QtWidgets import QPushButton
+        self.base_title_confirm_btn = QPushButton("확인")
+        self.base_title_confirm_btn.setObjectName("headerConfirmBtn")
+        self.base_title_confirm_btn.setMinimumHeight(28)
+        self.base_title_confirm_btn.setFixedWidth(50)
+        self.base_title_confirm_btn.setCursor(Qt.PointingHandCursor)
+        self.base_title_confirm_btn.clicked.connect(self._save_base_name_edit)
+        self.base_title_confirm_btn.hide()
+        title_h.addWidget(self.base_title_confirm_btn)
 
         title_h.addStretch()
 
@@ -112,6 +123,7 @@ class DashboardView(QWidget):
         base_name = self.dm.vessels.get("base", {}).get("name", "본함 (KCG 3012)")
         self.base_title_input.setText(base_name)
         self.base_title_input.show()
+        self.base_title_confirm_btn.show()
         self.base_title_input.setFocus()
         self.base_title_input.selectAll()
 
@@ -123,6 +135,7 @@ class DashboardView(QWidget):
             self.dm.save()
             self.base_title_label.setText(f"  {new_name}")
         self.base_title_input.hide()
+        self.base_title_confirm_btn.hide()
         self.base_title_label.show()
 
     def _create_section_multi(self, title: str, title_style: str, section_type: str) -> QFrame:
@@ -136,9 +149,9 @@ class DashboardView(QWidget):
         # 제목 행: 타이틀 + 총인원 뱃지
         title_frame = QFrame()
         title_frame.setObjectName(title_style)
-        title_frame.setFixedHeight(36)
+        title_frame.setMinimumHeight(36)
         title_h = QHBoxLayout(title_frame)
-        title_h.setContentsMargins(10, 0, 10, 0)
+        title_h.setContentsMargins(10, 4, 10, 4)
         title_h.setSpacing(8)
 
         title_label = QLabel(f"  {title}")
@@ -164,14 +177,22 @@ class DashboardView(QWidget):
         scroll.setFrameShape(QFrame.NoFrame)
 
         self._scroll_widgets = getattr(self, '_scroll_widgets', {})
-        scroll_widget = QWidget()
-        scroll_layout = QVBoxLayout(scroll_widget)
-        scroll_layout.setContentsMargins(4, 4, 4, 4)
-        scroll_layout.setSpacing(6)
-        scroll_layout.addStretch()
 
-        self._scroll_widgets[section_type] = (scroll_widget, scroll_layout)
-        scroll.setWidget(scroll_widget)
+        if section_type == "vessel":
+            # 어선: 드래그 순서 변경 가능한 위젯 사용
+            draggable = DraggableVesselList()
+            draggable.order_changed.connect(self._on_vessel_order_changed)
+            self._scroll_widgets[section_type] = draggable
+            scroll.setWidget(draggable)
+        else:
+            scroll_widget = QWidget()
+            scroll_layout = QVBoxLayout(scroll_widget)
+            scroll_layout.setContentsMargins(4, 4, 4, 4)
+            scroll_layout.setSpacing(6)
+            scroll_layout.addStretch()
+            self._scroll_widgets[section_type] = (scroll_widget, scroll_layout)
+            scroll.setWidget(scroll_widget)
+
         panel_layout.addWidget(scroll)
 
         return panel
@@ -204,22 +225,19 @@ class DashboardView(QWidget):
             layout.addStretch()
 
         if "vessel" in self._scroll_widgets:
-            widget, layout = self._scroll_widgets["vessel"]
-            while layout.count():
-                item = layout.takeAt(0)
-                w = item.widget()
-                if w:
-                    w.setParent(None); w.hide()
+            draggable = self._scroll_widgets["vessel"]
+            draggable.clear()
 
-            for vid, vinfo in sorted(self.dm.vessels.items()):
-                if vinfo["type"] == "vessel":
+            vessel_order = self.dm.get_vessel_order()
+            for vid in vessel_order:
+                vinfo = self.dm.vessels.get(vid)
+                if vinfo and vinfo["type"] == "vessel":
                     c = VesselContainer(vid, vinfo["name"], "vessel")
                     c.header_clicked.connect(self._on_container_clicked)
                     c.card_clicked.connect(self._on_card_clicked)
                     c.eq_card_clicked.connect(self._on_eq_card_clicked)
                     self.containers[vid] = c
-                    layout.addWidget(c)
-            layout.addStretch()
+                    draggable.add_container(c)
 
     def refresh(self):
         """전체 데이터 새로고침"""
@@ -317,6 +335,10 @@ class DashboardView(QWidget):
         if vessel_id in self.dm.vessels:
             self.dm.vessels[vessel_id]["name"] = new_name
             self.dm.save()
+
+    def _on_vessel_order_changed(self, order: list):
+        """어선 순서 변경 저장"""
+        self.dm.set_vessel_order(order)
 
     def wheelEvent(self, event: QWheelEvent):
         """Ctrl+휠로 대시보드 전체 폰트 확대/축소"""

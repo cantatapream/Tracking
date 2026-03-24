@@ -21,7 +21,7 @@ class MainWindow(QMainWindow):
     def __init__(self, data_manager: DataManager):
         super().__init__()
         self.dm = data_manager
-        self.setWindowTitle("작전 통제 현황")
+        self.setWindowTitle("작전 현황")
         self.setMinimumSize(1400, 850)
         self.resize(1600, 950)
 
@@ -60,7 +60,7 @@ class MainWindow(QMainWindow):
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         sidebar_layout.setSpacing(0)
 
-        # 로고 영역 - 해양경찰 마크 + 작전 통제 현황
+        # 로고 영역 - 해양경찰 마크 + 작전 현황
         logo_frame = QFrame()
         logo_frame.setFixedHeight(60)
         logo_frame.setStyleSheet("""
@@ -85,7 +85,7 @@ class MainWindow(QMainWindow):
         mark.setFixedSize(40, 40)
         logo_h.addWidget(mark)
 
-        logo_title = QLabel("작전 통제 현황")
+        logo_title = QLabel("작전 현황")
         logo_title.setStyleSheet("""
             color: #00d4ff; font-size: 14px; font-weight: bold;
             font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
@@ -108,23 +108,6 @@ class MainWindow(QMainWindow):
             self.nav_buttons.append(btn)
 
         sidebar_layout.addStretch()
-
-        export_btn = QPushButton("  데이터 내보내기")
-        export_btn.setFixedHeight(44)
-        export_btn.setStyleSheet("""
-            QPushButton {
-                background: transparent; border: none; color: #5a7a9a;
-                padding: 12px 12px; text-align: left; font-size: 12px;
-                border-left: 3px solid transparent;
-            }
-            QPushButton:hover {
-                color: #f0a500; background: rgba(240, 165, 0, 0.05);
-                border-left: 3px solid rgba(240, 165, 0, 0.3);
-            }
-        """)
-        export_btn.clicked.connect(self._export_data)
-        sidebar_layout.addWidget(export_btn)
-
         main_layout.addWidget(sidebar)
 
         # === 콘텐츠 영역 ===
@@ -192,6 +175,7 @@ class MainWindow(QMainWindow):
         dp_layout.addWidget(self.log_panel, 3)
 
         self.dashboard.log_message.connect(self.log_panel.append_log)
+        self.log_panel.export_requested.connect(self._export_data)
         self.page_stack.addWidget(dashboard_page)
 
         self.settings_tab = SettingsTab(self.dm)

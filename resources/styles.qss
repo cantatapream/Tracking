@@ -117,6 +117,25 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     letter-spacing: 1px;
 }
 
+#headerConfirmBtn {
+    background: rgba(0, 212, 255, 0.15);
+    color: #00d4ff;
+    border: 1px solid rgba(0, 212, 255, 0.4);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+#headerConfirmBtn:hover {
+    background: rgba(0, 212, 255, 0.3);
+    border: 1px solid rgba(0, 212, 255, 0.7);
+}
+
+#headerConfirmBtn:pressed {
+    background: rgba(0, 212, 255, 0.45);
+}
+
 #headerClock {
     color: #f0a500;
     font-size: 15px;
@@ -466,6 +485,12 @@ QPushButton:hover {
 QPushButton:pressed {
     background: #0d1f3c;
     border-color: #00d4ff;
+}
+
+QPushButton:checked {
+    background: rgba(0, 212, 255, 0.2);
+    border: 2px solid #00d4ff;
+    color: #00d4ff;
 }
 
 #btnDanger {

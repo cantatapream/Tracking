@@ -41,8 +41,8 @@ class PersonnelCard(QFrame):
         self._selected = False
         self._alert = False
         self.setCursor(Qt.PointingHandCursor)
-        self.setFixedHeight(48)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.setMinimumHeight(48)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self._setup_ui()
         self.update_style()
 
@@ -68,17 +68,19 @@ class PersonnelCard(QFrame):
 
         # 우측: 타이머 정보 (2줄)
         right_layout = QVBoxLayout()
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(0)
+        right_layout.setContentsMargins(0, 2, 0, 2)
+        right_layout.setSpacing(2)
 
         self.timer_line1 = QLabel("")
         self.timer_line1.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.timer_line1.setObjectName("cardTimerInfo")
+        self.timer_line1.setMinimumWidth(0)
         right_layout.addWidget(self.timer_line1)
 
         self.timer_line2 = QLabel("")
         self.timer_line2.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.timer_line2.setObjectName("cardTimerInfo2")
+        self.timer_line2.setMinimumWidth(0)
         right_layout.addWidget(self.timer_line2)
 
         layout.addLayout(right_layout)

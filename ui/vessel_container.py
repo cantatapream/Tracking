@@ -253,8 +253,8 @@ class VesselContainer(QFrame):
             card = EquipmentMiniCard(eq)
             card.clicked.connect(self._on_eq_card_clicked)
             self.eq_cards[eq.id] = card
-            row = idx // 3
-            col = idx % 3
+            row = idx // 2
+            col = idx % 2
             eq_grid.addWidget(card, row, col)
 
         self.cards_layout.addWidget(self._eq_grid_widget)

@@ -402,7 +402,7 @@ class SettingsTab(QWidget):
         pos_layout.addWidget(self.vice_widget, 1)
         self.personnel_content_layout.addWidget(self.position_frame)
 
-        # 팀 영역 (8팀) - 4x2 그리드
+        # 팀 영역 (8팀) - 8열 가로 배치
         self.team_frame = QFrame()
         self.team_frame.setObjectName("sectionPanel")
         team_grid = QGridLayout(self.team_frame)
@@ -411,7 +411,7 @@ class SettingsTab(QWidget):
         self.team_columns = {}
         for i, dept in enumerate(TEAM_DEPARTMENTS):
             col = self._make_dept_column(dept)
-            team_grid.addWidget(col, i // 4, i % 4)
+            team_grid.addWidget(col, 0, i)
             self.team_columns[dept] = col
         self.personnel_content_layout.addWidget(self.team_frame)
         self.personnel_content_layout.addStretch()
@@ -467,13 +467,13 @@ class SettingsTab(QWidget):
         vl = QVBoxLayout(vf)
         vl.setContentsMargins(0, 0, 0, 0)
         vl.setSpacing(4)
-        vh = QLabel("중국어선")
+        vh = QLabel("등선 대상 선박")
         vh.setObjectName("sectionTitleVessel")
         vh.setMinimumHeight(28)
         vl.addWidget(vh)
         vr = QHBoxLayout()
         self.vessel_name_input = QLineEdit()
-        self.vessel_name_input.setPlaceholderText("어선 이름 (예: 중국어선 C)")
+        self.vessel_name_input.setPlaceholderText("선박 이름 (예: 중국어선 C)")
         self.vessel_name_input.setFixedHeight(30)
         vr.addWidget(self.vessel_name_input)
         vb = QPushButton("추가")
@@ -540,17 +540,27 @@ class SettingsTab(QWidget):
         col_layout = QVBoxLayout(frame)
         col_layout.setContentsMargins(4, 4, 4, 4)
         col_layout.setSpacing(2)
+        # 헤더: 팀명 + 인원수 뱃지
+        header_row = QHBoxLayout()
+        header_row.setSpacing(4)
         header = QLabel(dept_name)
         header.setAlignment(Qt.AlignCenter)
         header.setObjectName("vesselHeader")
-        col_layout.addWidget(header)
+        header_row.addWidget(header)
+        count_badge = QLabel("0명")
+        count_badge.setObjectName("countBadge")
+        count_badge.setAlignment(Qt.AlignCenter)
+        header_row.addWidget(count_badge)
+        header_row.addStretch()
+        col_layout.addLayout(header_row)
         list_widget = QWidget()
-        grid = QGridLayout(list_widget)
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.setSpacing(2)
+        list_layout = QVBoxLayout(list_widget)
+        list_layout.setContentsMargins(0, 0, 0, 0)
+        list_layout.setSpacing(2)
         col_layout.addWidget(list_widget, 1)
-        frame._grid_layout = grid
+        frame._list_layout = list_layout
         frame._dept_name = dept_name
+        frame._count_badge = count_badge
         return frame
 
     def _populate_position(self, layout, dept_name, persons):
@@ -697,19 +707,22 @@ class SettingsTab(QWidget):
 
         for dept in TEAM_DEPARTMENTS:
             col = self.team_columns[dept]
-            grid = col._grid_layout
-            while grid.count():
-                item = grid.takeAt(0)
+            ll = col._list_layout
+            while ll.count():
+                item = ll.takeAt(0)
                 if item.widget():
                     item.widget().setParent(None)
-            for i, p in enumerate(dept_personnel[dept]):
+            persons = dept_personnel[dept]
+            col._count_badge.setText(f"{len(persons)}명")
+            for p in persons:
                 card = PersonnelEditCard(p.id, p.name, p.rank, p.department)
                 card.removed.connect(self._remove_personnel)
                 card.updated.connect(self._update_personnel)
                 card.dept_changed.connect(self._change_dept)
                 card.actions_opened.connect(self._close_other_actions)
                 self._all_cards.append(card)
-                grid.addWidget(card, i // 2, i % 2)
+                ll.addWidget(card)
+            ll.addStretch()
 
         _clear_layout(self.patrol_list_layout)
         for vid, vi in sorted(self.dm.vessels.items()):
@@ -735,7 +748,7 @@ class SettingsTab(QWidget):
             card.updated_signal.connect(self._on_equipment_changed)
             card.actions_opened.connect(self._close_other_actions)
             self.eq_cards.append(card)
-            self.eq_grid_layout.addWidget(card, i // 3, i % 3)
+            self.eq_grid_layout.addWidget(card, i // 2, i % 2)
 
         self._populate_eq_assignee_combo()
 

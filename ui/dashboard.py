@@ -3,7 +3,7 @@ SPT 메인 대시보드 - 3단 컬럼 (본함 / 단정 / 어선) + 장비 이동
 """
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, QScrollArea, QFrame,
-    QSizePolicy, QSplitter, QLineEdit
+    QSizePolicy, QSplitter, QLineEdit, QPushButton
 )
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QWheelEvent
@@ -54,7 +54,7 @@ class DashboardView(QWidget):
 
         # === 우측: 어선 ===
         self.vessel_panel = self._create_section_multi(
-            "검문검색 선박", "sectionTitleVessel", "vessel"
+            "등선 대상 선박", "sectionTitleVessel", "vessel"
         )
         main_layout.addWidget(self.vessel_panel, 1)
 
@@ -90,7 +90,6 @@ class DashboardView(QWidget):
         title_h.addWidget(self.base_title_input)
 
         # 확인 버튼
-        from PySide6.QtWidgets import QPushButton
         self.base_title_confirm_btn = QPushButton("확인")
         self.base_title_confirm_btn.setObjectName("headerConfirmBtn")
         self.base_title_confirm_btn.setMinimumHeight(28)
@@ -107,6 +106,33 @@ class DashboardView(QWidget):
         title_h.addWidget(self.base_count_badge)
 
         layout.addWidget(title_frame)
+
+        # 직별 필터 버튼
+        filter_frame = QFrame()
+        filter_frame.setStyleSheet("background: transparent; border: none;")
+        filter_h = QHBoxLayout(filter_frame)
+        filter_h.setContentsMargins(8, 2, 8, 2)
+        filter_h.setSpacing(4)
+
+        self._dept_filter = None  # None = 전체
+        self._filter_buttons = []
+        dept_list = ["전체", "항해", "안전", "병기", "기관", "구조", "행정", "통신", "조리"]
+        for dept in dept_list:
+            btn = QPushButton(dept)
+            btn.setCheckable(True)
+            btn.setFixedHeight(24)
+            btn.setMinimumWidth(40)
+            btn.setStyleSheet("""
+                QPushButton { font-size: 11px; padding: 2px 6px; border-radius: 4px; }
+                QPushButton:checked { background: rgba(0, 212, 255, 0.2); border: 1px solid #00d4ff; color: #00d4ff; }
+            """)
+            if dept == "전체":
+                btn.setChecked(True)
+            btn.clicked.connect(lambda checked, d=dept, b=btn: self._on_dept_filter(d, b))
+            filter_h.addWidget(btn)
+            self._filter_buttons.append(btn)
+        filter_h.addStretch()
+        layout.addWidget(filter_frame)
 
         # 인원 컨테이너 (헤더 숨김)
         container = VesselContainer("base", base_name, "base", hide_header=True)
@@ -279,6 +305,10 @@ class DashboardView(QWidget):
             for container in self.containers.values():
                 container.set_eq_card_selected(eid, True)
 
+        # 직별 필터 재적용
+        if hasattr(self, '_dept_filter'):
+            self._apply_base_filter()
+
     def _setup_timer(self):
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self._tick)
@@ -354,6 +384,30 @@ class DashboardView(QWidget):
             event.accept()
         else:
             super().wheelEvent(event)
+
+    def _on_dept_filter(self, dept: str, btn):
+        """직별 필터 버튼 클릭"""
+        if dept == "전체":
+            self._dept_filter = None
+        else:
+            self._dept_filter = dept
+        for b in self._filter_buttons:
+            b.setChecked(b is btn)
+        self._apply_base_filter()
+
+    def _apply_base_filter(self):
+        """본함 컨테이너에 직별 필터 적용"""
+        base_container = self.containers.get("base")
+        if not base_container:
+            return
+        for pid, card in base_container.cards.items():
+            if self._dept_filter is None:
+                card.show()
+            else:
+                if card.personnel.department == self._dept_filter:
+                    card.show()
+                else:
+                    card.hide()
 
     def _update_move_targets(self):
         has_sel = len(self.selected_ids) > 0 or len(self.selected_eq_ids) > 0

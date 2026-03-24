@@ -3,10 +3,10 @@ SPT 메인 대시보드 - 3단 컬럼 (본함 / 단정 / 어선) + 장비 이동
 """
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, QScrollArea, QFrame,
-    QSizePolicy, QSplitter, QLineEdit, QPushButton
+    QSizePolicy, QSplitter, QLineEdit, QPushButton, QGridLayout
 )
 from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtGui import QWheelEvent
+from PySide6.QtGui import QWheelEvent, QPainter, QColor, QPen
 from ui.vessel_container import VesselContainer, EquipmentMiniCard, DraggableVesselList
 from core.data_manager import DataManager
 from typing import List, Set
@@ -19,6 +19,101 @@ def _patrol_sort_key(item):
     name = vinfo.get("name", "")
     m = re.search(r'(\d+)', name)
     return int(m.group(1)) if m else 999
+
+
+class EquipmentInventoryPanel(QFrame):
+    """본함 장비 보유 목록 패널"""
+    eq_card_clicked = Signal(str, bool)  # equipment_id, ctrl
+    panel_clicked = Signal(str)  # "base"를 emit
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("sectionPanel")
+        self.setCursor(Qt.PointingHandCursor)
+        self.eq_cards: dict[str, EquipmentMiniCard] = {}
+        self._move_target_mode = False
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # 제목 행
+        title_frame = QFrame()
+        title_frame.setObjectName("equipmentSectionHeader")
+        title_frame.setMinimumHeight(32)
+        title_h = QHBoxLayout(title_frame)
+        title_h.setContentsMargins(12, 4, 12, 4)
+        title_h.setSpacing(8)
+
+        title_label = QLabel("장비 보유 목록")
+        title_label.setObjectName("equipmentSectionHeader")
+        title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        title_h.addWidget(title_label)
+        title_h.addStretch()
+
+        self.eq_count_badge = QLabel("0개")
+        self.eq_count_badge.setObjectName("countBadge")
+        title_h.addWidget(self.eq_count_badge)
+
+        layout.addWidget(title_frame)
+
+        # 장비 그리드 (스크롤)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setFrameShape(QFrame.NoFrame)
+
+        self._grid_widget = QWidget()
+        self._grid_layout = QGridLayout(self._grid_widget)
+        self._grid_layout.setContentsMargins(6, 4, 6, 4)
+        self._grid_layout.setSpacing(3)
+        scroll.setWidget(self._grid_widget)
+        layout.addWidget(scroll, 1)
+
+    def set_equipment(self, equipment_list):
+        """장비 목록 갱신"""
+        for card in self.eq_cards.values():
+            card.setParent(None)
+            card.deleteLater()
+        self.eq_cards.clear()
+
+        while self._grid_layout.count():
+            item = self._grid_layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
+
+        for idx, eq in enumerate(equipment_list):
+            card = EquipmentMiniCard(eq)
+            card.clicked.connect(self._on_eq_card_clicked)
+            self.eq_cards[eq.id] = card
+            row = idx // 2
+            col = idx % 2
+            self._grid_layout.addWidget(card, row, col)
+
+        self.eq_count_badge.setText(f"{len(equipment_list)}개")
+
+    def set_eq_card_selected(self, eid: str, selected: bool):
+        if eid in self.eq_cards:
+            self.eq_cards[eid].selected = selected
+
+    def set_move_target(self, active: bool):
+        """이동 대상 모드 표시"""
+        self._move_target_mode = active
+        if active:
+            self.setObjectName("moveTarget")
+        else:
+            self.setObjectName("sectionPanel")
+        self.setStyleSheet(self.styleSheet())
+
+    def _on_eq_card_clicked(self, eid: str, ctrl: bool):
+        self.eq_card_clicked.emit(eid, ctrl)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.panel_clicked.emit("base")
+        super().mousePressEvent(event)
 
 
 class DashboardView(QWidget):
@@ -136,11 +231,16 @@ class DashboardView(QWidget):
 
         # 인원 컨테이너 (헤더 숨김)
         container = VesselContainer("base", base_name, "base", hide_header=True)
-        container.header_clicked.connect(self._on_container_clicked)
+        container.header_clicked.connect(self._on_base_or_inventory_clicked)
         container.card_clicked.connect(self._on_card_clicked)
-        container.eq_card_clicked.connect(self._on_eq_card_clicked)
         self.containers["base"] = container
-        layout.addWidget(container, 1)
+        layout.addWidget(container, 3)
+
+        # === 장비 보유 목록 (본함 하단) ===
+        self.eq_inventory_panel = EquipmentInventoryPanel()
+        self.eq_inventory_panel.eq_card_clicked.connect(self._on_eq_card_clicked)
+        self.eq_inventory_panel.panel_clicked.connect(self._on_base_or_inventory_clicked)
+        layout.addWidget(self.eq_inventory_panel, 1)
 
         return panel
 
@@ -277,9 +377,13 @@ class DashboardView(QWidget):
             personnel = self.dm.get_personnel_at(vid)
             container.set_personnel(personnel)
 
-            # 모든 위치에 장비 인라인 표시
-            equipment = self.dm.get_equipment_at(vid)
-            container.set_equipment(equipment)
+            if vid == "base":
+                # 본함: 장비는 인벤토리 패널에 표시 (컨테이너에는 넣지 않음)
+                pass
+            else:
+                # 단정/선박: 장비 인라인 표시
+                equipment = self.dm.get_equipment_at(vid)
+                container.set_equipment(equipment)
 
             container.update_timers()
             for pid in self.selected_ids:
@@ -294,6 +398,10 @@ class DashboardView(QWidget):
             elif vid == "base":
                 self.base_count_badge.setText(f"{len(personnel)}명")
 
+        # 본함 장비 → 인벤토리 패널
+        base_equipment = self.dm.get_equipment_at("base")
+        self.eq_inventory_panel.set_equipment(base_equipment)
+
         # 섹션 총인원 뱃지 업데이트
         if hasattr(self, '_section_badges'):
             if "patrol" in self._section_badges:
@@ -301,7 +409,9 @@ class DashboardView(QWidget):
             if "vessel" in self._section_badges:
                 self._section_badges["vessel"].setText(f"{vessel_total}명")
 
+        # 장비 선택 상태 복원
         for eid in self.selected_eq_ids:
+            self.eq_inventory_panel.set_eq_card_selected(eid, True)
             for container in self.containers.values():
                 container.set_eq_card_selected(eid, True)
 
@@ -336,6 +446,24 @@ class DashboardView(QWidget):
             self._set_eq_card_selected(eid, True)
         self._update_move_targets()
 
+    def _on_base_or_inventory_clicked(self, vessel_id: str):
+        """본함 영역 또는 장비 인벤토리 클릭 → 인원은 base, 장비도 base(인벤토리)로 이동"""
+        if not self.selected_ids and not self.selected_eq_ids:
+            return
+        msgs = []
+        if self.selected_ids:
+            msg = self.dm.move_personnel_batch(list(self.selected_ids), "base")
+            if msg: msgs.append(msg)
+        if self.selected_eq_ids:
+            msg = self.dm.move_equipment_batch(list(self.selected_eq_ids), "base")
+            if msg: msgs.append(msg)
+        if msgs:
+            self.selected_ids.clear()
+            self.selected_eq_ids.clear()
+            self.refresh()
+            for msg in msgs:
+                self.log_message.emit(msg)
+
     def _on_container_clicked(self, vessel_id: str):
         if not self.selected_ids and not self.selected_eq_ids:
             return
@@ -358,6 +486,7 @@ class DashboardView(QWidget):
             container.set_card_selected(pid, selected)
 
     def _set_eq_card_selected(self, eid: str, selected: bool):
+        self.eq_inventory_panel.set_eq_card_selected(eid, selected)
         for container in self.containers.values():
             container.set_eq_card_selected(eid, selected)
 
@@ -418,3 +547,10 @@ class DashboardView(QWidget):
                 container.set_move_target(True)
             else:
                 container.set_move_target(False)
+
+        # 인벤토리 패널: 장비가 선택되어 있고, 인벤토리 내 장비가 아닌 경우 이동 대상 표시
+        has_inv_e = any(eid in self.selected_eq_ids for eid in self.eq_inventory_panel.eq_cards)
+        if has_sel and not has_inv_e:
+            self.eq_inventory_panel.set_move_target(True)
+        else:
+            self.eq_inventory_panel.set_move_target(False)

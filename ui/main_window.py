@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QLineEdit
 )
 from PySide6.QtCore import Qt, QTimer, QSize
-from PySide6.QtGui import QFont, QIcon, QColor
+from PySide6.QtGui import QFont, QIcon, QColor, QPixmap
 from core.data_manager import DataManager
 from ui.dashboard import DashboardView
 from ui.log_panel import LogPanel
@@ -72,17 +72,23 @@ class MainWindow(QMainWindow):
         logo_h.setContentsMargins(10, 8, 10, 8)
         logo_h.setSpacing(8)
 
-        # 해양경찰 마크 (앵커 아이콘)
-        mark = QLabel("⚓")
-        mark.setStyleSheet("""
-            color: #f0a500; font-size: 24px; background: transparent; border: none;
-        """)
-        mark.setFixedWidth(30)
+        # 해양경찰 마크 (이미지)
+        mark = QLabel()
+        img_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "resources", "0504_sbimg2.png"
+        )
+        if os.path.exists(img_path):
+            pixmap = QPixmap(img_path)
+            mark.setPixmap(pixmap.scaled(36, 36, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        mark.setStyleSheet("background: transparent; border: none;")
+        mark.setFixedSize(40, 40)
         logo_h.addWidget(mark)
 
         logo_title = QLabel("작전 통제 현황")
         logo_title.setStyleSheet("""
             color: #00d4ff; font-size: 14px; font-weight: bold;
+            font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
             letter-spacing: 2px; background: transparent; border: none;
         """)
         logo_h.addWidget(logo_title)
@@ -92,7 +98,7 @@ class MainWindow(QMainWindow):
 
         # 탭 버튼
         self.nav_buttons = []
-        for key, label in [("dashboard", "대시보드"), ("settings", "설정")]:
+        for key, label in [("dashboard", "  대시보드"), ("settings", "  설정")]:
             btn = QPushButton(f"  {label}")
             btn.setCheckable(True)
             btn.setFixedHeight(44)

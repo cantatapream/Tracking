@@ -268,17 +268,26 @@ class SettingsTab(QWidget):
         h.setObjectName("sectionTitlePatrol")
         h.setFixedHeight(28)
         pl.addWidget(h)
-        pr = QHBoxLayout()
-        self.patrol_name_input = QLineEdit()
-        self.patrol_name_input.setPlaceholderText("단정 이름 (예: 단정 5호)")
-        self.patrol_name_input.setFixedHeight(30)
-        pr.addWidget(self.patrol_name_input)
+
+        # 단정 프리셋 버튼 행
+        preset_row = QHBoxLayout()
+        preset_row.setSpacing(4)
+        self._selected_patrol_num = None
+        self.patrol_preset_btns = []
+        for i in range(1, 5):
+            btn = QPushButton(f"No. {i} 단정")
+            btn.setFixedHeight(30)
+            btn.setCheckable(True)
+            btn.clicked.connect(lambda checked, n=i, b=btn: self._select_patrol_preset(n, b))
+            preset_row.addWidget(btn)
+            self.patrol_preset_btns.append(btn)
+
         pb = QPushButton("추가")
         pb.setObjectName("btnAccent")
         pb.setFixedSize(50, 30)
-        pb.clicked.connect(lambda: self._add_vessel_type("patrol"))
-        pr.addWidget(pb)
-        pl.addLayout(pr)
+        pb.clicked.connect(lambda: self._add_patrol_preset())
+        preset_row.addWidget(pb)
+        pl.addLayout(preset_row)
         ps = QScrollArea()
         ps.setWidgetResizable(True)
         ps.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -382,12 +391,38 @@ class SettingsTab(QWidget):
         self.data_changed.emit()
 
     # ---- 선박 ----
+    def _select_patrol_preset(self, num, btn):
+        """단정 프리셋 버튼 선택/해제"""
+        if self._selected_patrol_num == num:
+            self._selected_patrol_num = None
+            btn.setChecked(False)
+        else:
+            self._selected_patrol_num = num
+            for b in self.patrol_preset_btns:
+                b.setChecked(b is btn)
+
+    def _add_patrol_preset(self):
+        """선택된 프리셋 단정 추가"""
+        num = self._selected_patrol_num
+        if num is None:
+            return
+        name = f"No. {num} 단정"
+        vid = f"patrol_NO{num}"
+        if vid in self.dm.vessels:
+            return  # 이미 존재
+        self.dm.add_vessel(vid, name, "patrol")
+        self._selected_patrol_num = None
+        for b in self.patrol_preset_btns:
+            b.setChecked(False)
+        self.refresh()
+        self.data_changed.emit()
+
     def _add_vessel_type(self, vtype):
-        inp = self.patrol_name_input if vtype == "patrol" else self.vessel_name_input
+        inp = self.vessel_name_input
         name = inp.text().strip()
         if not name: return
         inp.clear()
-        prefix = "patrol_" if vtype == "patrol" else "vessel_"
+        prefix = "vessel_"
         suffix = name.upper().replace(" ", "-").replace("(", "").replace(")", "")
         vid = f"{prefix}{suffix}"
         c = 1

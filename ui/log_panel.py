@@ -1,6 +1,7 @@
 """
 SPT 실시간 로그 패널 - 채팅창 스타일 (클릭으로 액션 표시)
 """
+import re
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit,
     QPushButton, QFrame, QScrollArea, QSizePolicy, QApplication,
@@ -8,6 +9,14 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 from core.data_manager import DataManager
+
+
+def _make_breakable(text: str) -> str:
+    """긴 연속 문자열에 줄바꿈 가능 지점(zero-width space) 삽입"""
+    def break_word(match):
+        word = match.group(0)
+        return '\u200b'.join([word[i:i+15] for i in range(0, len(word), 15)])
+    return re.sub(r'\S{16,}', break_word, text)
 
 
 class LogEntryWidget(QFrame):
@@ -43,7 +52,7 @@ class LogEntryWidget(QFrame):
 
         # 시간 라벨
         self.time_label = QLabel(f'[{time_str}]')
-        self.time_label.setMinimumWidth(62)
+        self.time_label.setFixedWidth(66)
         self.time_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Minimum)
         if self._checked:
             self.time_label.setObjectName("logTimeChecked")
@@ -52,17 +61,17 @@ class LogEntryWidget(QFrame):
         self.time_label.setStyleSheet(self.time_label.styleSheet())
         content_row.addWidget(self.time_label, 0, Qt.AlignTop)
 
-        # 메시지 라벨
+        # 메시지 라벨 - zero-width space로 긴 문자열 줄바꿈 가능하게
         prefix = "[메모] " if is_memo else ""
-        self.text_label = QLabel(f'{prefix}{msg}')
+        display_text = _make_breakable(f'{prefix}{msg}')
+        self.text_label = QLabel(display_text)
         if is_memo:
             self.text_label.setObjectName("logEntryMemo")
         else:
             self.text_label.setObjectName("logEntryText")
         self.text_label.setWordWrap(True)
-        self.text_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.text_label.setMinimumWidth(50)
-        self.text_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.text_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Minimum)
         content_row.addWidget(self.text_label, 1)
 
         main_layout.addLayout(content_row)
@@ -79,7 +88,7 @@ class LogEntryWidget(QFrame):
         self.action_frame = QFrame()
         self.action_frame.setObjectName("logActionFrame")
         action_layout = QHBoxLayout(self.action_frame)
-        action_layout.setContentsMargins(62, 0, 0, 0)
+        action_layout.setContentsMargins(66, 0, 0, 0)
         action_layout.setSpacing(4)
 
         self.check_btn = QPushButton("✓ 체크")
@@ -146,7 +155,7 @@ class LogEntryWidget(QFrame):
             self.edited.emit(self.log_entry, new_msg)
             is_memo = self.log_entry.get("type") == "memo"
             prefix = "[메모] " if is_memo else ""
-            self.text_label.setText(f'{prefix}{new_msg}')
+            self.text_label.setText(_make_breakable(f'{prefix}{new_msg}'))
         self._editing = False
         self.edit_input.hide()
         self.text_label.show()
@@ -181,13 +190,11 @@ class LogPanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # 제목
         title_label = QLabel("  작전 로그 (OPERATION LOG)")
         title_label.setObjectName("sectionTitle")
         title_label.setFixedHeight(36)
         layout.addWidget(title_label)
 
-        # 스크롤 가능한 로그 영역
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -202,7 +209,6 @@ class LogPanel(QWidget):
         self.scroll.setWidget(self.log_container)
         layout.addWidget(self.scroll, 1)
 
-        # 하단 메모 입력 영역 (4줄 이상)
         input_frame = QFrame()
         input_frame.setObjectName("logInputFrame")
         input_layout = QHBoxLayout(input_frame)
@@ -225,7 +231,6 @@ class LogPanel(QWidget):
 
         layout.addWidget(input_frame)
 
-        # Ctrl+Enter 전송
         self.memo_input.installEventFilter(self)
 
     def eventFilter(self, obj, event):

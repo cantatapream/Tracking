@@ -130,6 +130,8 @@ class PersonnelEditCard(QFrame):
 # ============================================================
 class EquipmentCard(QFrame):
     """장비 카드 - 이름, 담당자, 삭제"""
+    deleted_signal = Signal()
+
     def __init__(self, equipment: Equipment, data_manager: DataManager, parent=None):
         super().__init__(parent)
         self.eq = equipment
@@ -208,6 +210,7 @@ class EquipmentCard(QFrame):
     def _delete(self):
         self.dm.remove_equipment(self.eq.id)
         self.dm.add_log(f"장비 '{self.eq.name}' 삭제")
+        self.deleted_signal.emit()
         self.setParent(None)
         self.deleteLater()
 
@@ -486,6 +489,12 @@ class SettingsTab(QWidget):
             self.dm.assign_equipment(eq.id, assignee_id)
         self.eq_name_input.clear()
         self.refresh()
+        self.data_changed.emit()
+
+    def _on_equipment_deleted(self):
+        """장비 삭제 후 대시보드 갱신"""
+        self.refresh()
+        self.data_changed.emit()
 
     def _populate_eq_assignee_combo(self):
         self.eq_assignee_combo.blockSignals(True)
@@ -552,6 +561,7 @@ class SettingsTab(QWidget):
 
         for eq in self.dm.equipment:
             card = EquipmentCard(eq, self.dm)
+            card.deleted_signal.connect(self._on_equipment_deleted)
             self.eq_cards.append(card)
             self.eq_list_layout.addWidget(card)
         self.eq_list_layout.addStretch()

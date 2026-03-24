@@ -104,21 +104,23 @@ class DashboardView(QWidget):
         return panel
 
     def rebuild_containers(self):
-        """선박 목록 변경 시 컨테이너 재구성"""
-        # 기존 단정/어선 컨테이너 제거
+        """선박 목록 변경 시 컨테이너 재구성 - dm.vessels 와 정확히 일치"""
+        # 기존 단정/어선 컨테이너 모두 제거
         for vid in list(self.containers.keys()):
             if vid != "base":
                 container = self.containers.pop(vid)
                 container.setParent(None)
-                container.deleteLater()
+                container.hide()
 
-        # 단정 컨테이너 재생성
+        # 단정 스크롤 레이아웃 완전 클리어 후 재생성
         if "patrol" in self._scroll_widgets:
             widget, layout = self._scroll_widgets["patrol"]
             while layout.count():
                 item = layout.takeAt(0)
-                if item.widget():
-                    item.widget().setParent(None)
+                w = item.widget()
+                if w:
+                    w.setParent(None)
+                    w.hide()
 
             for vid, vinfo in sorted(self.dm.vessels.items()):
                 if vinfo["type"] == "patrol":
@@ -130,13 +132,15 @@ class DashboardView(QWidget):
                     layout.addWidget(container)
             layout.addStretch()
 
-        # 어선 컨테이너 재생성
+        # 어선 스크롤 레이아웃 완전 클리어 후 재생성
         if "vessel" in self._scroll_widgets:
             widget, layout = self._scroll_widgets["vessel"]
             while layout.count():
                 item = layout.takeAt(0)
-                if item.widget():
-                    item.widget().setParent(None)
+                w = item.widget()
+                if w:
+                    w.setParent(None)
+                    w.hide()
 
             for vid, vinfo in sorted(self.dm.vessels.items()):
                 if vinfo["type"] == "vessel":

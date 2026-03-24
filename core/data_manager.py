@@ -30,8 +30,39 @@ class DataManager:
 
     # ---- 작전 관리 ----
     def new_operation(self):
-        """새 작전 시작"""
-        self._init_defaults()
+        """새 작전 시작 - 직전 작전의 인원/장비/단정 유지, 중국어선 제외, 모든 위치 본함"""
+        ops = self.list_operations()
+
+        if ops:
+            # 직전 작전에서 인원/장비/단정 가져오기
+            last_file = ops[0]["filepath"]
+            self._load_from_file(last_file)
+
+            # 인원: 모두 본함으로, 타이머 초기화
+            for p in self.personnel:
+                p.location = "base"
+                p.status = "standby"
+                p.deploy_timestamp = None
+                p.last_return_timestamp = None
+                p.total_deploy_seconds = 0.0
+                p.has_been_deployed = False
+
+            # 장비: 모두 본함으로, 타이머 초기화
+            for e in self.equipment:
+                e.vessel_id = ""
+                e.is_running = False
+                e.run_start_timestamp = None
+                e.total_run_seconds = 0.0
+
+            # 중국어선 제거, 단정과 본함만 유지
+            self.vessels = {vid: vinfo for vid, vinfo in self.vessels.items()
+                           if vinfo["type"] != "vessel"}
+
+            # 로그 초기화
+            self.logs = []
+        else:
+            self._init_defaults()
+
         self.operation_title = ""
         self._created_at = time.time()
         ts = time.strftime("%Y%m%d_%H%M%S")
@@ -66,25 +97,21 @@ class DataManager:
         return ops
 
     def delete_operation(self, filepath: str):
-        """작전 삭제"""
         if os.path.exists(filepath) and filepath != self._current_file:
             os.remove(filepath)
 
     def set_title(self, title: str):
-        """작전 제목 설정"""
         self.operation_title = title
         self.save()
 
     # ---- 데이터 로드/저장 ----
     def load(self) -> bool:
-        """기본 status.json에서 데이터 로드 (하위 호환)"""
         if not os.path.exists(STATUS_FILE):
             self._init_defaults()
             return False
         return self._load_from_file(STATUS_FILE)
 
     def _load_from_file(self, filepath: str) -> bool:
-        """특정 파일에서 데이터 로드"""
         if not os.path.exists(filepath):
             self._init_defaults()
             return False
@@ -102,7 +129,6 @@ class DataManager:
                 if "type" not in log:
                     log["type"] = "auto"
 
-            # 기존 memos 마이그레이션
             old_memos = data.get("memos", [])
             for memo in old_memos:
                 self.logs.append({
@@ -130,7 +156,6 @@ class DataManager:
         self.operation_title = ""
 
     def save(self):
-        """현재 작전 파일에 저장"""
         data = {
             "personnel": [p.to_dict() for p in self.personnel],
             "equipment": [e.to_dict() for e in self.equipment],
@@ -300,6 +325,10 @@ class DataManager:
         if vessel_id in self.vessels and vessel_id != "base":
             for p in self.get_personnel_at(vessel_id):
                 self.move_personnel(p.id, "base")
+            # 해당 선박의 장비도 본함으로
+            for e in self.equipment:
+                if e.vessel_id == vessel_id:
+                    e.vessel_id = ""
             del self.vessels[vessel_id]
             self.save()
 

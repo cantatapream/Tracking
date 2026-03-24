@@ -69,14 +69,15 @@ class DashboardView(QWidget):
         # 제목 행: 본함 이름 (클릭 편집) + 인원 뱃지
         title_frame = QFrame()
         title_frame.setObjectName("sectionTitle")
-        title_frame.setMinimumHeight(36)
+        title_frame.setMinimumHeight(56)
         title_h = QHBoxLayout(title_frame)
-        title_h.setContentsMargins(10, 4, 10, 4)
+        title_h.setContentsMargins(12, 6, 12, 6)
         title_h.setSpacing(8)
 
         base_name = self.dm.vessels.get("base", {}).get("name", "본함 (KCG 3012)")
-        self.base_title_label = QLabel(f"  {base_name}")
+        self.base_title_label = QLabel(base_name)
         self.base_title_label.setObjectName("sectionTitle")
+        self.base_title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.base_title_label.setCursor(Qt.PointingHandCursor)
         self.base_title_label.mouseDoubleClickEvent = self._start_base_name_edit
         title_h.addWidget(self.base_title_label)
@@ -133,7 +134,7 @@ class DashboardView(QWidget):
         if new_name and "base" in self.dm.vessels:
             self.dm.vessels["base"]["name"] = new_name
             self.dm.save()
-            self.base_title_label.setText(f"  {new_name}")
+            self.base_title_label.setText(new_name)
         self.base_title_input.hide()
         self.base_title_confirm_btn.hide()
         self.base_title_label.show()
@@ -149,13 +150,14 @@ class DashboardView(QWidget):
         # 제목 행: 타이틀 + 총인원 뱃지
         title_frame = QFrame()
         title_frame.setObjectName(title_style)
-        title_frame.setMinimumHeight(36)
+        title_frame.setMinimumHeight(56)
         title_h = QHBoxLayout(title_frame)
-        title_h.setContentsMargins(10, 4, 10, 4)
+        title_h.setContentsMargins(12, 6, 12, 6)
         title_h.setSpacing(8)
 
-        title_label = QLabel(f"  {title}")
+        title_label = QLabel(title)
         title_label.setObjectName(title_style)
+        title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         title_h.addWidget(title_label)
         title_h.addStretch()
 
@@ -249,10 +251,9 @@ class DashboardView(QWidget):
             personnel = self.dm.get_personnel_at(vid)
             container.set_personnel(personnel)
 
-            # 단정/어선에만 장비 인라인 표시
-            if vid != "base":
-                equipment = self.dm.get_equipment_at(vid)
-                container.set_equipment(equipment)
+            # 모든 위치에 장비 인라인 표시
+            equipment = self.dm.get_equipment_at(vid)
+            container.set_equipment(equipment)
 
             container.update_timers()
             for pid in self.selected_ids:

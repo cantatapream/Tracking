@@ -41,8 +41,7 @@ class PersonnelCard(QFrame):
         self._selected = False
         self._alert = False
         self.setCursor(Qt.PointingHandCursor)
-        self.setMinimumHeight(48)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         self._setup_ui()
         self.update_style()
 
@@ -74,16 +73,16 @@ class PersonnelCard(QFrame):
         self.timer_line1 = QLabel("")
         self.timer_line1.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.timer_line1.setObjectName("cardTimerInfo")
-        self.timer_line1.setMinimumWidth(0)
+        self.timer_line1.setWordWrap(True)
         right_layout.addWidget(self.timer_line1)
 
         self.timer_line2 = QLabel("")
         self.timer_line2.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.timer_line2.setObjectName("cardTimerInfo2")
-        self.timer_line2.setMinimumWidth(0)
+        self.timer_line2.setWordWrap(True)
         right_layout.addWidget(self.timer_line2)
 
-        layout.addLayout(right_layout)
+        layout.addLayout(right_layout, 1)
 
     def update_display(self):
         """실시간 정보 업데이트"""

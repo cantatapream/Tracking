@@ -37,7 +37,7 @@ class LogEntryWidget(QFrame):
         self._actions_visible = False
         self._confirm_delete = False
         self._checked = log_entry.get("checked", False)
-        self.setObjectName("logEntry")
+        self.setObjectName("logEntryChecked" if self._checked else "logEntry")
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.setMinimumHeight(26)
         self.setCursor(Qt.PointingHandCursor)
@@ -226,11 +226,14 @@ class LogEntryWidget(QFrame):
         self.log_entry["checked"] = self._checked
         self.checked_changed.emit(self.log_entry, self._checked)
         if self._checked:
+            self.setObjectName("logEntryChecked")
             self.time_label.setObjectName("logTimeChecked")
             self.check_btn.setObjectName("logCheckBtnActive")
         else:
+            self.setObjectName("logEntry")
             self.time_label.setObjectName("logTime")
             self.check_btn.setObjectName("logCheckBtn")
+        self.setStyleSheet(self.styleSheet())
         self.time_label.setStyleSheet(self.time_label.styleSheet())
         self.check_btn.setStyleSheet(self.check_btn.styleSheet())
 
@@ -277,13 +280,14 @@ class LogPanel(QWidget):
         # 제목 행: 작전 로그 + 내보내기 버튼
         title_frame = QFrame()
         title_frame.setObjectName("sectionTitle")
-        title_frame.setMinimumHeight(36)
+        title_frame.setMinimumHeight(56)
         title_h = QHBoxLayout(title_frame)
-        title_h.setContentsMargins(10, 4, 10, 4)
+        title_h.setContentsMargins(12, 6, 12, 6)
         title_h.setSpacing(8)
 
         title_label = QLabel("작전 로그")
         title_label.setObjectName("sectionTitle")
+        title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         title_h.addWidget(title_label)
         title_h.addStretch()
 

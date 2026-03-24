@@ -93,7 +93,6 @@ class VesselContainer(QFrame):
         self._editing_name = False
         self.setCursor(Qt.PointingHandCursor)
         if not hide_header:
-            self.setMinimumHeight(100)
             self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self._setup_ui()
 
@@ -164,13 +163,17 @@ class VesselContainer(QFrame):
         self.cards_layout.setSpacing(3)
         self.cards_layout.addStretch()
 
-        scroll = QScrollArea()
-        scroll.setWidget(self.cards_widget)
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet("background: transparent;")
-        layout.addWidget(scroll)
+        if self.vessel_type == "base":
+            scroll = QScrollArea()
+            scroll.setWidget(self.cards_widget)
+            scroll.setWidgetResizable(True)
+            scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            scroll.setFrameShape(QFrame.NoFrame)
+            scroll.setStyleSheet("background: transparent;")
+            layout.addWidget(scroll)
+        else:
+            # 비본함: 스크롤 없이 직접 배치 (내용에 따라 확장)
+            layout.addWidget(self.cards_widget)
 
     def set_personnel(self, personnel_list: List[Personnel]):
         """대원 카드 갱신"""
@@ -434,8 +437,43 @@ class DraggableVesselList(QWidget):
     def dragMoveEvent(self, event):
         if event.mimeData().hasText():
             event.acceptProposedAction()
+            pos = event.position().toPoint()
+            new_idx = len(self._containers)
+            for i, c in enumerate(self._containers):
+                if pos.y() < c.geometry().center().y():
+                    new_idx = i
+                    break
+            if new_idx != self._drop_indicator_idx:
+                self._drop_indicator_idx = new_idx
+                self.update()
+
+    def dragLeaveEvent(self, event):
+        self._drop_indicator_idx = -1
+        self.update()
+        super().dragLeaveEvent(event)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self._drop_indicator_idx < 0 or not self._containers:
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        if self._drop_indicator_idx < len(self._containers):
+            y = self._containers[self._drop_indicator_idx].geometry().top() - 3
+        else:
+            y = self._containers[-1].geometry().bottom() + 3
+        pen = QPen(QColor("#f39c12"), 3)
+        painter.setPen(pen)
+        painter.drawLine(8, y, self.width() - 8, y)
+        painter.setBrush(QColor("#f39c12"))
+        painter.setPen(Qt.NoPen)
+        painter.drawEllipse(2, y - 4, 8, 8)
+        painter.drawEllipse(self.width() - 10, y - 4, 8, 8)
+        painter.end()
 
     def dropEvent(self, event):
+        self._drop_indicator_idx = -1
+        self.update()
         """드롭 시 순서 변경"""
         if not event.mimeData().hasText():
             return

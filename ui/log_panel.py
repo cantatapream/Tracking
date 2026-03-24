@@ -3,23 +3,26 @@ SPT 실시간 로그 패널 - 채팅창 스타일 (세로 배치)
 """
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit,
-    QPushButton, QFrame, QScrollArea, QSizePolicy, QApplication
+    QPushButton, QFrame, QScrollArea, QSizePolicy, QApplication,
+    QTextEdit, QCheckBox
 )
 from PySide6.QtCore import Qt, Signal
 from core.data_manager import DataManager
 
 
 class LogEntryWidget(QFrame):
-    """개별 로그 항목 위젯 - 호버 시 복사/수정/삭제 버튼 표시"""
+    """개별 로그 항목 위젯 - 호버 시 복사/수정/삭제/체크 버튼 표시"""
     deleted = Signal(object)  # log_entry dict
     edited = Signal(object, str)  # log_entry dict, new_message
+    checked_changed = Signal(object, bool)  # log_entry dict, checked
 
     def __init__(self, log_entry: dict, parent=None):
         super().__init__(parent)
         self.log_entry = log_entry
         self._editing = False
+        self._checked = log_entry.get("checked", False)
         self.setObjectName("logEntry")
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.setMinimumHeight(26)
         self._setup_ui()
 
@@ -32,13 +35,25 @@ class LogEntryWidget(QFrame):
         time_str = self.log_entry.get("time_str", "")
         is_memo = self.log_entry.get("type") == "memo"
 
+        # 시간 라벨 (체크 시 배경색 변경)
+        self.time_label = QLabel(f'[{time_str}]')
+        self.time_label.setFixedWidth(70)
+        if self._checked:
+            self.time_label.setObjectName("logTimeChecked")
+        else:
+            self.time_label.setObjectName("logTime")
+        self.time_label.setStyleSheet(self.time_label.styleSheet())
+        layout.addWidget(self.time_label)
+
+        # 메시지 라벨
         prefix = "[메모] " if is_memo else ""
-        self.text_label = QLabel(f'[{time_str}] {prefix}{msg}')
+        self.text_label = QLabel(f'{prefix}{msg}')
         if is_memo:
             self.text_label.setObjectName("logEntryMemo")
         else:
             self.text_label.setObjectName("logEntryText")
         self.text_label.setWordWrap(True)
+        self.text_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         layout.addWidget(self.text_label, 1)
 
         # 수정용 입력 (평소 숨김)
@@ -55,6 +70,12 @@ class LogEntryWidget(QFrame):
         btn_layout = QHBoxLayout(self.btn_frame)
         btn_layout.setContentsMargins(0, 0, 0, 0)
         btn_layout.setSpacing(2)
+
+        self.check_btn = QPushButton("✓")
+        self.check_btn.setObjectName("logCheckBtn" if not self._checked else "logCheckBtnActive")
+        self.check_btn.setFixedSize(24, 20)
+        self.check_btn.clicked.connect(self._toggle_check)
+        btn_layout.addWidget(self.check_btn)
 
         self.copy_btn = QPushButton("복사")
         self.copy_btn.setObjectName("logActionBtn")
@@ -106,11 +127,24 @@ class LogEntryWidget(QFrame):
             self.edited.emit(self.log_entry, new_msg)
             is_memo = self.log_entry.get("type") == "memo"
             prefix = "[메모] " if is_memo else ""
-            time_str = self.log_entry.get("time_str", "")
-            self.text_label.setText(f'[{time_str}] {prefix}{new_msg}')
+            self.text_label.setText(f'{prefix}{new_msg}')
         self._editing = False
         self.edit_input.hide()
         self.text_label.show()
+
+    def _toggle_check(self):
+        self._checked = not self._checked
+        self.log_entry["checked"] = self._checked
+        self.checked_changed.emit(self.log_entry, self._checked)
+
+        if self._checked:
+            self.time_label.setObjectName("logTimeChecked")
+            self.check_btn.setObjectName("logCheckBtnActive")
+        else:
+            self.time_label.setObjectName("logTime")
+            self.check_btn.setObjectName("logCheckBtn")
+        self.time_label.setStyleSheet(self.time_label.styleSheet())
+        self.check_btn.setStyleSheet(self.check_btn.styleSheet())
 
 
 class LogPanel(QWidget):
@@ -150,28 +184,40 @@ class LogPanel(QWidget):
         self.scroll.setWidget(self.log_container)
         layout.addWidget(self.scroll, 1)
 
-        # 하단 메모 입력 영역
+        # 하단 메모 입력 영역 (4줄 이상)
         input_frame = QFrame()
         input_frame.setObjectName("logInputFrame")
         input_layout = QHBoxLayout(input_frame)
         input_layout.setContentsMargins(6, 4, 6, 4)
         input_layout.setSpacing(4)
 
-        self.memo_input = QLineEdit()
+        self.memo_input = QTextEdit()
         self.memo_input.setObjectName("memoInput")
-        self.memo_input.setPlaceholderText("메모 입력 후 Enter...")
-        self.memo_input.setFixedHeight(32)
-        self.memo_input.returnPressed.connect(self._add_memo)
+        self.memo_input.setPlaceholderText("메모 입력 후 Ctrl+Enter로 전송...")
+        self.memo_input.setFixedHeight(80)
+        self.memo_input.setAcceptRichText(False)
         input_layout.addWidget(self.memo_input)
 
         send_btn = QPushButton("입력")
         send_btn.setObjectName("btnAccent")
-        send_btn.setFixedHeight(32)
+        send_btn.setFixedHeight(80)
         send_btn.setFixedWidth(50)
         send_btn.clicked.connect(self._add_memo)
         input_layout.addWidget(send_btn)
 
         layout.addWidget(input_frame)
+
+        # Ctrl+Enter로 전송
+        self.memo_input.installEventFilter(self)
+
+    def eventFilter(self, obj, event):
+        if obj == self.memo_input and event.type() == event.Type.KeyPress:
+            from PySide6.QtCore import Qt
+            if event.key() in (Qt.Key_Return, Qt.Key_Enter):
+                if event.modifiers() & Qt.ControlModifier:
+                    self._add_memo()
+                    return True
+        return super().eventFilter(obj, event)
 
     def _load_existing_logs(self):
         """기존 로그 불러오기"""
@@ -184,6 +230,7 @@ class LogPanel(QWidget):
         widget = LogEntryWidget(log_entry)
         widget.deleted.connect(self._on_delete)
         widget.edited.connect(self._on_edit)
+        widget.checked_changed.connect(self._on_checked)
         self.entry_widgets.append(widget)
         # stretch 앞에 삽입
         idx = self.log_layout.count() - 1  # stretch 위치
@@ -191,16 +238,14 @@ class LogPanel(QWidget):
 
     def append_log(self, message: str):
         """새 로그 추가 (외부에서 호출)"""
-        # dm.add_log는 이미 호출된 상태이므로, 마지막 로그 항목을 위젯으로 추가
         if self.dm.logs:
             last_log = self.dm.logs[-1]
-            # 이미 위젯이 있는지 확인
             if not self.entry_widgets or self.entry_widgets[-1].log_entry is not last_log:
                 self._add_entry_widget(last_log)
         self._scroll_to_bottom()
 
     def _add_memo(self):
-        text = self.memo_input.text().strip()
+        text = self.memo_input.toPlainText().strip()
         if not text:
             return
         entry = self.dm.add_memo(text)
@@ -214,6 +259,10 @@ class LogPanel(QWidget):
 
     def _on_edit(self, log_entry, new_msg):
         self.dm.edit_log(log_entry, new_msg)
+
+    def _on_checked(self, log_entry, checked):
+        """체크 상태 변경 시 저장"""
+        self.dm.save()
 
     def _rebuild_entries(self):
         """전체 로그 항목 다시 구성"""

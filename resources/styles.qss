@@ -95,36 +95,38 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
         stop:0 #0d1f3c, stop:1 #0a1628);
     border-bottom: 1px solid #1a2d4a;
-    min-height: 56px;
+    min-height: 48px;
 }
 
 #headerTitle {
-    color: #00d4ff;
-    font-size: 18px;
+    color: #e0e8f0;
+    font-size: 16px;
     font-weight: bold;
-    letter-spacing: 2px;
+    letter-spacing: 1px;
 }
 
 #headerTitleInput {
-    background: rgba(0, 212, 255, 0.08);
-    color: #00d4ff;
-    border: 1px solid #00d4ff;
-    border-radius: 6px;
+    background: rgba(0, 212, 255, 0.06);
+    color: #e0e8f0;
+    border: 1px solid rgba(0, 212, 255, 0.4);
+    border-radius: 4px;
     padding: 4px 10px;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: bold;
+    letter-spacing: 1px;
 }
 
 #headerClock {
     color: #f0a500;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: bold;
     font-family: "Consolas", "Courier New", monospace;
 }
 
-#headerSubtitle {
+#headerDate {
     color: #5a7a9a;
     font-size: 11px;
+    font-family: "Consolas", "Courier New", monospace;
 }
 
 /* === Section Panels === */
@@ -137,26 +139,29 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 
 #sectionTitle {
     color: #00d4ff;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: bold;
     padding: 6px 10px;
-    border-bottom: 1px solid rgba(0, 212, 255, 0.15);
+    letter-spacing: 1px;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.12);
 }
 
 #sectionTitlePatrol {
     color: #2ecc71;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: bold;
     padding: 6px 10px;
-    border-bottom: 1px solid rgba(46, 204, 113, 0.15);
+    letter-spacing: 1px;
+    border-bottom: 1px solid rgba(46, 204, 113, 0.12);
 }
 
 #sectionTitleVessel {
     color: #f39c12;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: bold;
     padding: 6px 10px;
-    border-bottom: 1px solid rgba(243, 156, 18, 0.15);
+    letter-spacing: 1px;
+    border-bottom: 1px solid rgba(243, 156, 18, 0.12);
 }
 
 /* === Vessel Containers (nested) === */

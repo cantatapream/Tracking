@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QSizePolicy, QSplitter
 )
 from PySide6.QtCore import Qt, Signal, QTimer
-from ui.vessel_container import VesselContainer
+from ui.vessel_container import VesselContainer, EquipmentMiniCard
 from core.data_manager import DataManager
 from typing import List, Set
 
@@ -21,6 +21,7 @@ class DashboardView(QWidget):
         self.selected_ids: Set[str] = set()
         self.selected_eq_ids: Set[str] = set()
         self.containers: dict[str, VesselContainer] = {}
+        self.base_eq_cards: dict[str, EquipmentMiniCard] = {}
         self._setup_ui()
         self._setup_timer()
         self.refresh()
@@ -30,8 +31,8 @@ class DashboardView(QWidget):
         main_layout.setContentsMargins(8, 8, 8, 8)
         main_layout.setSpacing(8)
 
-        # === 좌측: 본함 ===
-        self.base_panel = self._create_section("본함 (BASE SHIP)", "sectionTitle", "base")
+        # === 좌측: 본함 (인원 3/4 + 장비 1/4) ===
+        self.base_panel = self._create_base_section()
         main_layout.addWidget(self.base_panel, 1)
 
         # === 중앙: 단정 ===
@@ -46,8 +47,8 @@ class DashboardView(QWidget):
         )
         main_layout.addWidget(self.vessel_panel, 1)
 
-    def _create_section(self, title: str, title_style: str, section_type: str) -> QFrame:
-        """본함용 단일 섹션"""
+    def _create_base_section(self) -> QFrame:
+        """본함 섹션: 인원(상) + 장비(하) 분리"""
         panel = QFrame()
         panel.setObjectName("sectionPanel")
         layout = QVBoxLayout(panel)
@@ -55,18 +56,47 @@ class DashboardView(QWidget):
         layout.setSpacing(0)
 
         # 제목
-        title_label = QLabel(f"  {title}")
-        title_label.setObjectName(title_style)
-        title_label.setFixedHeight(40)
+        title_label = QLabel("  본함 (BASE SHIP)")
+        title_label.setObjectName("sectionTitle")
+        title_label.setFixedHeight(36)
         layout.addWidget(title_label)
 
-        # 본함 컨테이너
+        # 인원 컨테이너 (3/4)
         container = VesselContainer("base", "본함 (KCG 3012)", "base")
         container.header_clicked.connect(self._on_container_clicked)
         container.card_clicked.connect(self._on_card_clicked)
         container.eq_card_clicked.connect(self._on_eq_card_clicked)
         self.containers["base"] = container
-        layout.addWidget(container)
+        layout.addWidget(container, 3)
+
+        # 장비 영역 (1/4, 고정)
+        eq_frame = QFrame()
+        eq_frame.setObjectName("vesselContainer")
+        eq_layout = QVBoxLayout(eq_frame)
+        eq_layout.setContentsMargins(6, 4, 6, 6)
+        eq_layout.setSpacing(3)
+
+        eq_header = QLabel("  장비 (EQUIPMENT)")
+        eq_header.setObjectName("equipmentSectionHeader")
+        eq_header.setFixedHeight(24)
+        eq_layout.addWidget(eq_header)
+
+        eq_scroll = QScrollArea()
+        eq_scroll.setWidgetResizable(True)
+        eq_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        eq_scroll.setFrameShape(QFrame.NoFrame)
+        eq_scroll.setStyleSheet("background: transparent;")
+
+        self.base_eq_widget = QWidget()
+        self.base_eq_layout = QVBoxLayout(self.base_eq_widget)
+        self.base_eq_layout.setContentsMargins(0, 0, 0, 0)
+        self.base_eq_layout.setSpacing(2)
+        self.base_eq_layout.addStretch()
+
+        eq_scroll.setWidget(self.base_eq_widget)
+        eq_layout.addWidget(eq_scroll)
+
+        layout.addWidget(eq_frame, 1)
 
         return panel
 
@@ -78,13 +108,11 @@ class DashboardView(QWidget):
         panel_layout.setContentsMargins(0, 0, 0, 0)
         panel_layout.setSpacing(0)
 
-        # 제목
         title_label = QLabel(f"  {title}")
         title_label.setObjectName(title_style)
-        title_label.setFixedHeight(40)
+        title_label.setFixedHeight(36)
         panel_layout.addWidget(title_label)
 
-        # 스크롤 영역
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -104,53 +132,68 @@ class DashboardView(QWidget):
         return panel
 
     def rebuild_containers(self):
-        """선박 목록 변경 시 컨테이너 재구성 - dm.vessels 와 정확히 일치"""
-        # 기존 단정/어선 컨테이너 모두 제거
+        """선박 목록 변경 시 컨테이너 재구성"""
         for vid in list(self.containers.keys()):
             if vid != "base":
-                container = self.containers.pop(vid)
-                container.setParent(None)
-                container.hide()
+                c = self.containers.pop(vid)
+                c.setParent(None)
+                c.hide()
 
-        # 단정 스크롤 레이아웃 완전 클리어 후 재생성
         if "patrol" in self._scroll_widgets:
             widget, layout = self._scroll_widgets["patrol"]
             while layout.count():
                 item = layout.takeAt(0)
                 w = item.widget()
                 if w:
-                    w.setParent(None)
-                    w.hide()
+                    w.setParent(None); w.hide()
 
             for vid, vinfo in sorted(self.dm.vessels.items()):
                 if vinfo["type"] == "patrol":
-                    container = VesselContainer(vid, vinfo["name"], "patrol")
-                    container.header_clicked.connect(self._on_container_clicked)
-                    container.card_clicked.connect(self._on_card_clicked)
-                    container.eq_card_clicked.connect(self._on_eq_card_clicked)
-                    self.containers[vid] = container
-                    layout.addWidget(container)
+                    c = VesselContainer(vid, vinfo["name"], "patrol")
+                    c.header_clicked.connect(self._on_container_clicked)
+                    c.card_clicked.connect(self._on_card_clicked)
+                    c.eq_card_clicked.connect(self._on_eq_card_clicked)
+                    self.containers[vid] = c
+                    layout.addWidget(c)
             layout.addStretch()
 
-        # 어선 스크롤 레이아웃 완전 클리어 후 재생성
         if "vessel" in self._scroll_widgets:
             widget, layout = self._scroll_widgets["vessel"]
             while layout.count():
                 item = layout.takeAt(0)
                 w = item.widget()
                 if w:
-                    w.setParent(None)
-                    w.hide()
+                    w.setParent(None); w.hide()
 
             for vid, vinfo in sorted(self.dm.vessels.items()):
                 if vinfo["type"] == "vessel":
-                    container = VesselContainer(vid, vinfo["name"], "vessel")
-                    container.header_clicked.connect(self._on_container_clicked)
-                    container.card_clicked.connect(self._on_card_clicked)
-                    container.eq_card_clicked.connect(self._on_eq_card_clicked)
-                    self.containers[vid] = container
-                    layout.addWidget(container)
+                    c = VesselContainer(vid, vinfo["name"], "vessel")
+                    c.header_clicked.connect(self._on_container_clicked)
+                    c.card_clicked.connect(self._on_card_clicked)
+                    c.eq_card_clicked.connect(self._on_eq_card_clicked)
+                    self.containers[vid] = c
+                    layout.addWidget(c)
             layout.addStretch()
+
+    def _refresh_base_equipment(self):
+        """본함 장비 영역 갱신"""
+        for card in self.base_eq_cards.values():
+            card.setParent(None)
+        self.base_eq_cards.clear()
+
+        while self.base_eq_layout.count():
+            item = self.base_eq_layout.takeAt(0)
+            w = item.widget()
+            if w:
+                w.setParent(None)
+
+        equipment = self.dm.get_equipment_at("base")
+        for eq in equipment:
+            card = EquipmentMiniCard(eq)
+            card.clicked.connect(self._on_eq_card_clicked)
+            self.base_eq_cards[eq.id] = card
+            self.base_eq_layout.addWidget(card)
+        self.base_eq_layout.addStretch()
 
     def refresh(self):
         """전체 데이터 새로고침"""
@@ -159,69 +202,60 @@ class DashboardView(QWidget):
             personnel = self.dm.get_personnel_at(vid)
             container.set_personnel(personnel)
 
-            # 장비 표시
-            equipment = self.dm.get_equipment_at(vid)
-            container.set_equipment(equipment)
+            # 단정/어선에만 장비 인라인 표시 (본함은 별도 영역)
+            if vid != "base":
+                equipment = self.dm.get_equipment_at(vid)
+                container.set_equipment(equipment)
 
             container.update_timers()
-            # 선택 상태 복원
             for pid in self.selected_ids:
                 container.set_card_selected(pid, True)
-            for eid in self.selected_eq_ids:
+
+        # 본함 장비 영역
+        self._refresh_base_equipment()
+        for eid in self.selected_eq_ids:
+            if eid in self.base_eq_cards:
+                self.base_eq_cards[eid].selected = True
+            for container in self.containers.values():
                 container.set_eq_card_selected(eid, True)
 
     def _setup_timer(self):
-        """1초 타이머 - 실시간 업데이트"""
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self._tick)
         self.update_timer.start(1000)
 
     def _tick(self):
-        """매초 타이머 업데이트"""
         for container in self.containers.values():
             container.update_timers()
 
     def _on_card_clicked(self, pid: str, ctrl: bool):
-        """대원 카드 클릭 - 항상 토글"""
         if pid in self.selected_ids:
             self.selected_ids.discard(pid)
             self._set_card_selected(pid, False)
         else:
             self.selected_ids.add(pid)
             self._set_card_selected(pid, True)
-
         self._update_move_targets()
 
     def _on_eq_card_clicked(self, eid: str, ctrl: bool):
-        """장비 카드 클릭 - 토글"""
         if eid in self.selected_eq_ids:
             self.selected_eq_ids.discard(eid)
             self._set_eq_card_selected(eid, False)
         else:
             self.selected_eq_ids.add(eid)
             self._set_eq_card_selected(eid, True)
-
         self._update_move_targets()
 
     def _on_container_clicked(self, vessel_id: str):
-        """컨테이너 헤더 클릭 → 선택된 대원/장비를 해당 선박으로 일괄 이동"""
         if not self.selected_ids and not self.selected_eq_ids:
             return
-
         msgs = []
-
         if self.selected_ids:
-            pids = list(self.selected_ids)
-            msg = self.dm.move_personnel_batch(pids, vessel_id)
-            if msg:
-                msgs.append(msg)
-
+            msg = self.dm.move_personnel_batch(list(self.selected_ids), vessel_id)
+            if msg: msgs.append(msg)
         if self.selected_eq_ids:
-            eids = list(self.selected_eq_ids)
-            msg = self.dm.move_equipment_batch(eids, vessel_id)
-            if msg:
-                msgs.append(msg)
-
+            msg = self.dm.move_equipment_batch(list(self.selected_eq_ids), vessel_id)
+            if msg: msgs.append(msg)
         if msgs:
             self.selected_ids.clear()
             self.selected_eq_ids.clear()
@@ -234,23 +268,20 @@ class DashboardView(QWidget):
             container.set_card_selected(pid, selected)
 
     def _set_eq_card_selected(self, eid: str, selected: bool):
+        # 본함 장비 영역
+        if eid in self.base_eq_cards:
+            self.base_eq_cards[eid].selected = selected
+        # 단정/어선 장비
         for container in self.containers.values():
             container.set_eq_card_selected(eid, selected)
 
-    def _clear_all_selection(self):
-        self.selected_ids.clear()
-        self.selected_eq_ids.clear()
-        for container in self.containers.values():
-            container.clear_selection()
-        self._update_move_targets()
-
     def _update_move_targets(self):
-        """선택 상태에 따라 이동 대상 하이라이트"""
-        has_selection = len(self.selected_ids) > 0 or len(self.selected_eq_ids) > 0
+        has_sel = len(self.selected_ids) > 0 or len(self.selected_eq_ids) > 0
         for vid, container in self.containers.items():
-            has_selected_here = any(pid in self.selected_ids for pid in container.cards)
-            has_eq_selected_here = any(eid in self.selected_eq_ids for eid in container.eq_cards)
-            if has_selection and not has_selected_here and not has_eq_selected_here:
+            has_p = any(pid in self.selected_ids for pid in container.cards)
+            has_e = any(eid in self.selected_eq_ids for eid in container.eq_cards)
+            has_be = any(eid in self.selected_eq_ids for eid in self.base_eq_cards)
+            if has_sel and not has_p and not has_e and not (vid == "base" and has_be):
                 container.set_move_target(True)
             else:
                 container.set_move_target(False)

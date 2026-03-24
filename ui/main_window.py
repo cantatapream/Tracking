@@ -3,6 +3,7 @@ SPT 메인 윈도우 - 사이드바 + 페이지 스택
 """
 import os
 import time
+import datetime
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton,
     QStackedWidget, QFrame, QFileDialog, QSizePolicy, QApplication,
@@ -24,18 +25,13 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1400, 850)
         self.resize(1600, 950)
 
-        # 스타일시트 로드
         self._load_styles()
-
-        # UI 구성
         self._setup_ui()
 
-        # 자동 저장 타이머 (30초)
         self.auto_save_timer = QTimer(self)
         self.auto_save_timer.timeout.connect(self.dm.save)
         self.auto_save_timer.start(30000)
 
-        # 시계 타이머
         self.clock_timer = QTimer(self)
         self.clock_timer.timeout.connect(self._update_clock)
         self.clock_timer.start(1000)
@@ -64,41 +60,42 @@ class MainWindow(QMainWindow):
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         sidebar_layout.setSpacing(0)
 
-        # 로고 영역
+        # 로고 영역 - 해양경찰 마크 + 작전 통제 현황
         logo_frame = QFrame()
-        logo_frame.setFixedHeight(70)
+        logo_frame.setFixedHeight(60)
         logo_frame.setStyleSheet("""
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                 stop:0 #0d2137, stop:1 #06101f);
             border-bottom: 1px solid #1a2d4a;
         """)
-        logo_layout = QVBoxLayout(logo_frame)
-        logo_layout.setContentsMargins(12, 10, 12, 10)
-        logo_title = QLabel("SPT")
+        logo_h = QHBoxLayout(logo_frame)
+        logo_h.setContentsMargins(10, 8, 10, 8)
+        logo_h.setSpacing(8)
+
+        # 해양경찰 마크 (앵커 아이콘)
+        mark = QLabel("⚓")
+        mark.setStyleSheet("""
+            color: #f0a500; font-size: 24px; background: transparent; border: none;
+        """)
+        mark.setFixedWidth(30)
+        logo_h.addWidget(mark)
+
+        logo_title = QLabel("작전 통제 현황")
         logo_title.setStyleSheet("""
-            color: #00d4ff; font-size: 22px; font-weight: bold;
-            letter-spacing: 4px; background: transparent; border: none;
+            color: #00d4ff; font-size: 14px; font-weight: bold;
+            letter-spacing: 2px; background: transparent; border: none;
         """)
-        logo_layout.addWidget(logo_title)
-        logo_sub = QLabel("작전 통제 현황")
-        logo_sub.setStyleSheet("""
-            color: #5a7a9a; font-size: 9px; letter-spacing: 1px;
-            background: transparent; border: none;
-        """)
-        logo_layout.addWidget(logo_sub)
+        logo_h.addWidget(logo_title)
+        logo_h.addStretch()
+
         sidebar_layout.addWidget(logo_frame)
 
         # 탭 버튼
         self.nav_buttons = []
-        nav_items = [
-            ("dashboard", "대시보드"),
-            ("settings", "설정"),
-        ]
-
-        for key, label in nav_items:
+        for key, label in [("dashboard", "대시보드"), ("settings", "설정")]:
             btn = QPushButton(f"  {label}")
             btn.setCheckable(True)
-            btn.setFixedHeight(48)
+            btn.setFixedHeight(44)
             btn.setProperty("nav_key", key)
             btn.clicked.connect(lambda checked, k=key: self._switch_page(k))
             sidebar_layout.addWidget(btn)
@@ -106,13 +103,12 @@ class MainWindow(QMainWindow):
 
         sidebar_layout.addStretch()
 
-        # Export 버튼
         export_btn = QPushButton("  데이터 내보내기")
-        export_btn.setFixedHeight(48)
+        export_btn.setFixedHeight(44)
         export_btn.setStyleSheet("""
             QPushButton {
                 background: transparent; border: none; color: #5a7a9a;
-                padding: 14px 12px; text-align: left; font-size: 12px;
+                padding: 12px 12px; text-align: left; font-size: 12px;
                 border-left: 3px solid transparent;
             }
             QPushButton:hover {
@@ -130,28 +126,26 @@ class MainWindow(QMainWindow):
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(0)
 
-        # 헤더 바 - 클릭하여 제목 편집 가능
+        # 헤더 바
         header = QFrame()
         header.setObjectName("headerBar")
         header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(20, 8, 20, 8)
+        header_layout.setContentsMargins(20, 6, 20, 6)
 
-        # 제목 영역 (클릭으로 편집)
+        # 작전명 (클릭으로 편집)
         title_layout = QVBoxLayout()
         title_layout.setSpacing(0)
 
-        # 제목 표시 라벨
-        title_text = self.dm.operation_title or "제목을 클릭하여 작전명을 입력하세요"
+        title_text = self.dm.operation_title or "클릭하여 작전명을 입력하세요"
         self.header_title = QLabel(title_text)
         self.header_title.setObjectName("headerTitle")
         self.header_title.setCursor(Qt.PointingHandCursor)
         self.header_title.mousePressEvent = self._start_title_edit
         title_layout.addWidget(self.header_title)
 
-        # 제목 편집 입력 (숨김)
         self.title_input = QLineEdit()
         self.title_input.setObjectName("headerTitleInput")
-        self.title_input.setFixedHeight(32)
+        self.title_input.setFixedHeight(30)
         self.title_input.setPlaceholderText("작전명을 입력하세요...")
         self.title_input.returnPressed.connect(self._save_title)
         self.title_input.hide()
@@ -160,7 +154,7 @@ class MainWindow(QMainWindow):
         header_layout.addLayout(title_layout, 1)
         header_layout.addStretch()
 
-        # 현재 시각
+        # 시계
         clock_layout = QVBoxLayout()
         clock_layout.setSpacing(0)
         self.clock_label = QLabel()
@@ -169,7 +163,7 @@ class MainWindow(QMainWindow):
         clock_layout.addWidget(self.clock_label)
 
         self.date_label = QLabel()
-        self.date_label.setObjectName("headerSubtitle")
+        self.date_label.setObjectName("headerDate")
         self.date_label.setAlignment(Qt.AlignRight)
         clock_layout.addWidget(self.date_label)
         header_layout.addLayout(clock_layout)
@@ -180,52 +174,51 @@ class MainWindow(QMainWindow):
         # 페이지 스택
         self.page_stack = QStackedWidget()
 
-        # === 대시보드 페이지 ===
         dashboard_page = QWidget()
-        dashboard_page_layout = QHBoxLayout(dashboard_page)
-        dashboard_page_layout.setContentsMargins(0, 0, 0, 0)
-        dashboard_page_layout.setSpacing(0)
+        dp_layout = QHBoxLayout(dashboard_page)
+        dp_layout.setContentsMargins(0, 0, 0, 0)
+        dp_layout.setSpacing(0)
 
         self.dashboard = DashboardView(self.dm)
-        dashboard_page_layout.addWidget(self.dashboard, 10)
+        dp_layout.addWidget(self.dashboard, 10)
 
         self.log_panel = LogPanel(self.dm)
-        dashboard_page_layout.addWidget(self.log_panel, 3)
+        dp_layout.addWidget(self.log_panel, 3)
 
         self.dashboard.log_message.connect(self.log_panel.append_log)
+        self.page_stack.addWidget(dashboard_page)
 
-        self.page_stack.addWidget(dashboard_page)  # 0: dashboard
-
-        # === 설정 페이지 ===
         self.settings_tab = SettingsTab(self.dm)
         self.settings_tab.data_changed.connect(self._on_data_changed)
-        self.page_stack.addWidget(self.settings_tab)  # 1: settings
+        self.page_stack.addWidget(self.settings_tab)
 
         content_layout.addWidget(self.page_stack, 1)
         main_layout.addLayout(content_layout, 1)
 
-        # 첫 번째 탭 활성화
         self._switch_page("dashboard")
 
     def _start_title_edit(self, event):
-        """제목 클릭 → 편집 모드"""
         self.header_title.hide()
-        self.title_input.setText(self.dm.operation_title)
+        if self.dm.operation_title:
+            self.title_input.setText(self.dm.operation_title)
+        else:
+            # 날짜 자동 입력
+            date_prefix = time.strftime("[%y.%m.%d] ")
+            self.title_input.setText(date_prefix)
         self.title_input.show()
         self.title_input.setFocus()
-        self.title_input.selectAll()
+        # 커서를 맨 뒤로
+        self.title_input.setCursorPosition(len(self.title_input.text()))
 
     def _save_title(self):
-        """제목 저장"""
         title = self.title_input.text().strip()
         self.dm.set_title(title)
-        self.header_title.setText(title or "제목을 클릭하여 작전명을 입력하세요")
+        self.header_title.setText(title or "클릭하여 작전명을 입력하세요")
         self.title_input.hide()
         self.header_title.show()
 
     def _switch_page(self, key: str):
-        page_map = {"dashboard": 0, "settings": 1}
-        idx = page_map.get(key, 0)
+        idx = {"dashboard": 0, "settings": 1}.get(key, 0)
         self.page_stack.setCurrentIndex(idx)
 
         for btn in self.nav_buttons:
@@ -240,13 +233,10 @@ class MainWindow(QMainWindow):
             self.settings_tab.refresh()
 
     def _update_clock(self):
-        now = time.strftime("%H:%M:%S")
-        self.clock_label.setText(now)
-        date_str = time.strftime("%Y년 %m월 %d일")
-        weekdays = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"]
-        import datetime
-        weekday = weekdays[datetime.datetime.now().weekday()]
-        self.date_label.setText(f"{date_str} {weekday}")
+        self.clock_label.setText(time.strftime("%H:%M:%S"))
+        weekdays = ["월", "화", "수", "목", "금", "토", "일"]
+        wd = weekdays[datetime.datetime.now().weekday()]
+        self.date_label.setText(time.strftime(f"%Y.%m.%d ({wd})"))
 
     def _on_data_changed(self):
         self.dashboard.refresh()
@@ -257,8 +247,7 @@ class MainWindow(QMainWindow):
             f"SPT_작전기록_{time.strftime('%Y%m%d_%H%M%S')}",
             "Excel (*.xlsx);;CSV (*.csv)"
         )
-        if not filepath:
-            return
+        if not filepath: return
         if filepath.endswith(".xlsx"):
             self.dm.export_xlsx(filepath)
         else:

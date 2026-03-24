@@ -2,6 +2,7 @@
 SPT 실시간 로그 패널 - 채팅창 스타일 (클릭으로 액션 표시)
 """
 import re
+import html as html_mod
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit,
     QPushButton, QFrame, QScrollArea, QSizePolicy, QApplication,
@@ -11,12 +12,10 @@ from PySide6.QtCore import Qt, Signal
 from core.data_manager import DataManager
 
 
-def _make_breakable(text: str) -> str:
-    """긴 연속 문자열에 줄바꿈 가능 지점(zero-width space) 삽입"""
-    def break_word(match):
-        word = match.group(0)
-        return '\u200b'.join([word[i:i+15] for i in range(0, len(word), 15)])
-    return re.sub(r'\S{16,}', break_word, text)
+def _wrap_html(text: str) -> str:
+    """HTML로 감싸서 word-break: break-all 적용"""
+    escaped = html_mod.escape(text)
+    return f'<div style="word-break:break-all;white-space:pre-wrap;">{escaped}</div>'
 
 
 class LogEntryWidget(QFrame):
@@ -61,10 +60,11 @@ class LogEntryWidget(QFrame):
         self.time_label.setStyleSheet(self.time_label.styleSheet())
         content_row.addWidget(self.time_label, 0, Qt.AlignTop)
 
-        # 메시지 라벨 - zero-width space로 긴 문자열 줄바꿈 가능하게
+        # 메시지 라벨 - Rich text로 word-break:break-all 적용
         prefix = "[메모] " if is_memo else ""
-        display_text = _make_breakable(f'{prefix}{msg}')
-        self.text_label = QLabel(display_text)
+        self.text_label = QLabel()
+        self.text_label.setTextFormat(Qt.RichText)
+        self.text_label.setText(_wrap_html(f'{prefix}{msg}'))
         if is_memo:
             self.text_label.setObjectName("logEntryMemo")
         else:
@@ -155,7 +155,7 @@ class LogEntryWidget(QFrame):
             self.edited.emit(self.log_entry, new_msg)
             is_memo = self.log_entry.get("type") == "memo"
             prefix = "[메모] " if is_memo else ""
-            self.text_label.setText(_make_breakable(f'{prefix}{new_msg}'))
+            self.text_label.setText(_wrap_html(f'{prefix}{new_msg}'))
         self._editing = False
         self.edit_input.hide()
         self.text_label.show()

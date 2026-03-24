@@ -2,7 +2,8 @@
 SPT 선박 컨테이너 위젯 - 단정/어선 하나의 독립 컨테이너 + 장비 표시
 """
 from PySide6.QtWidgets import (
-    QFrame, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QWidget, QSizePolicy
+    QFrame, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QWidget, QSizePolicy,
+    QLineEdit
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPainter, QColor, QPen
@@ -76,16 +77,19 @@ class VesselContainer(QFrame):
     header_clicked = Signal(str)  # vessel_id
     card_clicked = Signal(str, bool)  # personnel_id, ctrl
     eq_card_clicked = Signal(str, bool)  # equipment_id, ctrl
+    name_changed = Signal(str, str)  # vessel_id, new_name
 
-    def __init__(self, vessel_id: str, vessel_name: str, vessel_type: str, parent=None):
+    def __init__(self, vessel_id: str, vessel_name: str, vessel_type: str, parent=None, hide_header: bool = False):
         super().__init__(parent)
         self.vessel_id = vessel_id
         self.vessel_name = vessel_name
         self.vessel_type = vessel_type  # "base", "patrol", "vessel"
+        self._hide_header = hide_header
         self.cards: dict[str, PersonnelCard] = {}
         self.eq_cards: dict[str, EquipmentMiniCard] = {}
         self._eq_header = None
         self._move_target_mode = False
+        self._editing_name = False
         self.setCursor(Qt.PointingHandCursor)
         self._setup_ui()
 
@@ -117,7 +121,18 @@ class VesselContainer(QFrame):
 
         self.header_label = QLabel(self.vessel_name)
         self.header_label.setObjectName(header_name)
+        if self.vessel_type == "base":
+            self.header_label.setCursor(Qt.PointingHandCursor)
+            self.header_label.mouseDoubleClickEvent = self._start_name_edit
         header_layout.addWidget(self.header_label)
+
+        # 본함 이름 편집 입력
+        self.name_input = QLineEdit(self.vessel_name)
+        self.name_input.setFixedHeight(26)
+        self.name_input.setObjectName("headerTitleInput")
+        self.name_input.returnPressed.connect(self._save_name_edit)
+        self.name_input.hide()
+        header_layout.addWidget(self.name_input)
 
         header_layout.addStretch()
 
@@ -125,7 +140,18 @@ class VesselContainer(QFrame):
         self.count_badge.setObjectName(badge_name)
         header_layout.addWidget(self.count_badge)
 
+        if self._hide_header:
+            # 헤더 위젯들 숨김
+            self.header_label.hide()
+            self.name_input.hide()
+            self.count_badge.hide()
+            # 헤더 레이아웃은 추가하되 높이 0
         layout.addLayout(header_layout)
+
+        if self._hide_header:
+            # 헤더 영역 높이 최소화
+            self.header_label.setFixedHeight(0)
+            self.count_badge.setFixedHeight(0)
 
         # 카드 영역
         self.cards_widget = QWidget()
@@ -201,7 +227,7 @@ class VesselContainer(QFrame):
 
         # 장비 섹션 헤더
         self._eq_header = QLabel("  장비")
-        self._eq_header.setObjectName("equipmentSectionHeader")
+        self._eq_header.setObjectName("equipmentSectionHeaderInline")
         self._eq_header.setFixedHeight(22)
         self.cards_layout.addWidget(self._eq_header)
 
@@ -252,6 +278,28 @@ class VesselContainer(QFrame):
             else:
                 self.setObjectName("vesselContainer")
         self.setStyleSheet(self.styleSheet())
+
+    def _start_name_edit(self, event=None):
+        """본함 이름 편집 시작 (더블클릭)"""
+        if self.vessel_type != "base":
+            return
+        self._editing_name = True
+        self.header_label.hide()
+        self.name_input.setText(self.vessel_name)
+        self.name_input.show()
+        self.name_input.setFocus()
+        self.name_input.selectAll()
+
+    def _save_name_edit(self):
+        """본함 이름 편집 저장"""
+        new_name = self.name_input.text().strip()
+        if new_name:
+            self.vessel_name = new_name
+            self.header_label.setText(new_name)
+            self.name_changed.emit(self.vessel_id, new_name)
+        self.name_input.hide()
+        self.header_label.show()
+        self._editing_name = False
 
     def _on_card_clicked(self, pid: str, ctrl: bool):
         self.card_clicked.emit(pid, ctrl)

@@ -74,6 +74,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     padding: 14px 12px;
     text-align: left;
     font-size: 13px;
+    font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
     border-left: 3px solid transparent;
 }
 
@@ -141,6 +142,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     color: #00d4ff;
     font-size: 13px;
     font-weight: bold;
+    font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
     padding: 6px 10px;
     letter-spacing: 1px;
     border-bottom: 1px solid rgba(0, 212, 255, 0.12);
@@ -150,6 +152,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     color: #2ecc71;
     font-size: 13px;
     font-weight: bold;
+    font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
     padding: 6px 10px;
     letter-spacing: 1px;
     border-bottom: 1px solid rgba(46, 204, 113, 0.12);
@@ -159,6 +162,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     color: #f39c12;
     font-size: 13px;
     font-weight: bold;
+    font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
     padding: 6px 10px;
     letter-spacing: 1px;
     border-bottom: 1px solid rgba(243, 156, 18, 0.12);
@@ -205,6 +209,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     color: #8faabe;
     font-size: 12px;
     font-weight: bold;
+    font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
     padding: 6px 8px;
 }
 
@@ -212,6 +217,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     color: #2ecc71;
     font-size: 12px;
     font-weight: bold;
+    font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
     padding: 6px 8px;
 }
 
@@ -219,6 +225,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     color: #f39c12;
     font-size: 12px;
     font-weight: bold;
+    font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
     padding: 6px 8px;
 }
 
@@ -358,15 +365,15 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 }
 
 #logEntryText {
-    color: #8faabe;
+    color: #ffffff;
     font-size: 11px;
-    font-family: "Consolas", "Courier New", monospace;
+    font-family: "Malgun Gothic", "맑은 고딕", sans-serif;
 }
 
 #logEntryMemo {
     color: #f0a500;
     font-size: 11px;
-    font-family: "Consolas", "Courier New", monospace;
+    font-family: "Malgun Gothic", "맑은 고딕", sans-serif;
 }
 
 #logEditInput {
@@ -725,9 +732,20 @@ QLabel {
 }
 
 #equipmentSectionHeader {
-    color: #5a7a9a;
+    color: #8faabe;
+    font-size: 12px;
+    font-weight: bold;
+    font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
+    padding: 6px 8px;
+    border-top: 1px solid rgba(0, 212, 255, 0.15);
+    margin-top: 4px;
+}
+
+#equipmentSectionHeaderInline {
+    color: #a0c0e0;
     font-size: 11px;
     font-weight: bold;
+    font-family: "Malgun Gothic", "맑은 고딕", sans-serif;
     padding: 2px 4px;
     border-top: 1px solid rgba(0, 212, 255, 0.15);
     margin-top: 4px;

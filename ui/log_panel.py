@@ -50,22 +50,17 @@ class LogEntryWidget(QFrame):
         time_str = self.log_entry.get("time_str", "")
         is_memo = self.log_entry.get("type") == "memo"
 
-        # 본문 행
-        content_row = QHBoxLayout()
-        content_row.setSpacing(4)
-
-        # 시간 라벨
+        # 시간 라벨 (위)
         self.time_label = QLabel(f'[{time_str}]')
-        self.time_label.setFixedWidth(66)
-        self.time_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.time_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         if self._checked:
             self.time_label.setObjectName("logTimeChecked")
         else:
             self.time_label.setObjectName("logTime")
         self.time_label.setStyleSheet(self.time_label.styleSheet())
-        content_row.addWidget(self.time_label, 0, Qt.AlignTop)
+        main_layout.addWidget(self.time_label)
 
-        # 메시지 라벨 - Rich text로 word-break:break-all 적용
+        # 메시지 라벨 (아래) - Rich text로 word-break:break-all 적용
         prefix = "[메모] " if is_memo else ""
         self.text_label = QLabel()
         self.text_label.setTextFormat(Qt.RichText)
@@ -77,9 +72,7 @@ class LogEntryWidget(QFrame):
         self.text_label.setWordWrap(True)
         self.text_label.setMinimumWidth(50)
         self.text_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Minimum)
-        content_row.addWidget(self.text_label, 1)
-
-        main_layout.addLayout(content_row)
+        main_layout.addWidget(self.text_label)
 
         # 수정용 입력 (숨김)
         self.edit_input = QLineEdit(msg)
@@ -93,7 +86,7 @@ class LogEntryWidget(QFrame):
         self.action_frame = QFrame()
         self.action_frame.setObjectName("logActionFrame")
         action_layout = QHBoxLayout(self.action_frame)
-        action_layout.setContentsMargins(66, 0, 0, 0)
+        action_layout.setContentsMargins(0, 0, 0, 0)
         action_layout.setSpacing(4)
 
         self.check_btn = QPushButton("✓ 체크")
@@ -196,7 +189,7 @@ class LogPanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        title_label = QLabel("  작전 로그 (OPERATION LOG)")
+        title_label = QLabel("  작전 로그")
         title_label.setObjectName("sectionTitle")
         title_label.setFixedHeight(36)
         layout.addWidget(title_label)

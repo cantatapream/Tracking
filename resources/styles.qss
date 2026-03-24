@@ -127,25 +127,25 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 
 #sectionTitle {
     color: #00d4ff;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: bold;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-bottom: 1px solid rgba(0, 212, 255, 0.15);
 }
 
 #sectionTitlePatrol {
     color: #2ecc71;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: bold;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-bottom: 1px solid rgba(46, 204, 113, 0.15);
 }
 
 #sectionTitleVessel {
     color: #f39c12;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: bold;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-bottom: 1px solid rgba(243, 156, 18, 0.15);
 }
 
@@ -207,14 +207,14 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     padding: 6px 8px;
 }
 
-/* === Personnel Cards === */
+/* === Personnel Cards (compact) === */
 #personnelCard {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
         stop:0 rgba(15, 35, 65, 0.9), stop:1 rgba(10, 25, 50, 0.9));
     border: 1px solid #1e3a5f;
-    border-radius: 8px;
-    padding: 8px 10px;
-    margin: 2px 4px;
+    border-radius: 6px;
+    padding: 4px 8px;
+    margin: 1px 3px;
 }
 
 #personnelCard:hover {
@@ -227,23 +227,23 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
         stop:0 rgba(0, 80, 120, 0.6), stop:1 rgba(0, 60, 100, 0.6));
     border: 2px solid #00d4ff;
-    border-radius: 8px;
-    padding: 7px 9px;
-    margin: 2px 4px;
+    border-radius: 6px;
+    padding: 3px 7px;
+    margin: 1px 3px;
 }
 
 #personnelCardAlert {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
         stop:0 rgba(80, 20, 20, 0.7), stop:1 rgba(60, 15, 15, 0.7));
     border: 2px solid #e74c3c;
-    border-radius: 8px;
-    padding: 7px 9px;
-    margin: 2px 4px;
+    border-radius: 6px;
+    padding: 3px 7px;
+    margin: 1px 3px;
 }
 
 #cardName {
     color: #ffffff;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: bold;
 }
 
@@ -252,15 +252,35 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     font-size: 11px;
 }
 
-#cardTimer {
+/* === Card Timer Info (HH:MM format) === */
+#cardTimerInfo {
     color: #f0a500;
-    font-size: 15px;
+    font-size: 12px;
     font-weight: bold;
+    font-family: "Consolas", "Courier New", monospace;
+}
+
+#cardTimerInfo2 {
+    color: #3498db;
+    font-size: 11px;
+    font-family: "Consolas", "Courier New", monospace;
+}
+
+#cardTimerInfoTotal {
+    color: #8e44ad;
+    font-size: 11px;
     font-family: "Consolas", "Courier New", monospace;
 }
 
 #cardTimerAlert {
     color: #e74c3c;
+    font-size: 12px;
+    font-weight: bold;
+    font-family: "Consolas", "Courier New", monospace;
+}
+
+#cardTimer {
+    color: #f0a500;
     font-size: 15px;
     font-weight: bold;
     font-family: "Consolas", "Courier New", monospace;
@@ -274,7 +294,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 
 #cardStatusStandby {
     color: #5a7a9a;
-    font-size: 10px;
+    font-size: 11px;
 }
 
 #cardRestInfo {
@@ -297,10 +317,85 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     border-radius: 3px;
 }
 
-/* === Log Panel === */
-#logPanel {
+/* === Log Panel (Vertical / Chat Style) === */
+#logPanelVertical {
     background: #06101f;
+    border-left: 1px solid #1a2d4a;
+}
+
+#logInputFrame {
+    background: #0a1628;
     border-top: 1px solid #1a2d4a;
+}
+
+/* Log Entry Widgets */
+#logEntry {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(26, 45, 74, 0.4);
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+}
+
+#logEntry:hover {
+    background: rgba(0, 212, 255, 0.04);
+}
+
+#logEntryText {
+    color: #8faabe;
+    font-size: 11px;
+    font-family: "Consolas", "Courier New", monospace;
+}
+
+#logEntryMemo {
+    color: #f0a500;
+    font-size: 11px;
+    font-family: "Consolas", "Courier New", monospace;
+}
+
+#logEditInput {
+    background: #0d1f3c;
+    color: #c8d6e5;
+    border: 1px solid #00d4ff;
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-size: 11px;
+}
+
+#logActionFrame {
+    background: transparent;
+    border: none;
+}
+
+#logActionBtn {
+    background: rgba(30, 58, 95, 0.8);
+    color: #8faabe;
+    border: 1px solid #2a4a6f;
+    border-radius: 3px;
+    padding: 0;
+    font-size: 9px;
+    font-weight: bold;
+}
+
+#logActionBtn:hover {
+    color: #00d4ff;
+    border-color: #00d4ff;
+}
+
+#logActionBtnDanger {
+    background: rgba(95, 30, 30, 0.8);
+    color: #e74c3c;
+    border: 1px solid #8b3030;
+    border-radius: 3px;
+    padding: 0;
+    font-size: 9px;
+    font-weight: bold;
+}
+
+#logActionBtnDanger:hover {
+    border-color: #e74c3c;
+    background: #6f2525;
 }
 
 #logTextArea {
@@ -333,7 +428,7 @@ QPushButton {
     color: #c8d6e5;
     border: 1px solid #2a4a6f;
     border-radius: 6px;
-    padding: 8px 16px;
+    padding: 6px 12px;
     font-size: 12px;
     font-weight: bold;
 }
@@ -391,8 +486,8 @@ QPushButton:pressed {
     background: rgba(15, 35, 65, 0.9);
     border: 1px solid #1e3a5f;
     border-radius: 8px;
-    padding: 10px;
-    margin: 4px;
+    padding: 8px;
+    margin: 3px;
 }
 
 #equipmentCard:hover {
@@ -403,8 +498,8 @@ QPushButton:pressed {
     background: rgba(15, 50, 35, 0.9);
     border: 1px solid #2ecc71;
     border-radius: 8px;
-    padding: 10px;
-    margin: 4px;
+    padding: 8px;
+    margin: 3px;
 }
 
 #equipmentName {
@@ -431,7 +526,7 @@ QLineEdit {
     color: #c8d6e5;
     border: 1px solid #1e3a5f;
     border-radius: 6px;
-    padding: 8px 12px;
+    padding: 6px 10px;
     font-size: 13px;
     selection-background-color: #00d4ff;
     selection-color: #000000;
@@ -446,7 +541,7 @@ QComboBox {
     color: #c8d6e5;
     border: 1px solid #1e3a5f;
     border-radius: 6px;
-    padding: 6px 12px;
+    padding: 6px 10px;
     font-size: 13px;
 }
 

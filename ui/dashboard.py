@@ -26,7 +26,7 @@ class DashboardView(QWidget):
 
     def _setup_ui(self):
         main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(8, 8, 8, 0)
+        main_layout.setContentsMargins(8, 8, 8, 8)
         main_layout.setSpacing(8)
 
         # === 좌측: 본함 ===
@@ -113,7 +113,6 @@ class DashboardView(QWidget):
         # 단정 컨테이너 재생성
         if "patrol" in self._scroll_widgets:
             widget, layout = self._scroll_widgets["patrol"]
-            # clear layout
             while layout.count():
                 item = layout.takeAt(0)
                 if item.widget():
@@ -168,47 +167,28 @@ class DashboardView(QWidget):
             container.update_timers()
 
     def _on_card_clicked(self, pid: str, ctrl: bool):
-        """대원 카드 클릭"""
-        if ctrl:
-            # Ctrl+클릭: 토글 선택
-            if pid in self.selected_ids:
-                self.selected_ids.discard(pid)
-                self._set_card_selected(pid, False)
-            else:
-                self.selected_ids.add(pid)
-                self._set_card_selected(pid, True)
+        """대원 카드 클릭 - 항상 토글 (Ctrl 불필요)"""
+        if pid in self.selected_ids:
+            self.selected_ids.discard(pid)
+            self._set_card_selected(pid, False)
         else:
-            # 일반 클릭: 단일 선택
-            if pid in self.selected_ids and len(self.selected_ids) == 1:
-                # 이미 선택된 카드 클릭 → 해제
-                self.selected_ids.clear()
-                self._clear_all_selection()
-            else:
-                self._clear_all_selection()
-                self.selected_ids = {pid}
-                self._set_card_selected(pid, True)
+            self.selected_ids.add(pid)
+            self._set_card_selected(pid, True)
 
-        # 선택된 대원이 있으면 이동 대상 모드 활성화
         self._update_move_targets()
 
     def _on_container_clicked(self, vessel_id: str):
-        """컨테이너 헤더 클릭 → 선택된 대원들을 해당 선박으로 이동"""
+        """컨테이너 헤더 클릭 → 선택된 대원들을 해당 선박으로 일괄 이동"""
         if not self.selected_ids:
             return
 
-        moved = []
-        for pid in list(self.selected_ids):
-            person = self.dm.get_personnel_by_id(pid)
-            if person and person.location != vessel_id:
-                msg = self.dm.move_personnel(pid, vessel_id)
-                if msg:
-                    moved.append(msg)
+        pids = list(self.selected_ids)
+        msg = self.dm.move_personnel_batch(pids, vessel_id)
 
-        if moved:
+        if msg:
             self.selected_ids.clear()
             self.refresh()
-            for msg in moved:
-                self.log_message.emit(msg)
+            self.log_message.emit(msg)
 
     def _set_card_selected(self, pid: str, selected: bool):
         for container in self.containers.values():
@@ -224,7 +204,6 @@ class DashboardView(QWidget):
         """선택 상태에 따라 이동 대상 하이라이트"""
         has_selection = len(self.selected_ids) > 0
         for vid, container in self.containers.items():
-            # 선택된 대원이 있는 컨테이너는 하이라이트 하지 않음
             has_selected_here = any(pid in self.selected_ids for pid in container.cards)
             if has_selection and not has_selected_here:
                 container.set_move_target(True)

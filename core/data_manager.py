@@ -17,8 +17,7 @@ class DataManager:
         self.personnel: List[Personnel] = []
         self.equipment: List[Equipment] = []
         self.vessels: dict = dict(DEFAULT_VESSELS)
-        self.logs: List[dict] = []
-        self.memos: List[dict] = []
+        self.logs: List[dict] = []  # 통합 로그 (작전로그 + 메모)
         os.makedirs(DATA_DIR, exist_ok=True)
 
     def load(self) -> bool:
@@ -33,7 +32,26 @@ class DataManager:
             self.equipment = [Equipment.from_dict(e) for e in data.get("equipment", [])]
             self.vessels = data.get("vessels", dict(DEFAULT_VESSELS))
             self.logs = data.get("logs", [])
-            self.memos = data.get("memos", [])
+
+            # 기존 로그에 type 필드 없으면 추가
+            for log in self.logs:
+                if "type" not in log:
+                    log["type"] = "auto"
+
+            # 기존 memos를 logs로 마이그레이션
+            old_memos = data.get("memos", [])
+            for memo in old_memos:
+                self.logs.append({
+                    "timestamp": memo["timestamp"],
+                    "time_str": memo["time_str"],
+                    "message": memo.get("text", ""),
+                    "type": "memo"
+                })
+
+            # 타임스탬프 순 정렬
+            if old_memos:
+                self.logs.sort(key=lambda x: x.get("timestamp", 0))
+
             return True
         except (json.JSONDecodeError, KeyError):
             self._init_defaults()
@@ -46,7 +64,6 @@ class DataManager:
         self.equipment = []
         self.vessels = dict(DEFAULT_VESSELS)
         self.logs = []
-        self.memos = []
 
     def save(self):
         """status.json에 현재 상태 저장"""
@@ -55,31 +72,36 @@ class DataManager:
             "equipment": [e.to_dict() for e in self.equipment],
             "vessels": self.vessels,
             "logs": self.logs,
-            "memos": self.memos,
             "last_saved": time.time(),
         }
         with open(STATUS_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
-    def add_log(self, message: str):
+    def add_log(self, message: str, log_type: str = "auto"):
         entry = {
             "timestamp": time.time(),
             "time_str": time.strftime("%H:%M:%S"),
             "message": message,
+            "type": log_type,
         }
         self.logs.append(entry)
         self.save()
         return entry
 
     def add_memo(self, text: str):
-        entry = {
-            "timestamp": time.time(),
-            "time_str": time.strftime("%H:%M:%S"),
-            "text": text,
-        }
-        self.memos.append(entry)
+        """메모 추가 (로그에 통합)"""
+        return self.add_log(text, log_type="memo")
+
+    def edit_log(self, log_entry: dict, new_message: str):
+        """로그 메시지 수정"""
+        log_entry["message"] = new_message
         self.save()
-        return entry
+
+    def delete_log(self, log_entry: dict):
+        """로그 삭제"""
+        if log_entry in self.logs:
+            self.logs.remove(log_entry)
+            self.save()
 
     def get_personnel_by_id(self, pid: str) -> Optional[Personnel]:
         for p in self.personnel:
@@ -104,18 +126,45 @@ class DataManager:
         self.save()
         return person
 
+    def update_personnel(self, pid: str, name: str, rank: str):
+        """인원 정보 수정"""
+        person = self.get_personnel_by_id(pid)
+        if person:
+            person.name = name
+            person.rank = rank
+            self.save()
+
     def remove_personnel(self, pid: str):
         self.personnel = [p for p in self.personnel if p.id != pid]
         self.save()
 
     def move_personnel(self, pid: str, target_location: str) -> Optional[str]:
+        """단일 인원 이동 (개별 로그 생성)"""
         person = self.get_personnel_by_id(pid)
         if not person:
             return None
         old_loc = person.deploy_to(target_location)
         old_name = self.get_location_display_name(old_loc)
         new_name = self.get_location_display_name(target_location)
-        log_msg = f"{person.name} {person.rank} 이동: {old_name} → {new_name}"
+        log_msg = f"{person.name} {person.rank} : {old_name} → {new_name}"
+        self.add_log(log_msg)
+        self.save()
+        return log_msg
+
+    def move_personnel_batch(self, pids: List[str], target_location: str) -> Optional[str]:
+        """다수 인원 일괄 이동 (로그 하나로 합침)"""
+        names = []
+        for pid in pids:
+            person = self.get_personnel_by_id(pid)
+            if person and person.location != target_location:
+                person.deploy_to(target_location)
+                names.append(f"{person.name} {person.rank}")
+
+        if not names:
+            return None
+
+        target_name = self.get_location_display_name(target_location)
+        log_msg = f"{', '.join(names)} → {target_name}"
         self.add_log(log_msg)
         self.save()
         return log_msg
@@ -174,13 +223,10 @@ class DataManager:
         import csv
         with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
             writer = csv.writer(f)
-            writer.writerow(["시각", "내용"])
+            writer.writerow(["시각", "유형", "내용"])
             for log in self.logs:
-                writer.writerow([log["time_str"], log["message"]])
-            writer.writerow([])
-            writer.writerow(["메모 시각", "메모 내용"])
-            for memo in self.memos:
-                writer.writerow([memo["time_str"], memo["text"]])
+                log_type = "메모" if log.get("type") == "memo" else "작전"
+                writer.writerow([log["time_str"], log_type, log["message"]])
 
     def export_xlsx(self, filepath: str):
         try:
@@ -202,7 +248,7 @@ class DataManager:
             top=Side(style="thin"), bottom=Side(style="thin")
         )
 
-        headers = ["번호", "시각", "내용"]
+        headers = ["번호", "시각", "유형", "내용"]
         for col, h in enumerate(headers, 1):
             cell = ws_log.cell(row=1, column=col, value=h)
             cell.font = header_font
@@ -211,17 +257,20 @@ class DataManager:
             cell.border = thin_border
 
         for i, log in enumerate(self.logs, 1):
+            log_type = "메모" if log.get("type") == "memo" else "작전"
             ws_log.cell(row=i + 1, column=1, value=i).border = thin_border
             ws_log.cell(row=i + 1, column=2, value=log["time_str"]).border = thin_border
-            ws_log.cell(row=i + 1, column=3, value=log["message"]).border = thin_border
+            ws_log.cell(row=i + 1, column=3, value=log_type).border = thin_border
+            ws_log.cell(row=i + 1, column=4, value=log["message"]).border = thin_border
 
         ws_log.column_dimensions["A"].width = 8
         ws_log.column_dimensions["B"].width = 12
-        ws_log.column_dimensions["C"].width = 50
+        ws_log.column_dimensions["C"].width = 8
+        ws_log.column_dimensions["D"].width = 50
 
         # 인원 현황 시트
         ws_per = wb.create_sheet("인원 현황")
-        per_headers = ["ID", "이름", "계급", "현재 위치", "상태", "누적 탑승(분)"]
+        per_headers = ["ID", "이름", "계급", "현재 위치", "상태", "누적 이함(분)"]
         for col, h in enumerate(per_headers, 1):
             cell = ws_per.cell(row=1, column=col, value=h)
             cell.font = header_font
@@ -237,17 +286,5 @@ class DataManager:
             ws_per.cell(row=i + 1, column=4, value=loc_name).border = thin_border
             ws_per.cell(row=i + 1, column=5, value=p.status).border = thin_border
             ws_per.cell(row=i + 1, column=6, value=round(p.total_deploy_seconds / 60, 1)).border = thin_border
-
-        # 메모 시트
-        ws_memo = wb.create_sheet("메모")
-        memo_headers = ["시각", "내용"]
-        for col, h in enumerate(memo_headers, 1):
-            cell = ws_memo.cell(row=1, column=col, value=h)
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.border = thin_border
-        for i, memo in enumerate(self.memos, 1):
-            ws_memo.cell(row=i + 1, column=1, value=memo["time_str"]).border = thin_border
-            ws_memo.cell(row=i + 1, column=2, value=memo["text"]).border = thin_border
 
         wb.save(filepath)

@@ -108,23 +108,6 @@ class MainWindow(QMainWindow):
             self.nav_buttons.append(btn)
 
         sidebar_layout.addStretch()
-
-        export_btn = QPushButton("  데이터 내보내기")
-        export_btn.setFixedHeight(44)
-        export_btn.setStyleSheet("""
-            QPushButton {
-                background: transparent; border: none; color: #5a7a9a;
-                padding: 12px 12px; text-align: left; font-size: 12px;
-                border-left: 3px solid transparent;
-            }
-            QPushButton:hover {
-                color: #f0a500; background: rgba(240, 165, 0, 0.05);
-                border-left: 3px solid rgba(240, 165, 0, 0.3);
-            }
-        """)
-        export_btn.clicked.connect(self._export_data)
-        sidebar_layout.addWidget(export_btn)
-
         main_layout.addWidget(sidebar)
 
         # === 콘텐츠 영역 ===
@@ -192,6 +175,7 @@ class MainWindow(QMainWindow):
         dp_layout.addWidget(self.log_panel, 3)
 
         self.dashboard.log_message.connect(self.log_panel.append_log)
+        self.log_panel.export_requested.connect(self._export_data)
         self.page_stack.addWidget(dashboard_page)
 
         self.settings_tab = SettingsTab(self.dm)

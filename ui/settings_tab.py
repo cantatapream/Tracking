@@ -359,6 +359,7 @@ class SettingsTab(QWidget):
         self.eq_scroll.setWidgetResizable(True)
         self.eq_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.eq_scroll.setFrameShape(QFrame.NoFrame)
+        self.eq_scroll.setMinimumHeight(80)
         self.eq_list_widget = QWidget()
         self.eq_list_layout = QVBoxLayout(self.eq_list_widget)
         self.eq_list_layout.setContentsMargins(0, 0, 0, 0)
@@ -369,7 +370,7 @@ class SettingsTab(QWidget):
     def _make_title(self, text):
         lbl = QLabel(text)
         lbl.setObjectName("sectionTitle")
-        lbl.setFixedHeight(32)
+        lbl.setMinimumHeight(32)
         return lbl
 
     # ---- 인원 ----

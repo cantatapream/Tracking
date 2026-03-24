@@ -21,6 +21,7 @@ class DataManager:
         self.personnel: List[Personnel] = []
         self.equipment: List[Equipment] = []
         self.vessels: dict = dict(DEFAULT_VESSELS)
+        self.vessel_order: list = []
         self.logs: List[dict] = []
         self.operation_title: str = ""
         self._created_at: float = 0.0
@@ -121,6 +122,7 @@ class DataManager:
             self.personnel = [Personnel.from_dict(p) for p in data.get("personnel", [])]
             self.equipment = [Equipment.from_dict(e) for e in data.get("equipment", [])]
             self.vessels = data.get("vessels", dict(DEFAULT_VESSELS))
+            self.vessel_order = data.get("vessel_order", [])
             self.logs = data.get("logs", [])
             self.operation_title = data.get("operation_title", "")
             self._created_at = data.get("created_at", data.get("last_saved", 0))
@@ -160,6 +162,7 @@ class DataManager:
             "personnel": [p.to_dict() for p in self.personnel],
             "equipment": [e.to_dict() for e in self.equipment],
             "vessels": self.vessels,
+            "vessel_order": getattr(self, 'vessel_order', []),
             "logs": self.logs,
             "operation_title": self.operation_title,
             "created_at": self._created_at or time.time(),
@@ -319,6 +322,32 @@ class DataManager:
     # ---- 선박 ----
     def add_vessel(self, vessel_id: str, name: str, vessel_type: str):
         self.vessels[vessel_id] = {"name": name, "type": vessel_type}
+        # 어선인 경우 순서 목록에 추가
+        if vessel_type == "vessel":
+            if not hasattr(self, 'vessel_order') or self.vessel_order is None:
+                self.vessel_order = []
+            if vessel_id not in self.vessel_order:
+                self.vessel_order.append(vessel_id)
+        self.save()
+
+    def get_vessel_order(self) -> list:
+        """어선 표시 순서 반환"""
+        if not hasattr(self, 'vessel_order') or not self.vessel_order:
+            # 기존 어선을 이름순으로 초기화
+            self.vessel_order = sorted(
+                [vid for vid, v in self.vessels.items() if v["type"] == "vessel"]
+            )
+        # 삭제된 vessel 제거, 새로 추가된 vessel 추가
+        existing = {vid for vid, v in self.vessels.items() if v["type"] == "vessel"}
+        self.vessel_order = [vid for vid in self.vessel_order if vid in existing]
+        for vid in existing:
+            if vid not in self.vessel_order:
+                self.vessel_order.append(vid)
+        return self.vessel_order
+
+    def set_vessel_order(self, order: list):
+        """어선 표시 순서 저장"""
+        self.vessel_order = order
         self.save()
 
     def remove_vessel(self, vessel_id: str):
@@ -330,6 +359,8 @@ class DataManager:
                 if e.vessel_id == vessel_id:
                     e.vessel_id = ""
             del self.vessels[vessel_id]
+            if hasattr(self, 'vessel_order') and vessel_id in self.vessel_order:
+                self.vessel_order.remove(vessel_id)
             self.save()
 
     # ---- 내보내기 ----

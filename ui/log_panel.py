@@ -28,12 +28,14 @@ class LogEntryWidget(QFrame):
     deleted = Signal(object)
     edited = Signal(object, str)
     checked_changed = Signal(object, bool)
+    actions_opened = Signal(object)  # 다른 항목의 액션을 닫기 위해
 
     def __init__(self, log_entry: dict, parent=None):
         super().__init__(parent)
         self.log_entry = log_entry
         self._editing = False
         self._actions_visible = False
+        self._confirm_delete = False
         self._checked = log_entry.get("checked", False)
         self.setObjectName("logEntry")
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
@@ -114,12 +116,41 @@ class LogEntryWidget(QFrame):
         del_btn.setObjectName("logActionBtnDanger")
         del_btn.setFixedHeight(22)
         del_btn.setFixedWidth(40)
-        del_btn.clicked.connect(lambda: self.deleted.emit(self.log_entry))
+        del_btn.clicked.connect(self._request_delete)
         action_layout.addWidget(del_btn)
 
         action_layout.addStretch()
         self.action_frame.hide()
         main_layout.addWidget(self.action_frame)
+
+        # 삭제 확인 프레임 (숨김)
+        self.confirm_frame = QFrame()
+        self.confirm_frame.setObjectName("logActionFrame")
+        confirm_layout = QHBoxLayout(self.confirm_frame)
+        confirm_layout.setContentsMargins(0, 0, 0, 0)
+        confirm_layout.setSpacing(4)
+
+        confirm_label = QLabel("정말 삭제하시겠습니까?")
+        confirm_label.setStyleSheet("color: #e74c3c; font-size: 11px; font-weight: bold;")
+        confirm_layout.addWidget(confirm_label)
+
+        yes_btn = QPushButton("확인")
+        yes_btn.setObjectName("logActionBtnDanger")
+        yes_btn.setFixedHeight(22)
+        yes_btn.setFixedWidth(40)
+        yes_btn.clicked.connect(self._confirm_delete_action)
+        confirm_layout.addWidget(yes_btn)
+
+        no_btn = QPushButton("취소")
+        no_btn.setObjectName("logActionBtn")
+        no_btn.setFixedHeight(22)
+        no_btn.setFixedWidth(40)
+        no_btn.clicked.connect(self._cancel_delete)
+        confirm_layout.addWidget(no_btn)
+
+        confirm_layout.addStretch()
+        self.confirm_frame.hide()
+        main_layout.addWidget(self.confirm_frame)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton and not self._editing:
@@ -127,16 +158,48 @@ class LogEntryWidget(QFrame):
         super().mousePressEvent(event)
 
     def _toggle_actions(self):
+        if self._confirm_delete:
+            return
         self._actions_visible = not self._actions_visible
         if self._actions_visible:
             self.action_frame.show()
+            self.actions_opened.emit(self)
         else:
             self.action_frame.hide()
+
+    def close_actions(self):
+        """외부에서 호출하여 액션 패널 닫기"""
+        if self._actions_visible:
+            self._actions_visible = False
+            self.action_frame.hide()
+        if self._confirm_delete:
+            self._cancel_delete()
+
+    def _show_toast(self, message: str):
+        """액션 영역에 토스트 메시지 표시 (0.5초)"""
+        from PySide6.QtCore import QTimer
+        self.action_frame.hide()
+        self._actions_visible = False
+
+        toast = QLabel(message)
+        toast.setAlignment(Qt.AlignCenter)
+        toast.setStyleSheet("""
+            background: rgba(0, 212, 255, 0.15);
+            color: #00d4ff;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: bold;
+        """)
+        self.layout().addWidget(toast)
+        QTimer.singleShot(800, lambda: (toast.setParent(None), toast.deleteLater()))
 
     def _copy(self):
         clipboard = QApplication.clipboard()
         msg = self.log_entry.get("message", "")
         clipboard.setText(f'[{self.log_entry.get("time_str", "")}] {msg}')
+        self._show_toast("복사되었습니다")
 
     def _start_edit(self):
         self._editing = True
@@ -171,9 +234,31 @@ class LogEntryWidget(QFrame):
         self.time_label.setStyleSheet(self.time_label.styleSheet())
         self.check_btn.setStyleSheet(self.check_btn.styleSheet())
 
+    def _request_delete(self):
+        """삭제 확인 요청"""
+        self._confirm_delete = True
+        self.action_frame.hide()
+        self.confirm_frame.show()
+
+    def _confirm_delete_action(self):
+        """삭제 확인"""
+        self._confirm_delete = False
+        self.confirm_frame.hide()
+        self._show_toast("삭제되었습니다")
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(800, lambda: self.deleted.emit(self.log_entry))
+
+    def _cancel_delete(self):
+        """삭제 취소"""
+        self._confirm_delete = False
+        self.confirm_frame.hide()
+        self.action_frame.show()
+        self._actions_visible = True
+
 
 class LogPanel(QWidget):
     """세로형 로그 패널 - 채팅창 스타일, Ctrl+휠로 텍스트 확대/축소"""
+    export_requested = Signal()
 
     def __init__(self, data_manager: DataManager, parent=None):
         super().__init__(parent)
@@ -189,10 +274,27 @@ class LogPanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        title_label = QLabel("  작전 로그")
+        # 제목 행: 작전 로그 + 내보내기 버튼
+        title_frame = QFrame()
+        title_frame.setObjectName("sectionTitle")
+        title_frame.setMinimumHeight(36)
+        title_h = QHBoxLayout(title_frame)
+        title_h.setContentsMargins(10, 4, 10, 4)
+        title_h.setSpacing(8)
+
+        title_label = QLabel("작전 로그")
         title_label.setObjectName("sectionTitle")
-        title_label.setFixedHeight(36)
-        layout.addWidget(title_label)
+        title_h.addWidget(title_label)
+        title_h.addStretch()
+
+        export_btn = QPushButton("내보내기")
+        export_btn.setObjectName("headerConfirmBtn")
+        export_btn.setFixedHeight(24)
+        export_btn.setCursor(Qt.PointingHandCursor)
+        export_btn.clicked.connect(self.export_requested.emit)
+        title_h.addWidget(export_btn)
+
+        layout.addWidget(title_frame)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -256,9 +358,16 @@ class LogPanel(QWidget):
         widget.deleted.connect(self._on_delete)
         widget.edited.connect(self._on_edit)
         widget.checked_changed.connect(self._on_checked)
+        widget.actions_opened.connect(self._close_other_actions)
         self.entry_widgets.append(widget)
         idx = self.log_layout.count() - 1
         self.log_layout.insertWidget(idx, widget)
+
+    def _close_other_actions(self, opened_widget):
+        """다른 로그 항목의 액션 패널 닫기"""
+        for w in self.entry_widgets:
+            if w is not opened_widget:
+                w.close_actions()
 
     def append_log(self, message: str):
         if self.dm.logs:

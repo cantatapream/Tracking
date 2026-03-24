@@ -3,10 +3,10 @@ SPT 선박 컨테이너 위젯 - 단정/어선 하나의 독립 컨테이너 + �
 """
 from PySide6.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QWidget, QSizePolicy,
-    QLineEdit, QGridLayout
+    QLineEdit, QGridLayout, QApplication
 )
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QPainter, QColor, QPen
+from PySide6.QtCore import Qt, Signal, QMimeData, QPoint, QTimer
+from PySide6.QtGui import QPainter, QColor, QPen, QDrag, QPixmap
 from ui.personnel_card import PersonnelCard
 from core.models import Personnel, Equipment
 from typing import List
@@ -92,6 +92,9 @@ class VesselContainer(QFrame):
         self._move_target_mode = False
         self._editing_name = False
         self.setCursor(Qt.PointingHandCursor)
+        if not hide_header:
+            self.setMinimumHeight(100)
+            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self._setup_ui()
 
     def _setup_ui(self):
@@ -326,3 +329,153 @@ class VesselContainer(QFrame):
         if event.button() == Qt.LeftButton:
             self.header_clicked.emit(self.vessel_id)
         super().mousePressEvent(event)
+
+
+class DraggableVesselList(QWidget):
+    """드래그로 순서 변경 가능한 어선 목록 위젯"""
+    order_changed = Signal(list)  # 새로운 vessel_id 순서
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(4, 4, 4, 4)
+        self._layout.setSpacing(6)
+        self._layout.addStretch()
+        self._containers: list[VesselContainer] = []
+        self._drag_container = None
+        self._drag_start_pos = None
+        self._drag_timer = QTimer(self)
+        self._drag_timer.setSingleShot(True)
+        self._drag_timer.setInterval(300)  # 300ms 롱프레스
+        self._drag_timer.timeout.connect(self._start_drag)
+        self._drop_indicator_idx = -1
+        self.setAcceptDrops(True)
+
+    def clear(self):
+        """모든 컨테이너 제거"""
+        self._containers.clear()
+        while self._layout.count():
+            item = self._layout.takeAt(0)
+            w = item.widget()
+            if w:
+                w.setParent(None)
+                w.hide()
+
+    def add_container(self, container: VesselContainer):
+        """컨테이너 추가"""
+        # stretch 제거 후 추가
+        last_idx = self._layout.count() - 1
+        if last_idx >= 0:
+            self._layout.takeAt(last_idx)
+        self._containers.append(container)
+        self._layout.addWidget(container)
+        self._layout.addStretch()
+
+    def get_order(self) -> list:
+        """현재 순서의 vessel_id 목록"""
+        return [c.vessel_id for c in self._containers]
+
+    def _find_container_at(self, pos) -> tuple:
+        """위치에 해당하는 컨테이너와 인덱스"""
+        for i, c in enumerate(self._containers):
+            if c.geometry().contains(pos):
+                return c, i
+        return None, -1
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            c, idx = self._find_container_at(event.position().toPoint())
+            if c:
+                self._drag_container = c
+                self._drag_start_pos = event.position().toPoint()
+                self._drag_timer.start()
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self._drag_timer.isActive() and self._drag_start_pos:
+            dist = (event.position().toPoint() - self._drag_start_pos).manhattanLength()
+            if dist > QApplication.startDragDistance():
+                self._drag_timer.stop()
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        self._drag_timer.stop()
+        self._drag_container = None
+        self._drag_start_pos = None
+        super().mouseReleaseEvent(event)
+
+    def _start_drag(self):
+        """롱프레스 후 드래그 시작"""
+        if not self._drag_container:
+            return
+        drag = QDrag(self)
+        mime = QMimeData()
+        mime.setText(self._drag_container.vessel_id)
+        drag.setMimeData(mime)
+
+        # 드래그 프리뷰 이미지
+        pixmap = self._drag_container.grab()
+        scaled = pixmap.scaledToWidth(min(pixmap.width(), 300), Qt.SmoothTransformation)
+        drag.setPixmap(scaled)
+        drag.setHotSpot(QPoint(scaled.width() // 2, scaled.height() // 2))
+
+        # 원본 반투명 처리
+        self._drag_container.setStyleSheet("opacity: 0.4;")
+        result = drag.exec(Qt.MoveAction)
+        if self._drag_container:
+            self._drag_container.setStyleSheet("")
+        self._drag_container = None
+        self._drag_start_pos = None
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasText():
+            event.acceptProposedAction()
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasText():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        """드롭 시 순서 변경"""
+        if not event.mimeData().hasText():
+            return
+        dragged_id = event.mimeData().text()
+        drop_pos = event.position().toPoint()
+
+        # 드래그 소스 찾기
+        src_idx = -1
+        for i, c in enumerate(self._containers):
+            if c.vessel_id == dragged_id:
+                src_idx = i
+                break
+        if src_idx < 0:
+            return
+
+        # 드롭 위치 결정
+        target_idx = len(self._containers)  # 기본: 맨 끝
+        for i, c in enumerate(self._containers):
+            geo = c.geometry()
+            mid_y = geo.center().y()
+            if drop_pos.y() < mid_y:
+                target_idx = i
+                break
+
+        if target_idx == src_idx or target_idx == src_idx + 1:
+            event.acceptProposedAction()
+            return
+
+        # 순서 변경
+        container = self._containers.pop(src_idx)
+        if target_idx > src_idx:
+            target_idx -= 1
+        self._containers.insert(target_idx, container)
+
+        # 레이아웃 재구성
+        while self._layout.count():
+            self._layout.takeAt(0)
+        for c in self._containers:
+            self._layout.addWidget(c)
+        self._layout.addStretch()
+
+        event.acceptProposedAction()
+        self.order_changed.emit(self.get_order())

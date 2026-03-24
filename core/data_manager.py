@@ -228,7 +228,13 @@ class DataManager:
         self.save()
         return log_msg
 
-    def add_personnel(self, name: str, rank: str, department: str = "본함") -> Personnel:
+    def update_personnel_dept(self, pid: str, department: str):
+        person = self.get_personnel_by_id(pid)
+        if person:
+            person.department = department
+            self.save()
+
+    def add_personnel(self, name: str, rank: str, department: str = "항해") -> Personnel:
         max_num = 0
         for p in self.personnel:
             try:

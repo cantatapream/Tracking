@@ -1,5 +1,5 @@
 """
-SPT 설정 탭 - 인원 관리 + 선박 관리(좌: 단정, 우: 중국어선) + 장비 관리
+SPT 설정 탭 - 인원 관리 + 선박 관리 + 장비 관리
 """
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
@@ -10,13 +10,12 @@ from core.data_manager import DataManager
 from core.models import Equipment
 
 RANKS = ["총경", "경정", "경감", "경위", "경사", "경장", "순경"]
-DEPARTMENTS = ["함장", "부장", "항해", "안전", "병기", "기관"]
-TEAM_DEPARTMENTS = ["항해", "안전", "병기", "기관"]
+DEPARTMENTS = ["함장", "부장", "항해", "안전", "병기", "기관", "구조", "행정", "통신", "조리"]
+TEAM_DEPARTMENTS = ["항해", "안전", "병기", "기관", "구조", "행정", "통신", "조리"]
 POSITION_DEPARTMENTS = ["함장", "부장"]
 
 
 def _clear_layout(layout):
-    """레이아웃 내 모든 위젯 즉시 제거 (deleteLater 사용 안 함)"""
     while layout.count():
         item = layout.takeAt(0)
         w = item.widget()
@@ -25,147 +24,242 @@ def _clear_layout(layout):
 
 
 # ============================================================
-# 인원 편집 카드 (컴팩트)
+# 인원 편집 카드 - 클릭으로 수정/삭제 표시
 # ============================================================
 class PersonnelEditCard(QFrame):
     removed = Signal(str)
     updated = Signal(str, str, str)
+    dept_changed = Signal(str, str)
+    actions_opened = Signal(object)
 
-    def __init__(self, pid: str, name: str, rank: str, parent=None):
+    def __init__(self, pid: str, name: str, rank: str, dept: str = "", parent=None):
         super().__init__(parent)
         self.pid = pid
         self._name = name
         self._rank = rank
+        self._dept = dept
+        self._actions_visible = False
+        self._editing = False
         self.setObjectName("personnelCard")
-        self.setMinimumHeight(34)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.setCursor(Qt.PointingHandCursor)
         self._setup_ui()
 
     def _setup_ui(self):
-        lo = QHBoxLayout(self)
-        lo.setContentsMargins(6, 2, 6, 2)
-        lo.setSpacing(4)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(6, 3, 6, 3)
+        main_layout.setSpacing(2)
 
+        display_row = QHBoxLayout()
+        display_row.setSpacing(4)
         self.name_label = QLabel(self._name)
         self.name_label.setObjectName("cardName")
-        lo.addWidget(self.name_label)
-
+        display_row.addWidget(self.name_label)
         self.rank_label = QLabel(self._rank)
         self.rank_label.setObjectName("cardRank")
-        lo.addWidget(self.rank_label)
+        display_row.addWidget(self.rank_label)
+        display_row.addStretch()
+        main_layout.addLayout(display_row)
 
-        lo.addStretch()
+        # Action frame (hidden)
+        self.action_frame = QFrame()
+        self.action_frame.setStyleSheet("background: transparent; border: none;")
+        al = QHBoxLayout(self.action_frame)
+        al.setContentsMargins(0, 2, 0, 0)
+        al.setSpacing(4)
+        eb = QPushButton("수정")
+        eb.setObjectName("logActionBtn")
+        eb.setFixedSize(40, 22)
+        eb.clicked.connect(self._start_edit)
+        al.addWidget(eb)
+        db = QPushButton("삭제")
+        db.setObjectName("logActionBtnDanger")
+        db.setFixedSize(40, 22)
+        db.clicked.connect(lambda: self.removed.emit(self.pid))
+        al.addWidget(db)
+        al.addStretch()
+        self.action_frame.hide()
+        main_layout.addWidget(self.action_frame)
 
+        # Edit frame (hidden)
+        self.edit_frame = QFrame()
+        self.edit_frame.setStyleSheet("background: transparent; border: none;")
+        el = QHBoxLayout(self.edit_frame)
+        el.setContentsMargins(0, 2, 0, 0)
+        el.setSpacing(4)
         self.name_input = QLineEdit(self._name)
         self.name_input.setFixedHeight(24)
-        self.name_input.setFixedWidth(70)
-        self.name_input.hide()
-        lo.addWidget(self.name_input)
-
+        el.addWidget(self.name_input, 1)
         self.rank_combo = QComboBox()
         self.rank_combo.setFixedHeight(24)
         self.rank_combo.addItems(RANKS)
         self.rank_combo.setCurrentText(self._rank)
-        self.rank_combo.hide()
-        lo.addWidget(self.rank_combo)
+        el.addWidget(self.rank_combo)
+        self.dept_combo = QComboBox()
+        self.dept_combo.setFixedHeight(24)
+        self.dept_combo.addItems(DEPARTMENTS)
+        if self._dept:
+            self.dept_combo.setCurrentText(self._dept)
+        el.addWidget(self.dept_combo)
+        sb = QPushButton("저장")
+        sb.setObjectName("btnAccent")
+        sb.setFixedSize(40, 24)
+        sb.clicked.connect(self._save_edit)
+        el.addWidget(sb)
+        cb = QPushButton("취소")
+        cb.setFixedSize(40, 24)
+        cb.clicked.connect(self._cancel_edit)
+        el.addWidget(cb)
+        self.edit_frame.hide()
+        main_layout.addWidget(self.edit_frame)
 
-        self.edit_btn = QPushButton("수정")
-        self.edit_btn.setFixedSize(40, 24)
-        self.edit_btn.clicked.connect(self._toggle_edit)
-        lo.addWidget(self.edit_btn)
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton and not self._editing:
+            self._toggle_actions()
+        super().mousePressEvent(event)
 
-        self.save_btn = QPushButton("저장")
-        self.save_btn.setObjectName("btnAccent")
-        self.save_btn.setFixedSize(40, 24)
-        self.save_btn.clicked.connect(self._save_edit)
-        self.save_btn.hide()
-        lo.addWidget(self.save_btn)
+    def _toggle_actions(self):
+        self._actions_visible = not self._actions_visible
+        if self._actions_visible:
+            self.action_frame.show()
+            self.actions_opened.emit(self)
+        else:
+            self.action_frame.hide()
 
-        self.cancel_btn = QPushButton("취소")
-        self.cancel_btn.setFixedSize(40, 24)
-        self.cancel_btn.clicked.connect(self._cancel_edit)
-        self.cancel_btn.hide()
-        lo.addWidget(self.cancel_btn)
+    def close_actions(self):
+        if self._actions_visible:
+            self._actions_visible = False
+            self.action_frame.hide()
+        if self._editing:
+            self._cancel_edit()
 
-        del_btn = QPushButton("삭제")
-        del_btn.setObjectName("btnDanger")
-        del_btn.setFixedSize(40, 24)
-        del_btn.clicked.connect(lambda: self.removed.emit(self.pid))
-        lo.addWidget(del_btn)
-
-    def _toggle_edit(self):
-        self.name_label.hide(); self.rank_label.hide(); self.edit_btn.hide()
+    def _start_edit(self):
+        self._editing = True
+        self._actions_visible = False
+        self.action_frame.hide()
+        self.name_label.hide()
+        self.rank_label.hide()
         self.name_input.setText(self._name)
         self.rank_combo.setCurrentText(self._rank)
-        self.name_input.show(); self.rank_combo.show()
-        self.save_btn.show(); self.cancel_btn.show()
+        self.dept_combo.setCurrentText(self._dept or "항해")
+        self.edit_frame.show()
         self.name_input.setFocus()
 
     def _save_edit(self):
         n = self.name_input.text().strip()
         r = self.rank_combo.currentText().strip()
+        d = self.dept_combo.currentText().strip()
         if n:
-            self._name = n; self._rank = r
-            self.name_label.setText(n); self.rank_label.setText(r)
+            self._name = n
+            self._rank = r
+            self.name_label.setText(n)
+            self.rank_label.setText(r)
             self.updated.emit(self.pid, n, r)
+            if d != self._dept:
+                self._dept = d
+                self.dept_changed.emit(self.pid, d)
         self._cancel_edit()
 
     def _cancel_edit(self):
-        self.name_input.hide(); self.rank_combo.hide()
-        self.save_btn.hide(); self.cancel_btn.hide()
-        self.name_label.show(); self.rank_label.show(); self.edit_btn.show()
+        self._editing = False
+        self.edit_frame.hide()
+        self.name_label.show()
+        self.rank_label.show()
 
 
 # ============================================================
-# 장비 카드 (설정 탭용)
+# 장비 카드 - 클릭 호버로 수정/삭제
 # ============================================================
 class EquipmentCard(QFrame):
     deleted_signal = Signal()
+    updated_signal = Signal()
+    actions_opened = Signal(object)
 
     def __init__(self, equipment: Equipment, data_manager: DataManager, parent=None):
         super().__init__(parent)
         self.eq = equipment
         self.dm = data_manager
-        self.setMinimumHeight(50)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.setObjectName("equipmentCard")
+        self._actions_visible = False
+        self._editing = False
+        self.setObjectName("personnelCard")
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.setCursor(Qt.PointingHandCursor)
         self._setup_ui()
-        self.update_display()
+
+    def _get_assignee_text(self):
+        if self.eq.assignee_id:
+            p = self.dm.get_personnel_by_id(self.eq.assignee_id)
+            if p:
+                return f"{p.rank} {p.name}"
+        return "미지정"
 
     def _setup_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 8, 10, 8)
-        layout.setSpacing(4)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(6, 4, 6, 4)
+        main_layout.setSpacing(2)
 
-        top_row = QHBoxLayout()
+        display = QHBoxLayout()
+        display.setSpacing(4)
         self.name_label = QLabel(self.eq.name)
-        self.name_label.setObjectName("equipmentName")
-        top_row.addWidget(self.name_label)
-        top_row.addStretch()
-        layout.addLayout(top_row)
+        self.name_label.setObjectName("cardName")
+        display.addWidget(self.name_label)
+        sep = QLabel("|")
+        sep.setStyleSheet("color: #5a7a9a; background:transparent; border:none;")
+        sep.setFixedWidth(12)
+        sep.setAlignment(Qt.AlignCenter)
+        display.addWidget(sep)
+        self.assignee_label = QLabel(self._get_assignee_text())
+        self.assignee_label.setObjectName("cardRank")
+        display.addWidget(self.assignee_label)
+        display.addStretch()
+        main_layout.addLayout(display)
 
-        self.assignee_label = QLabel("담당자: 미지정")
-        self.assignee_label.setObjectName("equipmentCategory")
-        layout.addWidget(self.assignee_label)
+        # Action frame
+        self.action_frame = QFrame()
+        self.action_frame.setStyleSheet("background: transparent; border: none;")
+        al = QHBoxLayout(self.action_frame)
+        al.setContentsMargins(0, 2, 0, 0)
+        al.setSpacing(4)
+        eb = QPushButton("수정")
+        eb.setObjectName("logActionBtn")
+        eb.setFixedSize(40, 22)
+        eb.clicked.connect(self._start_edit)
+        al.addWidget(eb)
+        db = QPushButton("삭제")
+        db.setObjectName("logActionBtnDanger")
+        db.setFixedSize(40, 22)
+        db.clicked.connect(self._delete)
+        al.addWidget(db)
+        al.addStretch()
+        self.action_frame.hide()
+        main_layout.addWidget(self.action_frame)
 
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(4)
+        # Edit frame
+        self.edit_frame = QFrame()
+        self.edit_frame.setStyleSheet("background: transparent; border: none;")
+        el = QHBoxLayout(self.edit_frame)
+        el.setContentsMargins(0, 2, 0, 0)
+        el.setSpacing(4)
+        self.name_input = QLineEdit(self.eq.name)
+        self.name_input.setFixedHeight(24)
+        el.addWidget(self.name_input, 1)
         self.assign_combo = QComboBox()
-        self.assign_combo.setFixedHeight(28)
-        self.assign_combo.setMinimumWidth(100)
-        self._populate_assignee_combo()
-        self.assign_combo.currentIndexChanged.connect(self._on_assignee_changed)
-        btn_row.addWidget(self.assign_combo)
+        self.assign_combo.setFixedHeight(24)
+        self._populate_combo()
+        el.addWidget(self.assign_combo, 1)
+        sb = QPushButton("저장")
+        sb.setObjectName("btnAccent")
+        sb.setFixedSize(40, 24)
+        sb.clicked.connect(self._save_edit)
+        el.addWidget(sb)
+        cb = QPushButton("취소")
+        cb.setFixedSize(40, 24)
+        cb.clicked.connect(self._cancel_edit)
+        el.addWidget(cb)
+        self.edit_frame.hide()
+        main_layout.addWidget(self.edit_frame)
 
-        self.delete_btn = QPushButton("삭제")
-        self.delete_btn.setObjectName("btnDanger")
-        self.delete_btn.setFixedHeight(28)
-        self.delete_btn.clicked.connect(self._delete)
-        btn_row.addWidget(self.delete_btn)
-        layout.addLayout(btn_row)
-
-    def _populate_assignee_combo(self):
-        self.assign_combo.blockSignals(True)
+    def _populate_combo(self):
         self.assign_combo.clear()
         self.assign_combo.addItem("담당자 없음", "")
         for p in self.dm.personnel:
@@ -175,20 +269,56 @@ class EquipmentCard(QFrame):
                 if self.assign_combo.itemData(i) == self.eq.assignee_id:
                     self.assign_combo.setCurrentIndex(i)
                     break
-        self.assign_combo.blockSignals(False)
 
-    def update_display(self):
-        if self.eq.assignee_id:
-            person = self.dm.get_personnel_by_id(self.eq.assignee_id)
-            if person:
-                self.assignee_label.setText(f"담당자: {person.name} ({person.rank})")
-                return
-        self.assignee_label.setText("담당자: 미지정")
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton and not self._editing:
+            self._toggle_actions()
+        super().mousePressEvent(event)
 
-    def _on_assignee_changed(self, index):
-        pid = self.assign_combo.itemData(index)
-        self.dm.assign_equipment(self.eq.id, pid if pid else None)
-        self.update_display()
+    def _toggle_actions(self):
+        self._actions_visible = not self._actions_visible
+        if self._actions_visible:
+            self.action_frame.show()
+            self.actions_opened.emit(self)
+        else:
+            self.action_frame.hide()
+
+    def close_actions(self):
+        if self._actions_visible:
+            self._actions_visible = False
+            self.action_frame.hide()
+        if self._editing:
+            self._cancel_edit()
+
+    def _start_edit(self):
+        self._editing = True
+        self._actions_visible = False
+        self.action_frame.hide()
+        self.name_label.hide()
+        self.assignee_label.hide()
+        self.name_input.setText(self.eq.name)
+        self._populate_combo()
+        self.edit_frame.show()
+        self.name_input.setFocus()
+
+    def _save_edit(self):
+        n = self.name_input.text().strip()
+        if n:
+            self.eq.name = n
+            self.name_label.setText(n)
+            pid = self.assign_combo.currentData() or None
+            if pid != self.eq.assignee_id:
+                self.dm.assign_equipment(self.eq.id, pid)
+            self.assignee_label.setText(self._get_assignee_text())
+            self.dm.save()
+            self.updated_signal.emit()
+        self._cancel_edit()
+
+    def _cancel_edit(self):
+        self._editing = False
+        self.edit_frame.hide()
+        self.name_label.show()
+        self.assignee_label.show()
 
     def _delete(self):
         self.dm.remove_equipment(self.eq.id)
@@ -207,6 +337,7 @@ class SettingsTab(QWidget):
         super().__init__(parent)
         self.dm = data_manager
         self.eq_cards: list[EquipmentCard] = []
+        self._all_cards = []
         self._setup_ui()
         self.refresh()
 
@@ -218,29 +349,24 @@ class SettingsTab(QWidget):
         # ======== 인원 관리 ========
         layout.addWidget(self._make_title("인원 관리"))
 
-        # 인원 추가 폼
         add_frame = QFrame()
         add_frame.setObjectName("sectionPanel")
         al = QHBoxLayout(add_frame)
         al.setContentsMargins(8, 6, 8, 6)
         al.setSpacing(4)
-
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("이름")
         self.name_input.setFixedHeight(30)
         al.addWidget(self.name_input, 2)
-
         self.rank_combo = QComboBox()
         self.rank_combo.setFixedHeight(30)
         self.rank_combo.addItems(RANKS)
         al.addWidget(self.rank_combo)
-
         self.dept_combo = QComboBox()
         self.dept_combo.setFixedHeight(30)
         self.dept_combo.addItems(DEPARTMENTS)
         self.dept_combo.setCurrentText("항해")
         al.addWidget(self.dept_combo)
-
         add_btn = QPushButton("인원 추가")
         add_btn.setObjectName("btnAccent")
         add_btn.setFixedHeight(30)
@@ -248,64 +374,58 @@ class SettingsTab(QWidget):
         al.addWidget(add_btn)
         layout.addWidget(add_frame)
 
-        # 인원 목록 영역 (스크롤)
+        # 인원 목록 (스크롤)
         self.personnel_scroll = QScrollArea()
         self.personnel_scroll.setWidgetResizable(True)
         self.personnel_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.personnel_scroll.setFrameShape(QFrame.NoFrame)
-
         self.personnel_content = QWidget()
         self.personnel_content_layout = QVBoxLayout(self.personnel_content)
         self.personnel_content_layout.setContentsMargins(0, 0, 0, 0)
         self.personnel_content_layout.setSpacing(4)
 
-        # 직책 영역 (함장/부장) - 가로 2칸
+        # 직책 영역 (함장/부장) - 인라인
         self.position_frame = QFrame()
         self.position_frame.setObjectName("sectionPanel")
         pos_layout = QHBoxLayout(self.position_frame)
-        pos_layout.setContentsMargins(4, 4, 4, 4)
-        pos_layout.setSpacing(4)
-
-        # 함장 컬럼
-        self.captain_frame = self._make_dept_column("함장", "#f0a500")
-        pos_layout.addWidget(self.captain_frame, 1)
-
-        # 부장 컬럼
-        self.vice_frame = self._make_dept_column("부장", "#f0a500")
-        pos_layout.addWidget(self.vice_frame, 1)
-
+        pos_layout.setContentsMargins(6, 4, 6, 4)
+        pos_layout.setSpacing(8)
+        self.captain_widget = QWidget()
+        self.captain_layout = QHBoxLayout(self.captain_widget)
+        self.captain_layout.setContentsMargins(0, 0, 0, 0)
+        self.captain_layout.setSpacing(4)
+        pos_layout.addWidget(self.captain_widget, 1)
+        self.vice_widget = QWidget()
+        self.vice_layout = QHBoxLayout(self.vice_widget)
+        self.vice_layout.setContentsMargins(0, 0, 0, 0)
+        self.vice_layout.setSpacing(4)
+        pos_layout.addWidget(self.vice_widget, 1)
         self.personnel_content_layout.addWidget(self.position_frame)
 
-        # 팀 영역 (항해/안전/병기/기관) - 가로 4칸
+        # 팀 영역 (8팀) - 4x2 그리드
         self.team_frame = QFrame()
         self.team_frame.setObjectName("sectionPanel")
-        team_layout = QHBoxLayout(self.team_frame)
-        team_layout.setContentsMargins(4, 4, 4, 4)
-        team_layout.setSpacing(4)
-
+        team_grid = QGridLayout(self.team_frame)
+        team_grid.setContentsMargins(4, 4, 4, 4)
+        team_grid.setSpacing(4)
         self.team_columns = {}
-        team_colors = {"항해": "#00d4ff", "안전": "#2ecc71", "병기": "#f39c12", "기관": "#e74c3c"}
-        for dept in TEAM_DEPARTMENTS:
-            col = self._make_dept_column(dept, team_colors.get(dept, "#00d4ff"))
-            team_layout.addWidget(col, 1)
+        for i, dept in enumerate(TEAM_DEPARTMENTS):
+            col = self._make_dept_column(dept)
+            team_grid.addWidget(col, i // 4, i % 4)
             self.team_columns[dept] = col
-
         self.personnel_content_layout.addWidget(self.team_frame)
         self.personnel_content_layout.addStretch()
-
         self.personnel_scroll.setWidget(self.personnel_content)
         layout.addWidget(self.personnel_scroll, 3)
 
         # ======== 선박 관리 ========
         layout.addWidget(self._make_title("선박 관리"))
-
         vessel_container = QFrame()
         vessel_container.setObjectName("sectionPanel")
         vm = QHBoxLayout(vessel_container)
         vm.setContentsMargins(8, 8, 8, 8)
         vm.setSpacing(8)
 
-        # 단정
         pf = QFrame()
         pl = QVBoxLayout(pf)
         pl.setContentsMargins(0, 0, 0, 0)
@@ -314,7 +434,6 @@ class SettingsTab(QWidget):
         h.setObjectName("sectionTitlePatrol")
         h.setMinimumHeight(28)
         pl.addWidget(h)
-
         preset_row = QHBoxLayout()
         preset_row.setSpacing(4)
         self._selected_patrol_num = None
@@ -326,7 +445,6 @@ class SettingsTab(QWidget):
             btn.clicked.connect(lambda checked, n=i, b=btn: self._select_patrol_preset(n, b))
             preset_row.addWidget(btn)
             self.patrol_preset_btns.append(btn)
-
         pb = QPushButton("추가")
         pb.setObjectName("btnAccent")
         pb.setFixedSize(50, 30)
@@ -345,7 +463,6 @@ class SettingsTab(QWidget):
         pl.addWidget(ps, 1)
         vm.addWidget(pf, 1)
 
-        # 중국어선
         vf = QFrame()
         vl = QVBoxLayout(vf)
         vl.setContentsMargins(0, 0, 0, 0)
@@ -380,7 +497,6 @@ class SettingsTab(QWidget):
 
         # ======== 장비 관리 ========
         layout.addWidget(self._make_title("장비 등록 및 관리"))
-
         eq_add_frame = QFrame()
         eq_add_frame.setObjectName("sectionPanel")
         el = QHBoxLayout(eq_add_frame)
@@ -406,9 +522,9 @@ class SettingsTab(QWidget):
         self.eq_scroll.setFrameShape(QFrame.NoFrame)
         self.eq_scroll.setMinimumHeight(80)
         self.eq_list_widget = QWidget()
-        self.eq_list_layout = QVBoxLayout(self.eq_list_widget)
-        self.eq_list_layout.setContentsMargins(0, 0, 0, 0)
-        self.eq_list_layout.setSpacing(4)
+        self.eq_grid_layout = QGridLayout(self.eq_list_widget)
+        self.eq_grid_layout.setContentsMargins(0, 0, 0, 0)
+        self.eq_grid_layout.setSpacing(4)
         self.eq_scroll.setWidget(self.eq_list_widget)
         layout.addWidget(self.eq_scroll, 2)
 
@@ -418,50 +534,60 @@ class SettingsTab(QWidget):
         lbl.setMinimumHeight(28)
         return lbl
 
-    def _make_dept_column(self, dept_name: str, color: str) -> QFrame:
-        """부서/팀 컬럼 위젯 생성"""
+    def _make_dept_column(self, dept_name: str) -> QFrame:
         frame = QFrame()
-        frame.setStyleSheet(f"""
-            QFrame {{
-                background: rgba(13, 31, 60, 0.5);
-                border: 1px solid {color}40;
-                border-radius: 6px;
-            }}
-        """)
+        frame.setObjectName("vesselContainer")
         col_layout = QVBoxLayout(frame)
         col_layout.setContentsMargins(4, 4, 4, 4)
         col_layout.setSpacing(2)
-
         header = QLabel(dept_name)
         header.setAlignment(Qt.AlignCenter)
-        header.setStyleSheet(f"""
-            color: {color}; font-weight: bold; font-size: 12px;
-            background: transparent; border: none;
-            padding: 2px;
-        """)
+        header.setObjectName("vesselHeader")
         col_layout.addWidget(header)
-
-        # 카드 리스트 영역
         list_widget = QWidget()
-        list_widget.setStyleSheet("background: transparent; border: none;")
-        list_layout = QVBoxLayout(list_widget)
-        list_layout.setContentsMargins(0, 0, 0, 0)
-        list_layout.setSpacing(2)
-        list_layout.addStretch()
+        grid = QGridLayout(list_widget)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setSpacing(2)
         col_layout.addWidget(list_widget, 1)
-
-        # 참조 저장
-        frame._list_layout = list_layout
+        frame._grid_layout = grid
         frame._dept_name = dept_name
         return frame
+
+    def _populate_position(self, layout, dept_name, persons):
+        _clear_layout(layout)
+        lbl = QLabel(dept_name)
+        lbl.setFixedWidth(36)
+        lbl.setObjectName("vesselHeader")
+        layout.addWidget(lbl)
+        if persons:
+            for p in persons:
+                card = PersonnelEditCard(p.id, p.name, p.rank, p.department)
+                card.removed.connect(self._remove_personnel)
+                card.updated.connect(self._update_personnel)
+                card.dept_changed.connect(self._change_dept)
+                card.actions_opened.connect(self._close_other_actions)
+                self._all_cards.append(card)
+                layout.addWidget(card, 1)
+        else:
+            ph = QLabel("(미배치)")
+            ph.setStyleSheet("color: #5a7a9a; font-size: 11px;")
+            layout.addWidget(ph)
+        layout.addStretch()
+
+    def _close_other_actions(self, opened):
+        for c in self._all_cards:
+            if c is not opened:
+                c.close_actions()
+        for c in self.eq_cards:
+            if c is not opened:
+                c.close_actions()
 
     # ---- 인원 ----
     def _add_personnel(self):
         name = self.name_input.text().strip()
         if not name:
             return
-        dept = self.dept_combo.currentText()
-        self.dm.add_personnel(name, self.rank_combo.currentText(), department=dept)
+        self.dm.add_personnel(name, self.rank_combo.currentText(), department=self.dept_combo.currentText())
         self.name_input.clear()
         self.refresh()
         self.data_changed.emit()
@@ -473,6 +599,11 @@ class SettingsTab(QWidget):
 
     def _update_personnel(self, pid, name, rank):
         self.dm.update_personnel(pid, name, rank)
+        self.data_changed.emit()
+
+    def _change_dept(self, pid, new_dept):
+        self.dm.update_personnel_dept(pid, new_dept)
+        self.refresh()
         self.data_changed.emit()
 
     # ---- 선박 ----
@@ -489,11 +620,10 @@ class SettingsTab(QWidget):
         num = self._selected_patrol_num
         if num is None:
             return
-        name = f"No. {num} 단정"
         vid = f"patrol_NO{num}"
         if vid in self.dm.vessels:
             return
-        self.dm.add_vessel(vid, name, "patrol")
+        self.dm.add_vessel(vid, f"No. {num} 단정", "patrol")
         self._selected_patrol_num = None
         for b in self.patrol_preset_btns:
             b.setChecked(False)
@@ -501,14 +631,12 @@ class SettingsTab(QWidget):
         self.data_changed.emit()
 
     def _add_vessel_type(self, vtype):
-        inp = self.vessel_name_input
-        name = inp.text().strip()
+        name = self.vessel_name_input.text().strip()
         if not name:
             return
-        inp.clear()
-        prefix = "vessel_"
+        self.vessel_name_input.clear()
         suffix = name.upper().replace(" ", "-").replace("(", "").replace(")", "")
-        vid = f"{prefix}{suffix}"
+        vid = f"vessel_{suffix}"
         c = 1
         bv = vid
         while vid in self.dm.vessels:
@@ -542,7 +670,7 @@ class SettingsTab(QWidget):
         self.refresh()
         self.data_changed.emit()
 
-    def _on_equipment_deleted(self):
+    def _on_equipment_changed(self):
         self.refresh()
         self.data_changed.emit()
 
@@ -557,65 +685,57 @@ class SettingsTab(QWidget):
     # ---- 새로고침 ----
     def refresh(self):
         from core.data_manager import RANK_ORDER
+        self._all_cards = []
 
-        # 인원을 부서별로 분류
         dept_personnel = {dept: [] for dept in DEPARTMENTS}
         for p in sorted(self.dm.personnel, key=lambda x: RANK_ORDER.get(x.rank, 99)):
             dept = p.department if p.department in DEPARTMENTS else "항해"
             dept_personnel[dept].append(p)
 
-        # 함장 컬럼
-        _clear_layout(self.captain_frame._list_layout)
-        for p in dept_personnel["함장"]:
-            card = PersonnelEditCard(p.id, p.name, p.rank)
-            card.removed.connect(self._remove_personnel)
-            card.updated.connect(self._update_personnel)
-            self.captain_frame._list_layout.addWidget(card)
-        self.captain_frame._list_layout.addStretch()
+        self._populate_position(self.captain_layout, "함장", dept_personnel["함장"])
+        self._populate_position(self.vice_layout, "부장", dept_personnel["부장"])
 
-        # 부장 컬럼
-        _clear_layout(self.vice_frame._list_layout)
-        for p in dept_personnel["부장"]:
-            card = PersonnelEditCard(p.id, p.name, p.rank)
-            card.removed.connect(self._remove_personnel)
-            card.updated.connect(self._update_personnel)
-            self.vice_frame._list_layout.addWidget(card)
-        self.vice_frame._list_layout.addStretch()
-
-        # 4개 팀 컬럼
         for dept in TEAM_DEPARTMENTS:
             col = self.team_columns[dept]
-            _clear_layout(col._list_layout)
-            for p in dept_personnel[dept]:
-                card = PersonnelEditCard(p.id, p.name, p.rank)
+            grid = col._grid_layout
+            while grid.count():
+                item = grid.takeAt(0)
+                if item.widget():
+                    item.widget().setParent(None)
+            for i, p in enumerate(dept_personnel[dept]):
+                card = PersonnelEditCard(p.id, p.name, p.rank, p.department)
                 card.removed.connect(self._remove_personnel)
                 card.updated.connect(self._update_personnel)
-                col._list_layout.addWidget(card)
-            col._list_layout.addStretch()
+                card.dept_changed.connect(self._change_dept)
+                card.actions_opened.connect(self._close_other_actions)
+                self._all_cards.append(card)
+                grid.addWidget(card, i // 2, i % 2)
 
-        # 단정
         _clear_layout(self.patrol_list_layout)
         for vid, vi in sorted(self.dm.vessels.items()):
             if vi["type"] == "patrol":
                 self.patrol_list_layout.addWidget(self._create_vessel_row(vid, vi))
         self.patrol_list_layout.addStretch()
 
-        # 중국어선
         _clear_layout(self.vessel_list_layout)
         for vid, vi in sorted(self.dm.vessels.items()):
             if vi["type"] == "vessel":
                 self.vessel_list_layout.addWidget(self._create_vessel_row(vid, vi))
         self.vessel_list_layout.addStretch()
 
-        # 장비
+        # 장비 (3열 그리드)
         self.eq_cards.clear()
-        _clear_layout(self.eq_list_layout)
-        for eq in self.dm.equipment:
+        while self.eq_grid_layout.count():
+            item = self.eq_grid_layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
+        for i, eq in enumerate(self.dm.equipment):
             card = EquipmentCard(eq, self.dm)
-            card.deleted_signal.connect(self._on_equipment_deleted)
+            card.deleted_signal.connect(self._on_equipment_changed)
+            card.updated_signal.connect(self._on_equipment_changed)
+            card.actions_opened.connect(self._close_other_actions)
             self.eq_cards.append(card)
-            self.eq_list_layout.addWidget(card)
-        self.eq_list_layout.addStretch()
+            self.eq_grid_layout.addWidget(card, i // 3, i % 3)
 
         self._populate_eq_assignee_combo()
 
@@ -626,37 +746,30 @@ class SettingsTab(QWidget):
         rl = QHBoxLayout(row)
         rl.setContentsMargins(8, 4, 8, 4)
         rl.setSpacing(6)
-
         name_label = QLabel(vinfo["name"])
         name_label.setObjectName("cardName")
         rl.addWidget(name_label)
         rl.addStretch()
-
         count_label = QLabel(f"{len(self.dm.get_personnel_at(vid))}명")
         count_label.setObjectName("cardRank")
         rl.addWidget(count_label)
-
         name_input = QLineEdit(vinfo["name"])
         name_input.setFixedHeight(24)
         name_input.setFixedWidth(120)
         name_input.hide()
         rl.addWidget(name_input)
-
         edit_btn = QPushButton("수정")
         edit_btn.setFixedSize(50, 24)
         rl.addWidget(edit_btn)
-
         save_btn = QPushButton("저장")
         save_btn.setObjectName("btnAccent")
         save_btn.setFixedSize(50, 24)
         save_btn.hide()
         rl.addWidget(save_btn)
-
         cancel_btn = QPushButton("취소")
         cancel_btn.setFixedSize(50, 24)
         cancel_btn.hide()
         rl.addWidget(cancel_btn)
-
         del_btn = QPushButton("삭제")
         del_btn.setObjectName("btnDanger")
         del_btn.setFixedSize(50, 24)
@@ -673,7 +786,6 @@ class SettingsTab(QWidget):
         def cancel():
             name_input.hide(); save_btn.hide(); cancel_btn.hide()
             name_label.show(); count_label.show(); edit_btn.show()
-
         edit_btn.clicked.connect(start)
         save_btn.clicked.connect(save)
         cancel_btn.clicked.connect(cancel)

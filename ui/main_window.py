@@ -87,7 +87,7 @@ class MainWindow(QMainWindow):
 
         logo_title = QLabel("작전 현황")
         logo_title.setStyleSheet("""
-            color: #00d4ff; font-size: 14px; font-weight: bold;
+            color: #00d4ff; font-size: 18px; font-weight: bold;
             font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
             letter-spacing: 2px; background: transparent; border: none;
         """)

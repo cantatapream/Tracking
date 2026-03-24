@@ -159,30 +159,30 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 
 #sectionTitle {
     color: #00d4ff;
-    font-size: 13px;
+    font-size: 16px;
     font-weight: bold;
     font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
-    padding: 6px 10px;
+    padding: 8px 12px;
     letter-spacing: 1px;
     border-bottom: 1px solid rgba(0, 212, 255, 0.12);
 }
 
 #sectionTitlePatrol {
     color: #2ecc71;
-    font-size: 13px;
+    font-size: 16px;
     font-weight: bold;
     font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
-    padding: 6px 10px;
+    padding: 8px 12px;
     letter-spacing: 1px;
     border-bottom: 1px solid rgba(46, 204, 113, 0.12);
 }
 
 #sectionTitleVessel {
     color: #f39c12;
-    font-size: 13px;
+    font-size: 16px;
     font-weight: bold;
     font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
-    padding: 6px 10px;
+    padding: 8px 12px;
     letter-spacing: 1px;
     border-bottom: 1px solid rgba(243, 156, 18, 0.12);
 }
@@ -382,6 +382,19 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 
 #logEntry:hover {
     background: rgba(0, 212, 255, 0.04);
+}
+
+#logEntryChecked {
+    background: rgba(46, 204, 113, 0.1);
+    border: none;
+    border-bottom: 1px solid rgba(46, 204, 113, 0.3);
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+}
+
+#logEntryChecked:hover {
+    background: rgba(46, 204, 113, 0.15);
 }
 
 #logEntryText {

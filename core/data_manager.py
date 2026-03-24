@@ -277,11 +277,24 @@ class DataManager:
             person = self.get_personnel_by_id(pid)
             if person and person.location != target_location:
                 person.deploy_to(target_location)
-                names.append(f"{person.name} {person.rank}")
+                names.append(f"{person.rank} {person.name}")
         if not names:
             return None
         target_name = self.get_location_display_name(target_location)
-        log_msg = f"{', '.join(names)} → {target_name}"
+        target_info = self.vessels.get(target_location, {})
+        target_type = target_info.get("type", "")
+        count_str = f" 총 {len(names)}명"
+        name_list = ", ".join(names)
+        if target_type == "patrol":
+            # 단정 이동
+            log_msg = f"{name_list}{count_str} {target_name}으로 이동"
+        elif target_type == "vessel":
+            # 선박 등선
+            log_msg = f"{name_list}{count_str} ({target_name}) 등선 완료"
+        elif target_location == "base":
+            log_msg = f"{name_list}{count_str} {target_name} 복귀"
+        else:
+            log_msg = f"{name_list}{count_str} → {target_name}"
         self.add_log(log_msg)
         self.save()
         return log_msg

@@ -21,7 +21,7 @@ class MainWindow(QMainWindow):
     def __init__(self, data_manager: DataManager):
         super().__init__()
         self.dm = data_manager
-        self.setWindowTitle("작전 현황")
+        self.setWindowTitle("BridgeBoard")
         self.setMinimumSize(1400, 850)
         self.resize(1600, 950)
 
@@ -85,7 +85,7 @@ class MainWindow(QMainWindow):
         mark.setFixedSize(40, 40)
         logo_h.addWidget(mark)
 
-        logo_title = QLabel("작전 현황")
+        logo_title = QLabel("BridgeBoard")
         logo_title.setStyleSheet("""
             color: #00d4ff; font-size: 18px; font-weight: bold;
             font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
@@ -121,26 +121,28 @@ class MainWindow(QMainWindow):
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(20, 6, 20, 6)
 
-        # 작전명 (클릭으로 편집)
+        # 작전명 (클릭으로 편집) - 넓은 영역
         title_layout = QVBoxLayout()
         title_layout.setSpacing(0)
 
         title_text = self.dm.operation_title or "클릭하여 작전명을 입력하세요"
         self.header_title = QLabel(title_text)
         self.header_title.setObjectName("headerTitle")
+        self.header_title.setStyleSheet("font-size: 18px; font-weight: bold; color: #e0e8f0; letter-spacing: 1px;")
         self.header_title.setCursor(Qt.PointingHandCursor)
         self.header_title.mousePressEvent = self._start_title_edit
         title_layout.addWidget(self.header_title)
 
         self.title_input = QLineEdit()
         self.title_input.setObjectName("headerTitleInput")
-        self.title_input.setFixedHeight(30)
+        self.title_input.setFixedHeight(36)
+        self.title_input.setStyleSheet("font-size: 18px; font-weight: bold;")
         self.title_input.setPlaceholderText("작전명을 입력하세요...")
         self.title_input.returnPressed.connect(self._save_title)
         self.title_input.hide()
         title_layout.addWidget(self.title_input)
 
-        header_layout.addLayout(title_layout, 1)
+        header_layout.addLayout(title_layout, 2)
         header_layout.addStretch()
 
         # 시계
@@ -243,6 +245,23 @@ class MainWindow(QMainWindow):
         else:
             self.dm.export_csv(filepath)
         self.log_panel.append_log(f"데이터 내보내기 완료: {os.path.basename(filepath)}")
+
+    def resizeEvent(self, event):
+        """창 크기 변경 시 전체 폰트/비율 자동 조정"""
+        super().resizeEvent(event)
+        base_width = 1600
+        base_height = 950
+        base_font = 13.0
+
+        w = self.width()
+        h = self.height()
+        scale = min(w / base_width, h / base_height)
+        scale = max(0.6, min(scale, 1.5))  # 0.6 ~ 1.5 범위 제한
+
+        new_font = max(9, int(base_font * scale))
+
+        # 대시보드 영역에만 적용 (로그 패널은 별도 관리)
+        self.dashboard.setStyleSheet(f"QWidget {{ font-size: {new_font}px; }}")
 
     def closeEvent(self, event):
         self.dm.save()

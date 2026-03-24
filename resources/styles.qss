@@ -96,7 +96,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
         stop:0 #0d1f3c, stop:1 #0a1628);
     border-bottom: 1px solid #1a2d4a;
-    min-height: 48px;
+    min-height: 64px;
 }
 
 #headerTitle {
@@ -200,6 +200,12 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     border-color: rgba(0, 212, 255, 0.4);
 }
 
+#vesselContainer > QWidget,
+#vesselContainerPatrol > QWidget,
+#vesselContainerVessel > QWidget {
+    background: transparent;
+}
+
 #vesselContainerPatrol {
     background: rgba(10, 40, 30, 0.5);
     border: 1px solid rgba(46, 204, 113, 0.2);
@@ -258,6 +264,13 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     margin: 1px 3px;
 }
 
+#personnelCard QWidget,
+#personnelCard QLabel,
+#personnelCard QFrame {
+    background: transparent;
+    border: none;
+}
+
 #personnelCard:hover {
     border-color: rgba(0, 212, 255, 0.5);
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
@@ -273,6 +286,13 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     margin: 1px 3px;
 }
 
+#personnelCardSelected QWidget,
+#personnelCardSelected QLabel,
+#personnelCardSelected QFrame {
+    background: transparent;
+    border: none;
+}
+
 #personnelCardAlert {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
         stop:0 rgba(80, 20, 20, 0.7), stop:1 rgba(60, 15, 15, 0.7));
@@ -280,6 +300,13 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     border-radius: 6px;
     padding: 3px 7px;
     margin: 1px 3px;
+}
+
+#personnelCardAlert QWidget,
+#personnelCardAlert QLabel,
+#personnelCardAlert QFrame {
+    background: transparent;
+    border: none;
 }
 
 #cardName {

@@ -15,9 +15,9 @@ class Personnel:
     department: str = ""  # 소속
     location: str = "base"  # 현재 위치: base, patrol_RIB-1, vessel_VESSEL-A 등
     status: str = "standby"  # standby, active, on-air
-    deploy_timestamp: Optional[float] = None  # 투입 시각 (unix timestamp)
+    deploy_timestamp: Optional[float] = None  # 본함 이탈 시각 (unix timestamp)
     last_return_timestamp: Optional[float] = None  # 마지막 본함 복귀 시각
-    total_deploy_seconds: float = 0.0  # 누적 탑승 시간 (초)
+    total_deploy_seconds: float = 0.0  # 누적 이함 시간 (초) - 과거 모든 이함 합산
     meal_timestamp: Optional[float] = None  # 마지막 식사 시각
     has_been_deployed: bool = False  # 한 번이라도 출동한 적 있는지
 
@@ -33,30 +33,39 @@ class Personnel:
         ts = timestamp or time.time()
         old_location = self.location
 
-        # 본함이 아닌 곳에서 복귀하는 경우 누적 시간 계산
-        if self.location != "base" and self.deploy_timestamp:
-            elapsed = ts - self.deploy_timestamp
-            self.total_deploy_seconds += elapsed
-
-        if location == "base":
-            # 본함 복귀
-            self.last_return_timestamp = ts
+        if old_location != "base" and location == "base":
+            # 본함 복귀: 이함 시간 누적 후 타이머 초기화
+            if self.deploy_timestamp:
+                elapsed = ts - self.deploy_timestamp
+                self.total_deploy_seconds += elapsed
             self.deploy_timestamp = None
+            self.last_return_timestamp = ts
             self.status = "standby"
-        else:
-            # 단정 또는 어선으로 이동
+        elif old_location == "base" and location != "base":
+            # 본함 이탈: 타이머 시작
             self.deploy_timestamp = ts
             self.status = "active"
             self.has_been_deployed = True
+        elif old_location != "base" and location != "base":
+            # 비본함 → 비본함 이동: 타이머 유지 (초기화 안 함)
+            self.status = "active"
+        # base → base: 변경 없음
 
         self.location = location
         return old_location
 
     def get_deploy_elapsed(self) -> float:
-        """현재 투입 경과 시간 (초)"""
+        """현재 이함 경과 시간 (초) - 본함 이탈 후 경과"""
         if self.deploy_timestamp and self.location != "base":
             return time.time() - self.deploy_timestamp
         return 0.0
+
+    def get_total_away_time(self) -> float:
+        """총 누적 이함 시간 (과거 + 현재 진행 중 포함)"""
+        total = self.total_deploy_seconds
+        if self.deploy_timestamp and self.location != "base":
+            total += time.time() - self.deploy_timestamp
+        return total
 
     def get_rest_elapsed(self) -> float:
         """본함 복귀 후 휴식 경과 시간 (초)"""

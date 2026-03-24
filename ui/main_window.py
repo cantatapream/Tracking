@@ -11,7 +11,6 @@ from PySide6.QtCore import Qt, QTimer, QSize
 from PySide6.QtGui import QFont, QIcon, QColor
 from core.data_manager import DataManager
 from ui.dashboard import DashboardView
-from ui.equipment_tab import EquipmentTab
 from ui.log_panel import LogPanel
 from ui.settings_tab import SettingsTab
 
@@ -91,11 +90,10 @@ class MainWindow(QMainWindow):
         logo_layout.addWidget(logo_sub)
         sidebar_layout.addWidget(logo_frame)
 
-        # 탭 버튼
+        # 탭 버튼 (2개: 대시보드, 설정)
         self.nav_buttons = []
         nav_items = [
             ("dashboard", "대시보드"),
-            ("equipment", "장비 관리"),
             ("settings", "설정"),
         ]
 
@@ -173,31 +171,27 @@ class MainWindow(QMainWindow):
         # 페이지 스택
         self.page_stack = QStackedWidget()
 
-        # 대시보드 + 로그 패널 페이지
+        # === 대시보드 페이지: 대시보드(좌) + 로그패널(우) ===
         dashboard_page = QWidget()
-        dashboard_page_layout = QVBoxLayout(dashboard_page)
+        dashboard_page_layout = QHBoxLayout(dashboard_page)
         dashboard_page_layout.setContentsMargins(0, 0, 0, 0)
         dashboard_page_layout.setSpacing(0)
 
         self.dashboard = DashboardView(self.dm)
-        dashboard_page_layout.addWidget(self.dashboard, 1)
+        dashboard_page_layout.addWidget(self.dashboard, 10)
 
         self.log_panel = LogPanel(self.dm)
-        dashboard_page_layout.addWidget(self.log_panel)
+        dashboard_page_layout.addWidget(self.log_panel, 3)
 
         # 대시보드의 로그 시그널 연결
         self.dashboard.log_message.connect(self.log_panel.append_log)
 
         self.page_stack.addWidget(dashboard_page)  # 0: dashboard
 
-        # 장비 관리 페이지
-        self.equipment_tab = EquipmentTab(self.dm)
-        self.page_stack.addWidget(self.equipment_tab)  # 1: equipment
-
-        # 설정 페이지
+        # === 설정 페이지 (인원관리 + 선박관리 + 장비관리 통합) ===
         self.settings_tab = SettingsTab(self.dm)
         self.settings_tab.data_changed.connect(self._on_data_changed)
-        self.page_stack.addWidget(self.settings_tab)  # 2: settings
+        self.page_stack.addWidget(self.settings_tab)  # 1: settings
 
         content_layout.addWidget(self.page_stack, 1)
         main_layout.addLayout(content_layout, 1)
@@ -206,7 +200,7 @@ class MainWindow(QMainWindow):
         self._switch_page("dashboard")
 
     def _switch_page(self, key: str):
-        page_map = {"dashboard": 0, "equipment": 1, "settings": 2}
+        page_map = {"dashboard": 0, "settings": 1}
         idx = page_map.get(key, 0)
         self.page_stack.setCurrentIndex(idx)
 
@@ -219,8 +213,6 @@ class MainWindow(QMainWindow):
         # 페이지 전환 시 새로고침
         if key == "dashboard":
             self.dashboard.refresh()
-        elif key == "equipment":
-            self.equipment_tab.refresh()
         elif key == "settings":
             self.settings_tab.refresh()
 
@@ -236,7 +228,6 @@ class MainWindow(QMainWindow):
     def _on_data_changed(self):
         """설정 변경 시"""
         self.dashboard.refresh()
-        self.equipment_tab.refresh()
 
     def _export_data(self):
         filepath, _ = QFileDialog.getSaveFileName(

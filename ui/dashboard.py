@@ -1,5 +1,5 @@
 """
-SPT 메인 대시보드 - 3단 컬럼 (본함 / 단정 / 어선)
+SPT 메인 대시보드 - 3단 컬럼 (본함 / 단정 / 어선) + 장비 이동
 """
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, QScrollArea, QFrame,
@@ -19,6 +19,7 @@ class DashboardView(QWidget):
         super().__init__(parent)
         self.dm = data_manager
         self.selected_ids: Set[str] = set()
+        self.selected_eq_ids: Set[str] = set()
         self.containers: dict[str, VesselContainer] = {}
         self._setup_ui()
         self._setup_timer()
@@ -31,19 +32,19 @@ class DashboardView(QWidget):
 
         # === 좌측: 본함 ===
         self.base_panel = self._create_section("본함 (BASE SHIP)", "sectionTitle", "base")
-        main_layout.addWidget(self.base_panel, 3)
+        main_layout.addWidget(self.base_panel, 1)
 
         # === 중앙: 단정 ===
         self.patrol_panel = self._create_section_multi(
             "단정 운영 상태 (PATROL BOATS)", "sectionTitlePatrol", "patrol"
         )
-        main_layout.addWidget(self.patrol_panel, 4)
+        main_layout.addWidget(self.patrol_panel, 1)
 
         # === 우측: 어선 ===
         self.vessel_panel = self._create_section_multi(
             "승선 확인 선박 (BOARDED VESSELS)", "sectionTitleVessel", "vessel"
         )
-        main_layout.addWidget(self.vessel_panel, 3)
+        main_layout.addWidget(self.vessel_panel, 1)
 
     def _create_section(self, title: str, title_style: str, section_type: str) -> QFrame:
         """본함용 단일 섹션"""
@@ -63,6 +64,7 @@ class DashboardView(QWidget):
         container = VesselContainer("base", "본함 (KCG 3012)", "base")
         container.header_clicked.connect(self._on_container_clicked)
         container.card_clicked.connect(self._on_card_clicked)
+        container.eq_card_clicked.connect(self._on_eq_card_clicked)
         self.containers["base"] = container
         layout.addWidget(container)
 
@@ -123,6 +125,7 @@ class DashboardView(QWidget):
                     container = VesselContainer(vid, vinfo["name"], "patrol")
                     container.header_clicked.connect(self._on_container_clicked)
                     container.card_clicked.connect(self._on_card_clicked)
+                    container.eq_card_clicked.connect(self._on_eq_card_clicked)
                     self.containers[vid] = container
                     layout.addWidget(container)
             layout.addStretch()
@@ -140,6 +143,7 @@ class DashboardView(QWidget):
                     container = VesselContainer(vid, vinfo["name"], "vessel")
                     container.header_clicked.connect(self._on_container_clicked)
                     container.card_clicked.connect(self._on_card_clicked)
+                    container.eq_card_clicked.connect(self._on_eq_card_clicked)
                     self.containers[vid] = container
                     layout.addWidget(container)
             layout.addStretch()
@@ -150,10 +154,17 @@ class DashboardView(QWidget):
         for vid, container in self.containers.items():
             personnel = self.dm.get_personnel_at(vid)
             container.set_personnel(personnel)
+
+            # 장비 표시
+            equipment = self.dm.get_equipment_at(vid)
+            container.set_equipment(equipment)
+
             container.update_timers()
             # 선택 상태 복원
             for pid in self.selected_ids:
                 container.set_card_selected(pid, True)
+            for eid in self.selected_eq_ids:
+                container.set_eq_card_selected(eid, True)
 
     def _setup_timer(self):
         """1초 타이머 - 실시간 업데이트"""
@@ -167,7 +178,7 @@ class DashboardView(QWidget):
             container.update_timers()
 
     def _on_card_clicked(self, pid: str, ctrl: bool):
-        """대원 카드 클릭 - 항상 토글 (Ctrl 불필요)"""
+        """대원 카드 클릭 - 항상 토글"""
         if pid in self.selected_ids:
             self.selected_ids.discard(pid)
             self._set_card_selected(pid, False)
@@ -177,35 +188,65 @@ class DashboardView(QWidget):
 
         self._update_move_targets()
 
+    def _on_eq_card_clicked(self, eid: str, ctrl: bool):
+        """장비 카드 클릭 - 토글"""
+        if eid in self.selected_eq_ids:
+            self.selected_eq_ids.discard(eid)
+            self._set_eq_card_selected(eid, False)
+        else:
+            self.selected_eq_ids.add(eid)
+            self._set_eq_card_selected(eid, True)
+
+        self._update_move_targets()
+
     def _on_container_clicked(self, vessel_id: str):
-        """컨테이너 헤더 클릭 → 선택된 대원들을 해당 선박으로 일괄 이동"""
-        if not self.selected_ids:
+        """컨테이너 헤더 클릭 → 선택된 대원/장비를 해당 선박으로 일괄 이동"""
+        if not self.selected_ids and not self.selected_eq_ids:
             return
 
-        pids = list(self.selected_ids)
-        msg = self.dm.move_personnel_batch(pids, vessel_id)
+        msgs = []
 
-        if msg:
+        if self.selected_ids:
+            pids = list(self.selected_ids)
+            msg = self.dm.move_personnel_batch(pids, vessel_id)
+            if msg:
+                msgs.append(msg)
+
+        if self.selected_eq_ids:
+            eids = list(self.selected_eq_ids)
+            msg = self.dm.move_equipment_batch(eids, vessel_id)
+            if msg:
+                msgs.append(msg)
+
+        if msgs:
             self.selected_ids.clear()
+            self.selected_eq_ids.clear()
             self.refresh()
-            self.log_message.emit(msg)
+            for msg in msgs:
+                self.log_message.emit(msg)
 
     def _set_card_selected(self, pid: str, selected: bool):
         for container in self.containers.values():
             container.set_card_selected(pid, selected)
 
+    def _set_eq_card_selected(self, eid: str, selected: bool):
+        for container in self.containers.values():
+            container.set_eq_card_selected(eid, selected)
+
     def _clear_all_selection(self):
         self.selected_ids.clear()
+        self.selected_eq_ids.clear()
         for container in self.containers.values():
             container.clear_selection()
         self._update_move_targets()
 
     def _update_move_targets(self):
         """선택 상태에 따라 이동 대상 하이라이트"""
-        has_selection = len(self.selected_ids) > 0
+        has_selection = len(self.selected_ids) > 0 or len(self.selected_eq_ids) > 0
         for vid, container in self.containers.items():
             has_selected_here = any(pid in self.selected_ids for pid in container.cards)
-            if has_selection and not has_selected_here:
+            has_eq_selected_here = any(eid in self.selected_eq_ids for eid in container.eq_cards)
+            if has_selection and not has_selected_here and not has_eq_selected_here:
                 container.set_move_target(True)
             else:
                 container.set_move_target(False)

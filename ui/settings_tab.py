@@ -8,7 +8,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QTimer
 from core.data_manager import DataManager
 from core.models import Equipment
-from ui.personnel_card import format_time
+
+RANKS = ["총경", "경정", "경감", "경위", "경사", "경장", "순경"]
 
 
 # ============================================================
@@ -59,11 +60,7 @@ class PersonnelEditCard(QFrame):
 
         self.rank_combo = QComboBox()
         self.rank_combo.setFixedHeight(28)
-        self.rank_combo.addItems([
-            "경정", "경감", "경위", "경장", "순경", "상사", "중사", "하사",
-            "소위", "중위", "대위", "소령", "중령"
-        ])
-        self.rank_combo.setEditable(True)
+        self.rank_combo.addItems(RANKS)
         self.rank_combo.setCurrentText(self._rank)
         self.rank_combo.hide()
         self.layout_main.addWidget(self.rank_combo)
@@ -129,16 +126,17 @@ class PersonnelEditCard(QFrame):
 
 
 # ============================================================
-# 장비 카드 (간소화)
+# 장비 카드 (설정 탭용 - 타이머 없음)
 # ============================================================
 class EquipmentCard(QFrame):
-    """장비 카드 - 간소화"""
+    """장비 카드 - 이름, 담당자, 삭제"""
     def __init__(self, equipment: Equipment, data_manager: DataManager, parent=None):
         super().__init__(parent)
         self.eq = equipment
         self.dm = data_manager
-        self.setMinimumHeight(80)
+        self.setMinimumHeight(50)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.setObjectName("equipmentCard")
         self._setup_ui()
         self.update_display()
 
@@ -147,16 +145,12 @@ class EquipmentCard(QFrame):
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(4)
 
-        # 상단: 이름 + 타이머
+        # 상단: 이름
         top_row = QHBoxLayout()
         self.name_label = QLabel(self.eq.name)
         self.name_label.setObjectName("equipmentName")
         top_row.addWidget(self.name_label)
         top_row.addStretch()
-
-        self.timer_label = QLabel("00:00:00")
-        self.timer_label.setObjectName("equipmentTimer")
-        top_row.addWidget(self.timer_label)
         layout.addLayout(top_row)
 
         # 중간: 담당자 정보
@@ -164,20 +158,9 @@ class EquipmentCard(QFrame):
         self.assignee_label.setObjectName("equipmentCategory")
         layout.addWidget(self.assignee_label)
 
-        # 하단: 버튼들
+        # 하단: 담당자 변경 + 삭제
         btn_row = QHBoxLayout()
         btn_row.setSpacing(4)
-
-        self.toggle_btn = QPushButton("가동 시작")
-        self.toggle_btn.setObjectName("btnSuccess")
-        self.toggle_btn.setFixedHeight(28)
-        self.toggle_btn.clicked.connect(self._toggle_running)
-        btn_row.addWidget(self.toggle_btn)
-
-        self.reset_btn = QPushButton("리셋")
-        self.reset_btn.setFixedHeight(28)
-        self.reset_btn.clicked.connect(self._reset_timer)
-        btn_row.addWidget(self.reset_btn)
 
         self.assign_combo = QComboBox()
         self.assign_combo.setFixedHeight(28)
@@ -208,18 +191,6 @@ class EquipmentCard(QFrame):
         self.assign_combo.blockSignals(False)
 
     def update_display(self):
-        elapsed = self.eq.get_run_elapsed()
-        self.timer_label.setText(format_time(elapsed))
-
-        if self.eq.is_running:
-            self.setObjectName("equipmentRunning")
-            self.toggle_btn.setText("가동 중지")
-            self.toggle_btn.setObjectName("btnDanger")
-        else:
-            self.setObjectName("equipmentCard")
-            self.toggle_btn.setText("가동 시작")
-            self.toggle_btn.setObjectName("btnSuccess")
-
         if self.eq.assignee_id:
             person = self.dm.get_personnel_by_id(self.eq.assignee_id)
             if person:
@@ -228,25 +199,6 @@ class EquipmentCard(QFrame):
                 self.assignee_label.setText("담당자: 미지정")
         else:
             self.assignee_label.setText("담당자: 미지정")
-
-        self.setStyleSheet(self.styleSheet())
-        self.toggle_btn.setStyleSheet(self.toggle_btn.styleSheet())
-
-    def _toggle_running(self):
-        if self.eq.is_running:
-            self.eq.stop()
-            self.dm.add_log(f"장비 '{self.eq.name}' 가동 중지 (누적: {format_time(self.eq.total_run_seconds)})")
-        else:
-            self.eq.start()
-            self.dm.add_log(f"장비 '{self.eq.name}' 가동 시작")
-        self.dm.save()
-        self.update_display()
-
-    def _reset_timer(self):
-        self.eq.reset_timer()
-        self.dm.add_log(f"장비 '{self.eq.name}' 타이머 리셋")
-        self.dm.save()
-        self.update_display()
 
     def _on_assignee_changed(self, index):
         pid = self.assign_combo.itemData(index)
@@ -272,7 +224,6 @@ class SettingsTab(QWidget):
         self.dm = data_manager
         self.eq_cards: list[EquipmentCard] = []
         self._setup_ui()
-        self._setup_timer()
         self.refresh()
 
     def _setup_ui(self):
@@ -299,11 +250,7 @@ class SettingsTab(QWidget):
 
         self.rank_combo = QComboBox()
         self.rank_combo.setFixedHeight(32)
-        self.rank_combo.addItems([
-            "경정", "경감", "경위", "경장", "순경", "상사", "중사", "하사",
-            "소위", "중위", "대위", "소령", "중령"
-        ])
-        self.rank_combo.setEditable(True)
+        self.rank_combo.addItems(RANKS)
         add_layout.addWidget(self.rank_combo, 1)
 
         add_btn = QPushButton("인원 추가")
@@ -469,15 +416,6 @@ class SettingsTab(QWidget):
         self.eq_scroll.setWidget(self.eq_list_widget)
         layout.addWidget(self.eq_scroll, 2)
 
-    def _setup_timer(self):
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self._tick)
-        self.timer.start(1000)
-
-    def _tick(self):
-        for card in self.eq_cards:
-            card.update_display()
-
     # ---- 인원 관리 ----
     def _add_personnel(self):
         name = self.name_input.text().strip()
@@ -529,6 +467,14 @@ class SettingsTab(QWidget):
         self.refresh()
         self.data_changed.emit()
 
+    def _rename_vessel(self, vid: str, new_name: str):
+        """선박 이름 변경"""
+        if vid in self.dm.vessels and new_name.strip():
+            self.dm.vessels[vid]["name"] = new_name.strip()
+            self.dm.save()
+            self.refresh()
+            self.data_changed.emit()
+
     # ---- 장비 관리 ----
     def _add_equipment(self):
         name = self.eq_name_input.text().strip()
@@ -558,7 +504,9 @@ class SettingsTab(QWidget):
                 item.widget().setParent(None)
                 item.widget().deleteLater()
 
-        for p in self.dm.personnel:
+        from core.data_manager import RANK_ORDER
+        sorted_personnel = sorted(self.dm.personnel, key=lambda p: RANK_ORDER.get(p.rank, 99))
+        for p in sorted_personnel:
             card = PersonnelEditCard(p.id, p.name, p.rank)
             card.removed.connect(self._remove_personnel)
             card.updated.connect(self._update_personnel)
@@ -591,7 +539,7 @@ class SettingsTab(QWidget):
                 self.vessel_list_layout.addWidget(row)
         self.vessel_list_layout.addStretch()
 
-        # 장비 목록 갱신
+        # 장비 목록 갱신 - 기존 카드 정리
         for card in self.eq_cards:
             card.setParent(None)
             card.deleteLater()
@@ -612,7 +560,7 @@ class SettingsTab(QWidget):
         self._populate_eq_assignee_combo()
 
     def _create_vessel_row(self, vid: str, vinfo: dict) -> QFrame:
-        """선박 한 줄 위젯"""
+        """선박 한 줄 위젯 - 이름 수정 가능"""
         row = QFrame()
         row.setObjectName("personnelCard")
         row.setFixedHeight(40)
@@ -620,6 +568,7 @@ class SettingsTab(QWidget):
         row_layout.setContentsMargins(8, 4, 8, 4)
         row_layout.setSpacing(6)
 
+        # 일반 모드
         name_label = QLabel(vinfo["name"])
         name_label.setObjectName("cardName")
         row_layout.addWidget(name_label)
@@ -631,10 +580,62 @@ class SettingsTab(QWidget):
         count_label.setObjectName("cardRank")
         row_layout.addWidget(count_label)
 
+        # 수정 모드 위젯 (숨김)
+        name_input = QLineEdit(vinfo["name"])
+        name_input.setFixedHeight(24)
+        name_input.setFixedWidth(120)
+        name_input.hide()
+        row_layout.addWidget(name_input)
+
+        # 수정 버튼
+        edit_btn = QPushButton("수정")
+        edit_btn.setFixedSize(50, 24)
+        row_layout.addWidget(edit_btn)
+
+        # 저장 버튼 (숨김)
+        save_btn = QPushButton("저장")
+        save_btn.setObjectName("btnAccent")
+        save_btn.setFixedSize(50, 24)
+        save_btn.hide()
+        row_layout.addWidget(save_btn)
+
+        # 취소 버튼 (숨김)
+        cancel_btn = QPushButton("취소")
+        cancel_btn.setFixedSize(50, 24)
+        cancel_btn.hide()
+        row_layout.addWidget(cancel_btn)
+
         del_btn = QPushButton("삭제")
         del_btn.setObjectName("btnDanger")
         del_btn.setFixedSize(50, 24)
         del_btn.clicked.connect(lambda checked, v=vid: self._remove_vessel(v))
         row_layout.addWidget(del_btn)
+
+        def start_edit():
+            name_label.hide()
+            count_label.hide()
+            edit_btn.hide()
+            name_input.setText(vinfo["name"])
+            name_input.show()
+            save_btn.show()
+            cancel_btn.show()
+            name_input.setFocus()
+
+        def save_edit():
+            new_name = name_input.text().strip()
+            if new_name:
+                self._rename_vessel(vid, new_name)
+
+        def cancel_edit():
+            name_input.hide()
+            save_btn.hide()
+            cancel_btn.hide()
+            name_label.show()
+            count_label.show()
+            edit_btn.show()
+
+        edit_btn.clicked.connect(start_edit)
+        save_btn.clicked.connect(save_edit)
+        cancel_btn.clicked.connect(cancel_edit)
 
         return row

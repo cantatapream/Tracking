@@ -1,19 +1,81 @@
 """
-SPT 선박 컨테이너 위젯 - 단정/어선 하나의 독립 컨테이너
+SPT 선박 컨테이너 위젯 - 단정/어선 하나의 독립 컨테이너 + 장비 표시
 """
 from PySide6.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QWidget, QSizePolicy
 )
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QPainter, QColor, QPen
 from ui.personnel_card import PersonnelCard
-from core.models import Personnel
+from core.models import Personnel, Equipment
 from typing import List
+
+
+class EquipmentMiniCard(QFrame):
+    """장비 미니 카드 - 대시보드용"""
+    clicked = Signal(str, bool)  # equipment_id, ctrl
+
+    def __init__(self, equipment: Equipment, parent=None):
+        super().__init__(parent)
+        self.equipment = equipment
+        self._selected = False
+        self.setCursor(Qt.PointingHandCursor)
+        self.setFixedHeight(32)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.setObjectName("equipmentMiniCard")
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(10, 4, 10, 4)
+        layout.setSpacing(8)
+
+        icon_label = QLabel("⚙")
+        icon_label.setFixedWidth(16)
+        icon_label.setStyleSheet("color: #5a7a9a; font-size: 12px; background: transparent; border: none;")
+        layout.addWidget(icon_label)
+
+        self.name_label = QLabel(self.equipment.name)
+        self.name_label.setObjectName("equipmentMiniName")
+        layout.addWidget(self.name_label)
+        layout.addStretch()
+
+    @property
+    def selected(self) -> bool:
+        return self._selected
+
+    @selected.setter
+    def selected(self, value: bool):
+        self._selected = value
+        if value:
+            self.setObjectName("equipmentMiniCardSelected")
+        else:
+            self.setObjectName("equipmentMiniCard")
+        self.setStyleSheet(self.styleSheet())
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            ctrl = event.modifiers() & Qt.ControlModifier
+            self.clicked.emit(self.equipment.id, bool(ctrl))
+        super().mousePressEvent(event)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self._selected:
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.Antialiasing)
+            glow_pen = QPen(QColor(0, 212, 255, 60), 3)
+            painter.setPen(glow_pen)
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 4, 4)
+            painter.end()
 
 
 class VesselContainer(QFrame):
     """개별 선박(단정/어선) 컨테이너"""
     header_clicked = Signal(str)  # vessel_id
     card_clicked = Signal(str, bool)  # personnel_id, ctrl
+    eq_card_clicked = Signal(str, bool)  # equipment_id, ctrl
 
     def __init__(self, vessel_id: str, vessel_name: str, vessel_type: str, parent=None):
         super().__init__(parent)
@@ -21,6 +83,8 @@ class VesselContainer(QFrame):
         self.vessel_name = vessel_name
         self.vessel_type = vessel_type  # "base", "patrol", "vessel"
         self.cards: dict[str, PersonnelCard] = {}
+        self.eq_cards: dict[str, EquipmentMiniCard] = {}
+        self._eq_header = None
         self._move_target_mode = False
         self.setCursor(Qt.PointingHandCursor)
         self._setup_ui()
@@ -86,7 +150,18 @@ class VesselContainer(QFrame):
             card.deleteLater()
         self.cards.clear()
 
-        # stretch 제거
+        # 기존 장비 카드도 제거
+        for card in self.eq_cards.values():
+            card.setParent(None)
+            card.deleteLater()
+        self.eq_cards.clear()
+
+        if self._eq_header:
+            self._eq_header.setParent(None)
+            self._eq_header.deleteLater()
+            self._eq_header = None
+
+        # 레이아웃 클리어
         while self.cards_layout.count():
             item = self.cards_layout.takeAt(0)
             if item.widget():
@@ -99,8 +174,46 @@ class VesselContainer(QFrame):
             self.cards[p.id] = card
             self.cards_layout.addWidget(card)
 
+        # stretch는 set_equipment 후에 추가
         self.cards_layout.addStretch()
         self.count_badge.setText(f"{len(personnel_list)}명")
+
+    def set_equipment(self, equipment_list: List[Equipment]):
+        """장비 카드 추가 (set_personnel 이후 호출)"""
+        # 기존 장비 카드 제거
+        for card in self.eq_cards.values():
+            card.setParent(None)
+            card.deleteLater()
+        self.eq_cards.clear()
+
+        if self._eq_header:
+            self._eq_header.setParent(None)
+            self._eq_header.deleteLater()
+            self._eq_header = None
+
+        if not equipment_list:
+            return
+
+        # 마지막 stretch 제거
+        last_idx = self.cards_layout.count() - 1
+        if last_idx >= 0:
+            item = self.cards_layout.takeAt(last_idx)
+
+        # 장비 섹션 헤더
+        self._eq_header = QLabel("  장비")
+        self._eq_header.setObjectName("equipmentSectionHeader")
+        self._eq_header.setFixedHeight(22)
+        self.cards_layout.addWidget(self._eq_header)
+
+        # 장비 카드 추가
+        for eq in equipment_list:
+            card = EquipmentMiniCard(eq)
+            card.clicked.connect(self._on_eq_card_clicked)
+            self.eq_cards[eq.id] = card
+            self.cards_layout.addWidget(card)
+
+        # stretch 다시 추가
+        self.cards_layout.addStretch()
 
     def update_timers(self):
         """모든 카드의 타이머 업데이트"""
@@ -111,8 +224,14 @@ class VesselContainer(QFrame):
         if pid in self.cards:
             self.cards[pid].selected = selected
 
+    def set_eq_card_selected(self, eid: str, selected: bool):
+        if eid in self.eq_cards:
+            self.eq_cards[eid].selected = selected
+
     def clear_selection(self):
         for card in self.cards.values():
+            card.selected = False
+        for card in self.eq_cards.values():
             card.selected = False
 
     def set_move_target(self, active: bool):
@@ -136,6 +255,9 @@ class VesselContainer(QFrame):
 
     def _on_card_clicked(self, pid: str, ctrl: bool):
         self.card_clicked.emit(pid, ctrl)
+
+    def _on_eq_card_clicked(self, eid: str, ctrl: bool):
+        self.eq_card_clicked.emit(eid, ctrl)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:

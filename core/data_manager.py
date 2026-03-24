@@ -11,6 +11,8 @@ from core.models import Personnel, Equipment, DEFAULT_VESSELS, DEFAULT_PERSONNEL
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 STATUS_FILE = os.path.join(DATA_DIR, "status.json")
 
+RANK_ORDER = {"총경": 0, "경정": 1, "경감": 2, "경위": 3, "경사": 4, "경장": 5, "순경": 6}
+
 
 class DataManager:
     def __init__(self):
@@ -110,7 +112,32 @@ class DataManager:
         return None
 
     def get_personnel_at(self, location: str) -> List[Personnel]:
-        return [p for p in self.personnel if p.location == location]
+        result = [p for p in self.personnel if p.location == location]
+        return sorted(result, key=lambda p: RANK_ORDER.get(p.rank, 99))
+
+    def get_equipment_at(self, location: str) -> List[Equipment]:
+        """특정 위치의 장비 목록"""
+        if location == "base":
+            return [e for e in self.equipment if e.vessel_id in ("", "base")]
+        return [e for e in self.equipment if e.vessel_id == location]
+
+    def move_equipment_batch(self, eids: List[str], target_location: str) -> Optional[str]:
+        """장비 일괄 이동"""
+        names = []
+        for eid in eids:
+            eq = next((e for e in self.equipment if e.id == eid), None)
+            if eq:
+                old_loc = eq.vessel_id or "base"
+                if old_loc != target_location:
+                    eq.vessel_id = target_location
+                    names.append(eq.name)
+        if not names:
+            return None
+        target_name = self.get_location_display_name(target_location)
+        log_msg = f"장비 이동: {', '.join(names)} → {target_name}"
+        self.add_log(log_msg)
+        self.save()
+        return log_msg
 
     def add_personnel(self, name: str, rank: str, department: str = "본함") -> Personnel:
         max_num = 0

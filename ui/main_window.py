@@ -21,7 +21,7 @@ class MainWindow(QMainWindow):
     def __init__(self, data_manager: DataManager):
         super().__init__()
         self.dm = data_manager
-        self.setWindowTitle("작전 통제 현황")
+        self.setWindowTitle("작전 현황")
         self.setMinimumSize(1400, 850)
         self.resize(1600, 950)
 
@@ -60,7 +60,7 @@ class MainWindow(QMainWindow):
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         sidebar_layout.setSpacing(0)
 
-        # 로고 영역 - 해양경찰 마크 + 작전 통제 현황
+        # 로고 영역 - 해양경찰 마크 + 작전 현황
         logo_frame = QFrame()
         logo_frame.setFixedHeight(60)
         logo_frame.setStyleSheet("""
@@ -85,7 +85,7 @@ class MainWindow(QMainWindow):
         mark.setFixedSize(40, 40)
         logo_h.addWidget(mark)
 
-        logo_title = QLabel("작전 통제 현황")
+        logo_title = QLabel("작전 현황")
         logo_title.setStyleSheet("""
             color: #00d4ff; font-size: 14px; font-weight: bold;
             font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;

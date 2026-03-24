@@ -69,9 +69,9 @@ class DashboardView(QWidget):
         # 제목 행: 본함 이름 (클릭 편집) + 인원 뱃지
         title_frame = QFrame()
         title_frame.setObjectName("sectionTitle")
-        title_frame.setFixedHeight(36)
+        title_frame.setMinimumHeight(36)
         title_h = QHBoxLayout(title_frame)
-        title_h.setContentsMargins(10, 0, 10, 0)
+        title_h.setContentsMargins(10, 4, 10, 4)
         title_h.setSpacing(8)
 
         base_name = self.dm.vessels.get("base", {}).get("name", "본함 (KCG 3012)")
@@ -83,10 +83,21 @@ class DashboardView(QWidget):
 
         self.base_title_input = QLineEdit(base_name)
         self.base_title_input.setObjectName("headerTitleInput")
-        self.base_title_input.setFixedHeight(28)
+        self.base_title_input.setMinimumHeight(28)
         self.base_title_input.returnPressed.connect(self._save_base_name_edit)
         self.base_title_input.hide()
         title_h.addWidget(self.base_title_input)
+
+        # 확인 버튼
+        from PySide6.QtWidgets import QPushButton
+        self.base_title_confirm_btn = QPushButton("확인")
+        self.base_title_confirm_btn.setObjectName("headerConfirmBtn")
+        self.base_title_confirm_btn.setMinimumHeight(28)
+        self.base_title_confirm_btn.setFixedWidth(50)
+        self.base_title_confirm_btn.setCursor(Qt.PointingHandCursor)
+        self.base_title_confirm_btn.clicked.connect(self._save_base_name_edit)
+        self.base_title_confirm_btn.hide()
+        title_h.addWidget(self.base_title_confirm_btn)
 
         title_h.addStretch()
 
@@ -112,6 +123,7 @@ class DashboardView(QWidget):
         base_name = self.dm.vessels.get("base", {}).get("name", "본함 (KCG 3012)")
         self.base_title_input.setText(base_name)
         self.base_title_input.show()
+        self.base_title_confirm_btn.show()
         self.base_title_input.setFocus()
         self.base_title_input.selectAll()
 
@@ -123,6 +135,7 @@ class DashboardView(QWidget):
             self.dm.save()
             self.base_title_label.setText(f"  {new_name}")
         self.base_title_input.hide()
+        self.base_title_confirm_btn.hide()
         self.base_title_label.show()
 
     def _create_section_multi(self, title: str, title_style: str, section_type: str) -> QFrame:
@@ -136,9 +149,9 @@ class DashboardView(QWidget):
         # 제목 행: 타이틀 + 총인원 뱃지
         title_frame = QFrame()
         title_frame.setObjectName(title_style)
-        title_frame.setFixedHeight(36)
+        title_frame.setMinimumHeight(36)
         title_h = QHBoxLayout(title_frame)
-        title_h.setContentsMargins(10, 0, 10, 0)
+        title_h.setContentsMargins(10, 4, 10, 4)
         title_h.setSpacing(8)
 
         title_label = QLabel(f"  {title}")

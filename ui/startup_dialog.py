@@ -160,7 +160,7 @@ class StartupDialog(QDialog):
         super().__init__(parent)
         self.dm = data_manager
         self.result_action = None  # "new" or "load"
-        self.setWindowTitle("작전 통제 현황")
+        self.setWindowTitle("작전 현황")
         self.setFixedSize(400, 300)
         self.setWindowFlags(Qt.Dialog | Qt.WindowTitleHint)
         self._setup_ui()
@@ -178,7 +178,7 @@ class StartupDialog(QDialog):
         layout.setSpacing(20)
 
         # 제목
-        title = QLabel("작전 통제 현황")
+        title = QLabel("작전 현황")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(
             "color: #00d4ff; font-size: 22px; font-weight: bold; "

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SPT - 작전 통제 현황
+SPT - 작전 현황
 해양경찰 인원 및 장비 현황 관리 시스템
 
 실행: python spt_app.py
@@ -25,7 +25,7 @@ def main():
     os.environ.setdefault("QT_ENABLE_HIGHDPI_SCALING", "1")
 
     app = QApplication(sys.argv)
-    app.setApplicationName("작전 통제 현황")
+    app.setApplicationName("작전 현황")
     app.setOrganizationName("KCG")
 
     # 기본 폰트 설정

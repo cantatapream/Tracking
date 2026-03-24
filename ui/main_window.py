@@ -5,7 +5,8 @@ import os
 import time
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton,
-    QStackedWidget, QFrame, QFileDialog, QSizePolicy, QApplication
+    QStackedWidget, QFrame, QFileDialog, QSizePolicy, QApplication,
+    QLineEdit
 )
 from PySide6.QtCore import Qt, QTimer, QSize
 from PySide6.QtGui import QFont, QIcon, QColor
@@ -16,15 +17,12 @@ from ui.settings_tab import SettingsTab
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, data_manager: DataManager):
         super().__init__()
-        self.setWindowTitle("SPT - SEAGNAL Personnel Tracker")
+        self.dm = data_manager
+        self.setWindowTitle("작전 통제 현황")
         self.setMinimumSize(1400, 850)
         self.resize(1600, 950)
-
-        # 데이터 매니저
-        self.dm = DataManager()
-        self.dm.load()
 
         # 스타일시트 로드
         self._load_styles()
@@ -82,7 +80,7 @@ class MainWindow(QMainWindow):
             letter-spacing: 4px; background: transparent; border: none;
         """)
         logo_layout.addWidget(logo_title)
-        logo_sub = QLabel("Personnel Tracker")
+        logo_sub = QLabel("작전 통제 현황")
         logo_sub.setStyleSheet("""
             color: #5a7a9a; font-size: 9px; letter-spacing: 1px;
             background: transparent; border: none;
@@ -90,7 +88,7 @@ class MainWindow(QMainWindow):
         logo_layout.addWidget(logo_sub)
         sidebar_layout.addWidget(logo_frame)
 
-        # 탭 버튼 (2개: 대시보드, 설정)
+        # 탭 버튼
         self.nav_buttons = []
         nav_items = [
             ("dashboard", "대시보드"),
@@ -132,23 +130,34 @@ class MainWindow(QMainWindow):
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(0)
 
-        # 헤더 바
+        # 헤더 바 - 클릭하여 제목 편집 가능
         header = QFrame()
         header.setObjectName("headerBar")
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(20, 8, 20, 8)
 
+        # 제목 영역 (클릭으로 편집)
         title_layout = QVBoxLayout()
         title_layout.setSpacing(0)
-        header_title = QLabel("해양경찰 작전 통제판")
-        header_title.setObjectName("headerTitle")
-        title_layout.addWidget(header_title)
 
-        header_sub = QLabel("MARITIME POLICE OPERATIONS CONTROL BOARD")
-        header_sub.setObjectName("headerSubtitle")
-        title_layout.addWidget(header_sub)
-        header_layout.addLayout(title_layout)
+        # 제목 표시 라벨
+        title_text = self.dm.operation_title or "제목을 클릭하여 작전명을 입력하세요"
+        self.header_title = QLabel(title_text)
+        self.header_title.setObjectName("headerTitle")
+        self.header_title.setCursor(Qt.PointingHandCursor)
+        self.header_title.mousePressEvent = self._start_title_edit
+        title_layout.addWidget(self.header_title)
 
+        # 제목 편집 입력 (숨김)
+        self.title_input = QLineEdit()
+        self.title_input.setObjectName("headerTitleInput")
+        self.title_input.setFixedHeight(32)
+        self.title_input.setPlaceholderText("작전명을 입력하세요...")
+        self.title_input.returnPressed.connect(self._save_title)
+        self.title_input.hide()
+        title_layout.addWidget(self.title_input)
+
+        header_layout.addLayout(title_layout, 1)
         header_layout.addStretch()
 
         # 현재 시각
@@ -171,7 +180,7 @@ class MainWindow(QMainWindow):
         # 페이지 스택
         self.page_stack = QStackedWidget()
 
-        # === 대시보드 페이지: 대시보드(좌) + 로그패널(우) ===
+        # === 대시보드 페이지 ===
         dashboard_page = QWidget()
         dashboard_page_layout = QHBoxLayout(dashboard_page)
         dashboard_page_layout.setContentsMargins(0, 0, 0, 0)
@@ -183,12 +192,11 @@ class MainWindow(QMainWindow):
         self.log_panel = LogPanel(self.dm)
         dashboard_page_layout.addWidget(self.log_panel, 3)
 
-        # 대시보드의 로그 시그널 연결
         self.dashboard.log_message.connect(self.log_panel.append_log)
 
         self.page_stack.addWidget(dashboard_page)  # 0: dashboard
 
-        # === 설정 페이지 (인원관리 + 선박관리 + 장비관리 통합) ===
+        # === 설정 페이지 ===
         self.settings_tab = SettingsTab(self.dm)
         self.settings_tab.data_changed.connect(self._on_data_changed)
         self.page_stack.addWidget(self.settings_tab)  # 1: settings
@@ -199,6 +207,22 @@ class MainWindow(QMainWindow):
         # 첫 번째 탭 활성화
         self._switch_page("dashboard")
 
+    def _start_title_edit(self, event):
+        """제목 클릭 → 편집 모드"""
+        self.header_title.hide()
+        self.title_input.setText(self.dm.operation_title)
+        self.title_input.show()
+        self.title_input.setFocus()
+        self.title_input.selectAll()
+
+    def _save_title(self):
+        """제목 저장"""
+        title = self.title_input.text().strip()
+        self.dm.set_title(title)
+        self.header_title.setText(title or "제목을 클릭하여 작전명을 입력하세요")
+        self.title_input.hide()
+        self.header_title.show()
+
     def _switch_page(self, key: str):
         page_map = {"dashboard": 0, "settings": 1}
         idx = page_map.get(key, 0)
@@ -208,9 +232,8 @@ class MainWindow(QMainWindow):
             is_active = btn.property("nav_key") == key
             btn.setChecked(is_active)
             btn.setProperty("active", "true" if is_active else "false")
-            btn.setStyleSheet(btn.styleSheet())  # force update
+            btn.setStyleSheet(btn.styleSheet())
 
-        # 페이지 전환 시 새로고침
         if key == "dashboard":
             self.dashboard.refresh()
         elif key == "settings":
@@ -226,7 +249,6 @@ class MainWindow(QMainWindow):
         self.date_label.setText(f"{date_str} {weekday}")
 
     def _on_data_changed(self):
-        """설정 변경 시"""
         self.dashboard.refresh()
 
     def _export_data(self):

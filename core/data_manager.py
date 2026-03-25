@@ -25,6 +25,7 @@ class DataManager:
         self.vessel_order: list = []
         self.logs: List[dict] = []
         self.operation_title: str = ""
+        self.ui_settings: dict = {}
         self._created_at: float = 0.0
         self._current_file: str = STATUS_FILE
         os.makedirs(DATA_DIR, exist_ok=True)
@@ -143,6 +144,7 @@ class DataManager:
             if old_memos:
                 self.logs.sort(key=lambda x: x.get("timestamp", 0))
 
+            self.ui_settings = data.get("ui_settings", {})
             self._current_file = filepath
             return True
         except (json.JSONDecodeError, KeyError):
@@ -157,6 +159,7 @@ class DataManager:
         self.vessels = dict(DEFAULT_VESSELS)
         self.logs = []
         self.operation_title = ""
+        self.ui_settings = {}
 
     def save(self):
         data = {
@@ -168,6 +171,7 @@ class DataManager:
             "operation_title": self.operation_title,
             "created_at": self._created_at or time.time(),
             "last_saved": time.time(),
+            "ui_settings": getattr(self, 'ui_settings', {}),
         }
         with open(self._current_file, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)

@@ -178,24 +178,22 @@ class EquipmentCard(QFrame):
         return "미지정"
 
     def _setup_ui(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(4, 2, 4, 2)
-        main_layout.setSpacing(1)
-        display = QHBoxLayout()
-        display.setSpacing(4)
+        main_layout = QHBoxLayout(self)
+        main_layout.setContentsMargins(6, 3, 6, 3)
+        main_layout.setSpacing(4)
         self.name_label = QLabel(self.eq.name)
         self.name_label.setObjectName("cardName")
-        display.addWidget(self.name_label)
+        main_layout.addWidget(self.name_label)
         sep = QLabel("|")
         sep.setStyleSheet("color: #5a7a9a; background:transparent; border:none;")
         sep.setFixedWidth(12)
         sep.setAlignment(Qt.AlignCenter)
-        display.addWidget(sep)
+        main_layout.addWidget(sep)
         self.assignee_label = QLabel(self._get_assignee_text())
         self.assignee_label.setObjectName("cardRank")
-        display.addWidget(self.assignee_label)
-        display.addStretch()
-        main_layout.addLayout(display)
+        main_layout.addWidget(self.assignee_label)
+        main_layout.addStretch()
+        self.setFixedHeight(32)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -307,7 +305,8 @@ class SettingsTab(QWidget):
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("이름")
         self.name_input.setFixedHeight(30)
-        al.addWidget(self.name_input, 2)
+        self.name_input.setMaximumWidth(120)
+        al.addWidget(self.name_input)
         self.rank_combo = QComboBox()
         self.rank_combo.setFixedHeight(30)
         self.rank_combo.addItems(RANKS)

@@ -218,7 +218,7 @@ class VesselContainer(QFrame):
         self.count_badge.setText(f"{len(personnel_list)}명")
 
     def set_equipment(self, equipment_list: List[Equipment]):
-        """장비 카드 추가 (set_personnel 이후 호출)"""
+        """장비 카드 추가 (set_personnel 이후 호출, 기타 서브 frame 보존)"""
         # 기존 장비 카드 제거
         for card in self.eq_cards.values():
             card.setParent(None)
@@ -238,10 +238,17 @@ class VesselContainer(QFrame):
         if not equipment_list:
             return
 
-        # 마지막 stretch 제거
-        last_idx = self.cards_layout.count() - 1
-        if last_idx >= 0:
-            item = self.cards_layout.takeAt(last_idx)
+        # 보존된 vesselContainer frame을 임시 추출
+        preserved = []
+        to_remove = []
+        for i in range(self.cards_layout.count()):
+            item = self.cards_layout.itemAt(i)
+            w = item.widget() if item else None
+            if w and w.objectName() == "vesselContainer":
+                to_remove.append(i)
+                preserved.append(w)
+        for i in reversed(to_remove):
+            self.cards_layout.takeAt(i)
 
         # 장비 섹션 헤더
         self._eq_header = QLabel("  장비")
@@ -249,7 +256,7 @@ class VesselContainer(QFrame):
         self._eq_header.setMinimumHeight(22)
         self.cards_layout.addWidget(self._eq_header)
 
-        # 장비 카드를 3열 그리드로 추가
+        # 장비 카드를 2열 그리드로 추가
         self._eq_grid_widget = QWidget()
         eq_grid = QGridLayout(self._eq_grid_widget)
         eq_grid.setContentsMargins(0, 0, 0, 0)
@@ -265,8 +272,13 @@ class VesselContainer(QFrame):
 
         self.cards_layout.addWidget(self._eq_grid_widget)
 
-        # stretch 다시 추가
-        self.cards_layout.addStretch()
+        # 보존된 기타 서브 frame 복원 (장비 아래에 배치)
+        for w in preserved:
+            self.cards_layout.addWidget(w)
+
+        # 본함만 stretch
+        if self.vessel_type == "base":
+            self.cards_layout.addStretch()
 
     def update_timers(self):
         """모든 카드의 타이머 업데이트"""

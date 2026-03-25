@@ -156,6 +156,20 @@ class DashboardView(QWidget):
         self.vessel_panel.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         main_layout.addWidget(self.vessel_panel, 1)
 
+        # 로그 패널 자리 (add_log_panel에서 추가)
+        self._main_layout = main_layout
+
+    def add_log_panel(self, log_panel):
+        """로그 패널을 대시보드 4번째 열로 추가 (하단선 자동 일치)"""
+        log_wrapper = QFrame()
+        log_wrapper.setObjectName("sectionPanel")
+        wrapper_layout = QVBoxLayout(log_wrapper)
+        wrapper_layout.setContentsMargins(0, 0, 0, 0)
+        wrapper_layout.setSpacing(0)
+        wrapper_layout.addWidget(log_panel)
+        log_wrapper.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        self._main_layout.addWidget(log_wrapper, 1)
+
     def _create_base_section(self) -> QFrame:
         """본함 섹션"""
         panel = QFrame()

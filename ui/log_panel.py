@@ -180,16 +180,17 @@ class LogEntryWidget(QFrame):
         """다중 선택 상태 설정 (position: first, middle, last, single)"""
         self._multi_selected = selected
         if selected:
-            # 노란색 점선 테두리 - 위치에 따라 다르게 적용
-            base = "background: transparent;"
+            # 노란색 점선 테두리 - objectName 스타일 완전 override
+            # margin 0으로 항목간 틈 제거
+            common = "background: transparent; margin: 0; padding: 2px 6px;"
             if position == "first":
-                self.setStyleSheet(f"border: 2px dashed #f0a500; border-bottom: none; border-radius: 0; {base}")
+                self.setStyleSheet(f"QFrame {{ border: 2px dashed #f0a500; border-bottom: none; border-radius: 0; {common} }}")
             elif position == "middle":
-                self.setStyleSheet(f"border-left: 2px dashed #f0a500; border-right: 2px dashed #f0a500; border-top: none; border-bottom: none; border-radius: 0; {base}")
+                self.setStyleSheet(f"QFrame {{ border-left: 2px dashed #f0a500; border-right: 2px dashed #f0a500; border-top: none; border-bottom: none; border-radius: 0; {common} }}")
             elif position == "last":
-                self.setStyleSheet(f"border: 2px dashed #f0a500; border-top: none; border-radius: 0; {base}")
+                self.setStyleSheet(f"QFrame {{ border: 2px dashed #f0a500; border-top: none; border-radius: 0; {common} }}")
             else:
-                self.setStyleSheet(f"border: 2px dashed #f0a500; border-radius: 4px; {base}")
+                self.setStyleSheet(f"QFrame {{ border: 2px dashed #f0a500; border-radius: 4px; {common} }}")
         else:
             self.setStyleSheet("")
 
@@ -616,17 +617,19 @@ class LogPanel(QWidget):
         else:
             super().wheelEvent(event)
 
-    def _apply_font_size(self):
-        """모든 로그 항목 + 타이틀에 현재 폰트 크기 적용"""
-        sz = self._font_size
-        # 타이틀 폰트도 비례 조정 (base 13→16 비율 유지)
-        title_sz = max(12, int(sz * 16 / 13))
+    def update_title_font(self, content_font_size: int):
+        """대시보드 섹션 타이틀과 동기화 (Ctrl+휠)"""
+        title_sz = max(12, int(content_font_size * 16 / 13))
         if hasattr(self, '_title_label'):
             self._title_label.setStyleSheet(f"""
                 color: #00d4ff; font-size: {title_sz}px; font-weight: bold;
                 font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
                 padding: 0; letter-spacing: 1px; background: transparent; border: none;
             """)
+
+    def _apply_font_size(self):
+        """로그 본문 폰트 크기 적용 (로그 패널 자체 Ctrl+휠)"""
+        sz = self._font_size
         for widget in self.entry_widgets:
             widget.time_label.setStyleSheet(
                 widget.time_label.styleSheet().replace(

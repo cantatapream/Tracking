@@ -142,8 +142,8 @@ class MainWindow(QMainWindow):
             border-bottom: 1px solid #1a2d4a;
         """)
         logo_v = QVBoxLayout(logo_frame)
-        logo_v.setContentsMargins(10, 8, 10, 4)
-        logo_v.setSpacing(2)
+        logo_v.setContentsMargins(10, 10, 10, 6)
+        logo_v.setSpacing(1)
 
         # 상단: BridgeBoard + Ver. 1
         logo_top = QHBoxLayout()
@@ -280,8 +280,22 @@ class MainWindow(QMainWindow):
         self.dashboard.refresh()
         dp_layout.addWidget(self.dashboard, 10)
 
+        # 로그 패널을 sectionPanel 스타일 프레임으로 감싸기
+        log_wrapper = QFrame()
+        log_wrapper.setObjectName("sectionPanel")
+        log_wrapper_layout = QVBoxLayout(log_wrapper)
+        log_wrapper_layout.setContentsMargins(0, 0, 0, 0)
+        log_wrapper_layout.setSpacing(0)
         self.log_panel = LogPanel(self.dm)
-        dp_layout.addWidget(self.log_panel, 3)
+        log_wrapper_layout.addWidget(self.log_panel)
+
+        # 로그 래퍼에 대시보드와 동일한 여백 적용
+        log_outer = QWidget()
+        log_outer_layout = QVBoxLayout(log_outer)
+        log_outer_layout.setContentsMargins(0, 8, 8, 8)
+        log_outer_layout.setSpacing(0)
+        log_outer_layout.addWidget(log_wrapper)
+        dp_layout.addWidget(log_outer, 3)
 
         self.dashboard.log_message.connect(self.log_panel.append_log)
         self.log_panel.export_requested.connect(self._export_data)

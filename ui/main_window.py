@@ -141,8 +141,8 @@ class MainWindow(QMainWindow):
             border-bottom: 1px solid #1a2d4a;
         """)
         logo_v = QVBoxLayout(logo_frame)
-        logo_v.setContentsMargins(10, 10, 10, 6)
-        logo_v.setSpacing(1)
+        logo_v.setContentsMargins(6, 10, 10, 6)
+        logo_v.setSpacing(0)
 
         # 상단: BridgeBoard + Ver. 1
         logo_top = QHBoxLayout()
@@ -181,7 +181,7 @@ class MainWindow(QMainWindow):
 
         # 탭 버튼 (간격 추가)
         self.nav_buttons = []
-        for key, label in [("dashboard", "대시보드"), ("settings", "설정")]:
+        for key, label in [("dashboard", "  대시보드"), ("settings", "  설정")]:
             btn = QPushButton(label)
             btn.setCheckable(True)
             btn.setFixedHeight(40)
@@ -426,12 +426,12 @@ class MainWindow(QMainWindow):
             super().wheelEvent(event)
 
     def _apply_content_font(self):
-        """대시보드(3섹션)에만 폰트 적용, 로그 패널은 타이틀만 동기화"""
+        """대시보드(3섹션)에만 폰트 적용, 제목/뱃지는 고정"""
         sz = self._content_font_size
         font_style = f"QWidget {{ font-size: {sz}px; }}"
-        # 대시보드 3섹션에만 적용 (로그 패널은 대시보드 밖이므로 영향 없음)
         self.dashboard.setStyleSheet(font_style)
-        # 로그 패널: 타이틀만 동기화
+        # 제목/뱃지 폰트 고정 복원
+        self.dashboard.restore_fixed_fonts()
         self.log_panel.update_title_font(sz)
 
     def closeEvent(self, event):

@@ -1,5 +1,5 @@
 """
-SPT 실시간 로그 패널 - 채팅창 스타일 (클릭으로 액션 표시)
+SPT 실시간 로그 패널 - 채팅창 스타일 (클릭으로 액션 표시, Shift+클릭 다중 선택)
 """
 import re
 import html as html_mod
@@ -28,7 +28,8 @@ class LogEntryWidget(QFrame):
     deleted = Signal(object)
     edited = Signal(object, str)
     checked_changed = Signal(object, bool)
-    actions_opened = Signal(object)  # 다른 항목의 액션을 닫기 위해
+    actions_opened = Signal(object)
+    entry_clicked = Signal(object, object)  # (widget, QMouseEvent) - LogPanel에서 처리
 
     def __init__(self, log_entry: dict, parent=None):
         super().__init__(parent)
@@ -37,6 +38,7 @@ class LogEntryWidget(QFrame):
         self._actions_visible = False
         self._confirm_delete = False
         self._checked = log_entry.get("checked", False)
+        self._multi_selected = False
         self.setObjectName("logEntryChecked" if self._checked else "logEntry")
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.setMinimumHeight(26)
@@ -156,7 +158,12 @@ class LogEntryWidget(QFrame):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton and not self._editing:
-            self._toggle_actions()
+            # Shift 키: 다중 선택 모드 → LogPanel에서 처리
+            if event.modifiers() & Qt.ShiftModifier:
+                self.entry_clicked.emit(self, event)
+                return
+            # 일반 클릭: 기존 단일 선택 토글
+            self.entry_clicked.emit(self, event)
         super().mousePressEvent(event)
 
     def _toggle_actions(self):
@@ -168,6 +175,14 @@ class LogEntryWidget(QFrame):
             self.actions_opened.emit(self)
         else:
             self.action_frame.hide()
+
+    def set_multi_selected(self, selected: bool):
+        """다중 선택 상태 설정"""
+        self._multi_selected = selected
+        if selected:
+            self.setStyleSheet("border: 1px solid #00d4ff; background: rgba(0, 80, 120, 0.3);")
+        else:
+            self.setStyleSheet("")  # 기본 스타일시트로 복원
 
     def close_actions(self):
         """외부에서 호출하여 액션 패널 닫기"""
@@ -260,7 +275,7 @@ class LogEntryWidget(QFrame):
 
 
 class LogPanel(QWidget):
-    """세로형 로그 패널 - 채팅창 스타일, Ctrl+휠로 텍스트 확대/축소"""
+    """세로형 로그 패널 - 채팅창 스타일, Ctrl+휠로 텍스트 확대/축소, Shift+클릭 다중 선택"""
     export_requested = Signal()
 
     def __init__(self, data_manager: DataManager, parent=None):
@@ -268,6 +283,8 @@ class LogPanel(QWidget):
         self.dm = data_manager
         self.entry_widgets: list[LogEntryWidget] = []
         self._font_size = _log_font_size
+        self._multi_selected: list[LogEntryWidget] = []
+        self._last_clicked_widget = None  # Shift 선택 기준점
         self.setObjectName("logPanelVertical")
         self._setup_ui()
         self._load_existing_logs()
@@ -277,16 +294,26 @@ class LogPanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # 제목 행: 작전 로그 + 내보내기 버튼
-        title_frame = QFrame()
-        title_frame.setObjectName("sectionTitle")
-        title_frame.setFixedHeight(38)
-        title_h = QHBoxLayout(title_frame)
-        title_h.setContentsMargins(12, 4, 12, 4)
+        # 제목 행: 작전 로그 + 내보내기 버튼 (대시보드 섹션 헤더와 동일 높이)
+        self.title_frame = QFrame()
+        self.title_frame.setObjectName("logTitleFrame")
+        self.title_frame.setMinimumHeight(56)
+        self.title_frame.setStyleSheet("""
+            #logTitleFrame {
+                border-bottom: 1px solid rgba(0, 212, 255, 0.12);
+                background: transparent;
+            }
+        """)
+        title_h = QHBoxLayout(self.title_frame)
+        title_h.setContentsMargins(12, 6, 12, 6)
         title_h.setSpacing(8)
 
         title_label = QLabel("작전 로그")
-        title_label.setObjectName("sectionTitle")
+        title_label.setStyleSheet("""
+            color: #00d4ff; font-size: 16px; font-weight: bold;
+            font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
+            padding: 0; letter-spacing: 1px; background: transparent; border: none;
+        """)
         title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         title_h.addWidget(title_label)
         title_h.addStretch()
@@ -298,7 +325,53 @@ class LogPanel(QWidget):
         export_btn.clicked.connect(self.export_requested.emit)
         title_h.addWidget(export_btn)
 
-        layout.addWidget(title_frame)
+        layout.addWidget(self.title_frame)
+
+        # 다중 선택 액션 바 (기본 숨김)
+        self._multi_action_frame = QFrame()
+        self._multi_action_frame.setStyleSheet("""
+            background: rgba(0, 80, 120, 0.4);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+        """)
+        ma_layout = QHBoxLayout(self._multi_action_frame)
+        ma_layout.setContentsMargins(8, 4, 8, 4)
+        ma_layout.setSpacing(6)
+
+        self._multi_count_label = QLabel("0개 선택")
+        self._multi_count_label.setStyleSheet("color: #00d4ff; font-size: 11px; font-weight: bold; background: transparent; border: none;")
+        ma_layout.addWidget(self._multi_count_label)
+        ma_layout.addStretch()
+
+        multi_check_btn = QPushButton("✓ 체크")
+        multi_check_btn.setObjectName("logCheckBtn")
+        multi_check_btn.setFixedHeight(22)
+        multi_check_btn.setFixedWidth(56)
+        multi_check_btn.clicked.connect(self._multi_check)
+        ma_layout.addWidget(multi_check_btn)
+
+        multi_copy_btn = QPushButton("복사")
+        multi_copy_btn.setObjectName("logActionBtn")
+        multi_copy_btn.setFixedHeight(22)
+        multi_copy_btn.setFixedWidth(40)
+        multi_copy_btn.clicked.connect(self._multi_copy)
+        ma_layout.addWidget(multi_copy_btn)
+
+        multi_del_btn = QPushButton("삭제")
+        multi_del_btn.setObjectName("logActionBtnDanger")
+        multi_del_btn.setFixedHeight(22)
+        multi_del_btn.setFixedWidth(40)
+        multi_del_btn.clicked.connect(self._multi_delete)
+        ma_layout.addWidget(multi_del_btn)
+
+        multi_cancel_btn = QPushButton("취소")
+        multi_cancel_btn.setObjectName("logActionBtn")
+        multi_cancel_btn.setFixedHeight(22)
+        multi_cancel_btn.setFixedWidth(40)
+        multi_cancel_btn.clicked.connect(self._clear_multi_selection)
+        ma_layout.addWidget(multi_cancel_btn)
+
+        self._multi_action_frame.hide()
+        layout.addWidget(self._multi_action_frame)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -339,18 +412,99 @@ class LogPanel(QWidget):
         self.memo_input.installEventFilter(self)
         self.scroll.installEventFilter(self)
 
+    # ---- 다중 선택 ----
+    def _on_entry_clicked(self, widget: LogEntryWidget, event):
+        """로그 항목 클릭 처리 (단일/Shift 다중 선택)"""
+        if event.modifiers() & Qt.ShiftModifier and self._last_clicked_widget:
+            # Shift+클릭: 범위 선택
+            start_idx = self._get_widget_index(self._last_clicked_widget)
+            end_idx = self._get_widget_index(widget)
+            if start_idx is not None and end_idx is not None:
+                lo, hi = min(start_idx, end_idx), max(start_idx, end_idx)
+                # 기존 다중 선택 해제
+                for w in self._multi_selected:
+                    w.set_multi_selected(False)
+                    w.close_actions()
+                self._multi_selected.clear()
+                # 범위 내 항목 선택
+                for i in range(lo, hi + 1):
+                    w = self.entry_widgets[i]
+                    w.set_multi_selected(True)
+                    w.close_actions()
+                    self._multi_selected.append(w)
+                self._update_multi_action_bar()
+                return
+        else:
+            # 일반 클릭: 다중 선택 해제 + 단일 액션 토글
+            if self._multi_selected:
+                self._clear_multi_selection()
+            self._last_clicked_widget = widget
+            widget._toggle_actions()
+            self._close_other_actions(widget)
+
+    def _get_widget_index(self, widget):
+        try:
+            return self.entry_widgets.index(widget)
+        except ValueError:
+            return None
+
+    def _update_multi_action_bar(self):
+        count = len(self._multi_selected)
+        if count > 1:
+            self._multi_count_label.setText(f"{count}개 선택")
+            self._multi_action_frame.show()
+        else:
+            self._multi_action_frame.hide()
+
+    def _clear_multi_selection(self):
+        for w in self._multi_selected:
+            w.set_multi_selected(False)
+        self._multi_selected.clear()
+        self._multi_action_frame.hide()
+
+    def _multi_check(self):
+        """선택된 항목 모두 체크/해제 토글"""
+        # 하나라도 미체크면 모두 체크, 모두 체크면 모두 해제
+        all_checked = all(w._checked for w in self._multi_selected)
+        for w in self._multi_selected:
+            if all_checked:
+                if w._checked:
+                    w._toggle_check()
+            else:
+                if not w._checked:
+                    w._toggle_check()
+        self.dm.save()
+        self._clear_multi_selection()
+
+    def _multi_copy(self):
+        """선택된 항목 모두 복사"""
+        lines = []
+        for w in self._multi_selected:
+            msg = w.log_entry.get("message", "")
+            ts = w.log_entry.get("time_str", "")
+            lines.append(f"[{ts}] {msg}")
+        clipboard = QApplication.clipboard()
+        clipboard.setText("\n".join(lines))
+        self._clear_multi_selection()
+
+    def _multi_delete(self):
+        """선택된 항목 모두 삭제"""
+        for w in self._multi_selected:
+            self.dm.delete_log(w.log_entry)
+        self._multi_selected.clear()
+        self._multi_action_frame.hide()
+        self._rebuild_entries()
+
+    # ---- 기존 로직 ----
     def eventFilter(self, obj, event):
         if obj == self.memo_input and event.type() == event.Type.KeyPress:
             if event.key() in (Qt.Key_Return, Qt.Key_Enter):
                 if event.modifiers() & Qt.AltModifier:
-                    # Alt+Enter: 줄바꿈
                     self.memo_input.insertPlainText("\n")
                     return True
                 else:
-                    # Enter: 전송
                     self._add_memo()
                     return True
-        # Ctrl+휠 줌: 스크롤 영역에서도 동작
         if obj == self.scroll and event.type() == event.Type.Wheel:
             if event.modifiers() & Qt.ControlModifier:
                 self.wheelEvent(event)
@@ -364,7 +518,6 @@ class LogPanel(QWidget):
         self._scroll_to_bottom()
 
     def _add_entry_widget(self, log_entry: dict):
-        # 날짜 구분선은 별도 처리
         if log_entry.get("type") == "date_separator":
             sep = QLabel(log_entry.get("message", ""))
             sep.setAlignment(Qt.AlignCenter)
@@ -378,18 +531,17 @@ class LogPanel(QWidget):
         widget.edited.connect(self._on_edit)
         widget.checked_changed.connect(self._on_checked)
         widget.actions_opened.connect(self._close_other_actions)
+        widget.entry_clicked.connect(self._on_entry_clicked)
         self.entry_widgets.append(widget)
         idx = self.log_layout.count() - 1
         self.log_layout.insertWidget(idx, widget)
 
     def _close_other_actions(self, opened_widget):
-        """다른 로그 항목의 액션 패널 닫기"""
         for w in self.entry_widgets:
             if w is not opened_widget:
                 w.close_actions()
 
     def append_log(self, message: str):
-        # 마지막으로 처리한 이후의 모든 새 로그 추가
         count = getattr(self, '_last_log_count', 0)
         for i in range(count, len(self.dm.logs)):
             self._add_entry_widget(self.dm.logs[i])
@@ -455,10 +607,8 @@ class LogPanel(QWidget):
                     widget.time_label.styleSheet(), ""
                 )
             )
-            # 시간 라벨 폰트 크기
             ts = f"font-size: {sz}px;"
             widget.time_label.setStyleSheet(ts)
-            # 메시지 라벨 - HTML 재생성
             msg = widget.log_entry.get("message", "")
             widget.text_label.setText(_wrap_html(msg, sz))
 

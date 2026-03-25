@@ -77,9 +77,10 @@ class WatermarkWidget(QWidget):
     def paintEvent(self, event):
         if self._bg_pixmap:
             painter = QPainter(self)
-            painter.setOpacity(0.10)
-            size = min(self.width(), self.height()) - 100
-            size = max(size, 200)
+            painter.setOpacity(0.15)
+            # 화면 크기의 60%를 차지하도록 크게 표시
+            size = int(min(self.width(), self.height()) * 0.6)
+            size = max(size, 300)
             scaled = self._bg_pixmap.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             x = (self.width() - scaled.width()) // 2
             y = (self.height() - scaled.height()) // 2
@@ -132,7 +133,7 @@ class MainWindow(QMainWindow):
 
         # 로고 영역 - BridgeBoard + 버전 정보
         logo_frame = QFrame()
-        logo_frame.setFixedHeight(46)
+        logo_frame.setFixedHeight(64)
         logo_frame.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         logo_frame.setFixedWidth(240)
         logo_frame.setStyleSheet("""
@@ -141,8 +142,8 @@ class MainWindow(QMainWindow):
             border-bottom: 1px solid #1a2d4a;
         """)
         logo_v = QVBoxLayout(logo_frame)
-        logo_v.setContentsMargins(10, 4, 10, 2)
-        logo_v.setSpacing(0)
+        logo_v.setContentsMargins(10, 8, 10, 4)
+        logo_v.setSpacing(2)
 
         # 상단: BridgeBoard + Ver. 1
         logo_top = QHBoxLayout()

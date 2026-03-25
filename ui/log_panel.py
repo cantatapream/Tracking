@@ -381,7 +381,7 @@ class LogPanel(QWidget):
         ma_layout.addWidget(multi_cancel_btn)
 
         self._multi_action_frame.hide()
-        layout.addWidget(self._multi_action_frame)
+        # 레이아웃에 추가하지 않음 → _update_multi_action_bar에서 동적 삽입
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -471,15 +471,29 @@ class LogPanel(QWidget):
         count = len(self._multi_selected)
         if count > 1:
             self._multi_count_label.setText(f"{count}개 선택")
+            # 첫 번째 선택 항목 바로 위에 삽입
+            first = self._multi_selected[0]
+            first_idx = self._get_widget_index(first)
+            if first_idx is not None:
+                # 기존 위치에서 제거 후 재삽입
+                self._multi_action_frame.setParent(None)
+                # log_layout에서 해당 위치 찾기
+                for i in range(self.log_layout.count()):
+                    item = self.log_layout.itemAt(i)
+                    if item and item.widget() is first:
+                        self.log_layout.insertWidget(i, self._multi_action_frame)
+                        break
             self._multi_action_frame.show()
         else:
             self._multi_action_frame.hide()
+            self._multi_action_frame.setParent(None)
 
     def _clear_multi_selection(self):
         for w in self._multi_selected:
             w.set_multi_selected(False)
         self._multi_selected.clear()
         self._multi_action_frame.hide()
+        self._multi_action_frame.setParent(None)
 
     def _multi_check(self):
         """선택된 항목 모두 체크/해제 토글"""

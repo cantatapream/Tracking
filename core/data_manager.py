@@ -4,6 +4,7 @@ SPT 데이터 매니저 - JSON 저장/로드, Excel/CSV Export, 작전 관리
 import json
 import os
 import time
+import datetime
 import shutil
 from typing import List, Optional
 from core.models import Personnel, Equipment, DEFAULT_VESSELS, DEFAULT_PERSONNEL
@@ -383,22 +384,35 @@ class DataManager:
             self.save()
 
     # ---- 내보내기 ----
-    def export_csv(self, filepath: str):
+    def _filter_logs_by_date(self, filter_date=None):
+        """일자별 로그 필터링"""
+        if not filter_date:
+            return self.logs
+        return [
+            log for log in self.logs
+            if datetime.date.fromtimestamp(log.get("timestamp", 0)) == filter_date
+        ]
+
+    def export_csv(self, filepath: str, filter_date=None):
         import csv
+        logs = self._filter_logs_by_date(filter_date)
         with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
             writer = csv.writer(f)
-            writer.writerow(["시각", "유형", "내용"])
-            for log in self.logs:
+            writer.writerow(["일자", "시각", "유형", "내용"])
+            for log in logs:
+                log_date = datetime.date.fromtimestamp(log.get("timestamp", 0)).strftime("%Y.%m.%d")
                 log_type = "메모" if log.get("type") == "memo" else "작전"
-                writer.writerow([log["time_str"], log_type, log["message"]])
+                writer.writerow([log_date, log["time_str"], log_type, log["message"]])
 
-    def export_xlsx(self, filepath: str):
+    def export_xlsx(self, filepath: str, filter_date=None):
         try:
             from openpyxl import Workbook
             from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         except ImportError:
-            self.export_csv(filepath.replace(".xlsx", ".csv"))
+            self.export_csv(filepath.replace(".xlsx", ".csv"), filter_date=filter_date)
             return
+
+        logs = self._filter_logs_by_date(filter_date)
 
         wb = Workbook()
         ws_log = wb.active
@@ -410,7 +424,7 @@ class DataManager:
             top=Side(style="thin"), bottom=Side(style="thin")
         )
 
-        headers = ["번호", "시각", "유형", "내용"]
+        headers = ["번호", "일자", "시각", "유형", "내용"]
         for col, h in enumerate(headers, 1):
             cell = ws_log.cell(row=1, column=col, value=h)
             cell.font = header_font
@@ -418,17 +432,20 @@ class DataManager:
             cell.alignment = Alignment(horizontal="center")
             cell.border = thin_border
 
-        for i, log in enumerate(self.logs, 1):
+        for i, log in enumerate(logs, 1):
+            log_date = datetime.date.fromtimestamp(log.get("timestamp", 0)).strftime("%Y.%m.%d")
             log_type = "메모" if log.get("type") == "memo" else "작전"
             ws_log.cell(row=i + 1, column=1, value=i).border = thin_border
-            ws_log.cell(row=i + 1, column=2, value=log["time_str"]).border = thin_border
-            ws_log.cell(row=i + 1, column=3, value=log_type).border = thin_border
-            ws_log.cell(row=i + 1, column=4, value=log["message"]).border = thin_border
+            ws_log.cell(row=i + 1, column=2, value=log_date).border = thin_border
+            ws_log.cell(row=i + 1, column=3, value=log["time_str"]).border = thin_border
+            ws_log.cell(row=i + 1, column=4, value=log_type).border = thin_border
+            ws_log.cell(row=i + 1, column=5, value=log["message"]).border = thin_border
 
         ws_log.column_dimensions["A"].width = 8
         ws_log.column_dimensions["B"].width = 12
-        ws_log.column_dimensions["C"].width = 8
-        ws_log.column_dimensions["D"].width = 50
+        ws_log.column_dimensions["C"].width = 12
+        ws_log.column_dimensions["D"].width = 8
+        ws_log.column_dimensions["E"].width = 50
 
         ws_per = wb.create_sheet("인원 현황")
         per_headers = ["ID", "이름", "계급", "현재 위치", "상태", "누적 이함(분)"]

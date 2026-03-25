@@ -7,14 +7,54 @@ import datetime
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton,
     QStackedWidget, QFrame, QFileDialog, QSizePolicy, QApplication,
-    QLineEdit
+    QLineEdit, QDialog, QDateEdit
 )
-from PySide6.QtCore import Qt, QTimer, QSize
+from PySide6.QtCore import Qt, QTimer, QSize, QDate
 from PySide6.QtGui import QFont, QIcon, QColor, QPixmap
 from core.data_manager import DataManager
-from ui.dashboard import DashboardView
+from ui.dashboard import DashboardView, EquipmentInventoryPanel
 from ui.log_panel import LogPanel
 from ui.settings_tab import SettingsTab
+
+
+class ExportDateDialog(QDialog):
+    """내보내기 일자 선택 다이얼로그"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("내보내기 - 일자 선택")
+        self.setFixedSize(320, 160)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+
+        label = QLabel("조회할 일자를 선택하세요:")
+        layout.addWidget(label)
+
+        self.date_edit = QDateEdit()
+        self.date_edit.setCalendarPopup(True)
+        self.date_edit.setDate(QDate.currentDate())
+        self.date_edit.setDisplayFormat("yyyy.MM.dd")
+        self.date_edit.setFixedHeight(32)
+        layout.addWidget(self.date_edit)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        extract_btn = QPushButton("추출")
+        extract_btn.setObjectName("btnAccent")
+        extract_btn.setFixedSize(80, 32)
+        extract_btn.clicked.connect(self.accept)
+        btn_layout.addWidget(extract_btn)
+
+        cancel_btn = QPushButton("취소")
+        cancel_btn.setFixedSize(80, 32)
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(cancel_btn)
+
+        layout.addLayout(btn_layout)
+
+    def get_selected_date(self):
+        return self.date_edit.date().toPython()
 
 
 class MainWindow(QMainWindow):
@@ -55,7 +95,7 @@ class MainWindow(QMainWindow):
         # === 사이드바 ===
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(180)
+        sidebar.setFixedWidth(240)
         sidebar_layout = QVBoxLayout(sidebar)
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         sidebar_layout.setSpacing(0)
@@ -107,7 +147,10 @@ class MainWindow(QMainWindow):
             sidebar_layout.addWidget(btn)
             self.nav_buttons.append(btn)
 
-        sidebar_layout.addStretch()
+        # 장비 보유 목록 (사이드바 하단)
+        self.eq_inventory_panel = EquipmentInventoryPanel()
+        sidebar_layout.addWidget(self.eq_inventory_panel, 1)
+
         main_layout.addWidget(sidebar)
 
         # === 콘텐츠 영역 ===
@@ -171,6 +214,8 @@ class MainWindow(QMainWindow):
         dp_layout.setSpacing(0)
 
         self.dashboard = DashboardView(self.dm)
+        self.dashboard.set_equipment_panel(self.eq_inventory_panel)
+        self.dashboard.refresh()
         dp_layout.addWidget(self.dashboard, 10)
 
         self.log_panel = LogPanel(self.dm)
@@ -234,16 +279,22 @@ class MainWindow(QMainWindow):
         self.dashboard.refresh()
 
     def _export_data(self):
+        dialog = ExportDateDialog(self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        selected_date = dialog.get_selected_date()
+
         filepath, _ = QFileDialog.getSaveFileName(
             self, "데이터 내보내기",
-            f"SPT_작전기록_{time.strftime('%Y%m%d_%H%M%S')}",
+            f"SPT_작전기록_{selected_date.strftime('%Y%m%d')}",
             "Excel (*.xlsx);;CSV (*.csv)"
         )
-        if not filepath: return
+        if not filepath:
+            return
         if filepath.endswith(".xlsx"):
-            self.dm.export_xlsx(filepath)
+            self.dm.export_xlsx(filepath, filter_date=selected_date)
         else:
-            self.dm.export_csv(filepath)
+            self.dm.export_csv(filepath, filter_date=selected_date)
         self.log_panel.append_log(f"데이터 내보내기 완료: {os.path.basename(filepath)}")
 
     def resizeEvent(self, event):

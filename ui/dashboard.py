@@ -382,6 +382,7 @@ class DashboardView(QWidget):
             scroll_layout = QVBoxLayout(scroll_widget)
             scroll_layout.setContentsMargins(4, 4, 4, 4)
             scroll_layout.setSpacing(6)
+            scroll_layout.addStretch()
             self._scroll_widgets[section_type] = (scroll_widget, scroll_layout)
             scroll.setWidget(scroll_widget)
 

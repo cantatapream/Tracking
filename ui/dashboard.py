@@ -378,16 +378,19 @@ class DashboardView(QWidget):
             self._custom_subs = {}
         custom_dept = self.dm.custom_dept_name if hasattr(self.dm, 'custom_dept_name') else "기타"
 
+        # 서브 컨테이너를 parent_container 내부에 추가
+        vtype = self.dm.vessels.get(vid, {}).get("type", "patrol")
         frame = QFrame()
         frame.setObjectName("vesselContainer")
-        frame.setMaximumHeight(150)
         fl = QVBoxLayout(frame)
-        fl.setContentsMargins(4, 2, 4, 2)
+        fl.setContentsMargins(4, 4, 4, 4)
         fl.setSpacing(2)
 
         hdr = QHBoxLayout()
+        hdr.setSpacing(4)
         title = QLabel(custom_dept)
         title.setObjectName("vesselHeader")
+        title.setStyleSheet("font-weight: bold;")
         hdr.addWidget(title)
         hdr.addStretch()
         badge = QLabel("0명")
@@ -395,17 +398,21 @@ class DashboardView(QWidget):
         hdr.addWidget(badge)
         fl.addLayout(hdr)
 
-        sub_container = VesselContainer(vid, "", parent_container._vessel_type if hasattr(parent_container, '_vessel_type') else "patrol", hide_header=True)
+        sub_vid = f"{vid}__custom"
+        sub_container = VesselContainer(sub_vid, "", vtype, hide_header=True)
         sub_container.header_clicked.connect(self._on_container_clicked)
         sub_container.card_clicked.connect(self._on_card_clicked)
+        if hasattr(sub_container, 'eq_card_clicked'):
+            sub_container.eq_card_clicked.connect(self._on_eq_card_clicked)
         fl.addWidget(sub_container, 1)
 
         frame.hide()
         self._custom_subs[vid] = {"frame": frame, "container": sub_container, "title": title, "badge": badge}
 
-        # parent_layout이 있으면 직접 추가 (patrol), 없으면 parent_container의 layout에 추가 (vessel)
-        if parent_layout:
-            parent_layout.addWidget(frame)
+        # VesselContainer 내부 cards_layout의 stretch 앞에 삽입
+        cl = parent_container.cards_layout
+        idx = cl.count() - 1  # stretch 앞
+        cl.insertWidget(idx, frame)
 
     def rebuild_containers(self):
         """선박 목록 변경 시 컨테이너 재구성"""
@@ -458,7 +465,7 @@ class DashboardView(QWidget):
                     self.containers[vid] = c
                     draggable.add_container(c)
                     # 기타 직별 서브 컨테이너 (vessel용)
-                    self._add_custom_sub(vid, c, None)
+                    self._add_custom_sub(vid, c, draggable)
 
     def refresh(self):
         """전체 데이터 새로고침"""
@@ -608,14 +615,16 @@ class DashboardView(QWidget):
                 self.log_message.emit(msg)
 
     def _on_container_clicked(self, vessel_id: str):
+        # __custom 접미사 제거 (기타 서브 컨테이너 → 원본 vessel로 이동)
+        real_vid = vessel_id.replace("__custom", "") if "__custom" in vessel_id else vessel_id
         if not self.selected_ids and not self.selected_eq_ids:
             return
         msgs = []
         if self.selected_ids:
-            msg = self.dm.move_personnel_batch(list(self.selected_ids), vessel_id)
+            msg = self.dm.move_personnel_batch(list(self.selected_ids), real_vid)
             if msg: msgs.append(msg)
         if self.selected_eq_ids:
-            msg = self.dm.move_equipment_batch(list(self.selected_eq_ids), vessel_id)
+            msg = self.dm.move_equipment_batch(list(self.selected_eq_ids), real_vid)
             if msg: msgs.append(msg)
         if msgs:
             self.selected_ids.clear()
@@ -627,8 +636,13 @@ class DashboardView(QWidget):
     def _set_card_selected(self, pid: str, selected: bool):
         for container in self.containers.values():
             container.set_card_selected(pid, selected)
+        # 본함 기타 서브 컨테이너
         if hasattr(self, '_custom_dept_container'):
             self._custom_dept_container.set_card_selected(pid, selected)
+        # 단정/선박 기타 서브 컨테이너
+        if hasattr(self, '_custom_subs'):
+            for sub in self._custom_subs.values():
+                sub["container"].set_card_selected(pid, selected)
 
     def _set_eq_card_selected(self, eid: str, selected: bool):
         if self.eq_inventory_panel:

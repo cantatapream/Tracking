@@ -254,7 +254,7 @@ class DataManager:
         target_name = self.get_location_display_name(target_location)
         if target_location == "base":
             target_name = "본함"
-        log_msg = f"{target_name}(으)로 {', '.join(names)} 이동 조치"
+        log_msg = f"{target_name}으로 {', '.join(names)} 이동 조치"
         self.add_log(log_msg)
         self.save()
         return log_msg

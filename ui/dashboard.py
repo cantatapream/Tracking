@@ -549,10 +549,20 @@ class DashboardView(QWidget):
 
     def _update_move_targets(self):
         has_sel = len(self.selected_ids) > 0 or len(self.selected_eq_ids) > 0
+        # 장비만 선택된 경우 (인원 미선택)
+        only_eq_sel = len(self.selected_eq_ids) > 0 and len(self.selected_ids) == 0
         for vid, container in self.containers.items():
             has_p = any(pid in self.selected_ids for pid in container.cards)
             has_e = any(eid in self.selected_eq_ids for eid in container.eq_cards)
             if has_sel and not has_p and not has_e:
+                # 장비만 선택 + 인벤토리 장비 선택 시 본함은 제외
+                if vid == "base" and only_eq_sel:
+                    inv_sel = self.eq_inventory_panel and any(
+                        eid in self.selected_eq_ids for eid in self.eq_inventory_panel.eq_cards
+                    )
+                    if inv_sel:
+                        container.set_move_target(False)
+                        continue
                 container.set_move_target(True)
             else:
                 container.set_move_target(False)

@@ -58,23 +58,31 @@ class ExportDateDialog(QDialog):
 
 
 class SidebarFrame(QFrame):
-    """사이드바 - 배경에 해양경찰 마크 워터마크"""
+    """사이드바 프레임 (고정 크기)"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+
+class WatermarkWidget(QWidget):
+    """전체 화면 중앙 워터마크 위젯 (투명, 이벤트 무시)"""
     def __init__(self, parent=None):
         super().__init__(parent)
         self._bg_pixmap = None
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
 
     def set_background_mark(self, pixmap):
         self._bg_pixmap = pixmap
 
     def paintEvent(self, event):
-        super().paintEvent(event)
         if self._bg_pixmap:
             painter = QPainter(self)
-            painter.setOpacity(0.06)
-            size = min(self.width() - 20, 160)
+            painter.setOpacity(0.10)
+            size = min(self.width(), self.height()) - 100
+            size = max(size, 200)
             scaled = self._bg_pixmap.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             x = (self.width() - scaled.width()) // 2
-            y = 90
+            y = (self.height() - scaled.height()) // 2
             painter.drawPixmap(x, y, scaled)
             painter.end()
 
@@ -124,15 +132,17 @@ class MainWindow(QMainWindow):
 
         # 로고 영역 - BridgeBoard + 버전 정보
         logo_frame = QFrame()
-        logo_frame.setFixedHeight(78)
+        logo_frame.setFixedHeight(58)
+        logo_frame.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        logo_frame.setFixedWidth(240)
         logo_frame.setStyleSheet("""
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                 stop:0 #0d2137, stop:1 #06101f);
             border-bottom: 1px solid #1a2d4a;
         """)
         logo_v = QVBoxLayout(logo_frame)
-        logo_v.setContentsMargins(10, 6, 10, 4)
-        logo_v.setSpacing(0)
+        logo_v.setContentsMargins(10, 6, 10, 2)
+        logo_v.setSpacing(1)
 
         # 상단: BridgeBoard + Ver. 1
         logo_top = QHBoxLayout()
@@ -147,29 +157,29 @@ class MainWindow(QMainWindow):
         logo_top.addWidget(logo_title)
 
         ver_label = QLabel("Ver. 1")
-        ver_label.setStyleSheet("color: #5a7a9a; font-size: 10px; background: transparent; border: none;")
+        ver_label.setStyleSheet("color: #5a7a9a; font-size: 10px; font-weight: bold; background: transparent; border: none;")
         logo_top.addWidget(ver_label)
         logo_top.addStretch()
 
         logo_v.addLayout(logo_top)
 
-        # 하단: Made by JS Shin
+        # 하단: Made by JS Shin (#6 간격 축소 + bold)
         credit_label = QLabel("Made by JS Shin")
-        credit_label.setStyleSheet("color: #3a5a7a; font-size: 9px; background: transparent; border: none;")
+        credit_label.setStyleSheet("color: #3a5a7a; font-size: 9px; font-weight: bold; background: transparent; border: none;")
         logo_v.addWidget(credit_label)
 
         sidebar_layout.addWidget(logo_frame)
 
-        # 해양경찰 마크 배경 설정
+        # 해양경찰 마크 경로 저장 (워터마크용)
+        self._mark_pixmap = None
         img_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "resources", "0504_sbimg2.png"
         )
         if os.path.exists(img_path):
-            pixmap = QPixmap(img_path)
-            sidebar.set_background_mark(pixmap)
+            self._mark_pixmap = QPixmap(img_path)
 
-        # 탭 버튼
+        # 탭 버튼 (간격 추가)
         self.nav_buttons = []
         for key, label in [("dashboard", "  대시보드"), ("settings", "  설정")]:
             btn = QPushButton(f"  {label}")
@@ -179,6 +189,11 @@ class MainWindow(QMainWindow):
             btn.clicked.connect(lambda checked, k=key: self._switch_page(k))
             sidebar_layout.addWidget(btn)
             self.nav_buttons.append(btn)
+            # 탭 사이 구분선
+            sep = QFrame()
+            sep.setFixedHeight(1)
+            sep.setStyleSheet("background: #1a2d4a;")
+            sidebar_layout.addWidget(sep)
 
         # 설정과 장비 패널 사이 간격 (#9)
         spacer = QFrame()
@@ -271,6 +286,12 @@ class MainWindow(QMainWindow):
         content_layout.addWidget(self.page_stack, 1)
         main_layout.addLayout(content_layout, 1)
 
+        # 워터마크 오버레이 (전체 콘텐츠 영역 중앙)
+        self._watermark = WatermarkWidget(self)
+        if self._mark_pixmap:
+            self._watermark.set_background_mark(self._mark_pixmap)
+        self._watermark.lower()
+
         self._switch_page("dashboard")
 
     def _start_title_edit(self, event):
@@ -315,7 +336,7 @@ class MainWindow(QMainWindow):
         self.clock_label.setText(time.strftime("%H:%M:%S"))
         weekdays = ["월", "화", "수", "목", "금", "토", "일"]
         wd = weekdays[datetime.datetime.now().weekday()]
-        self.date_label.setText(time.strftime(f"%Y.%m.%d ({wd})"))
+        self.date_label.setText(time.strftime(f"%m.%d ({wd})"))
 
     def _on_data_changed(self):
         self.dashboard.refresh()
@@ -340,8 +361,14 @@ class MainWindow(QMainWindow):
         self.log_panel.append_log(f"데이터 내보내기 완료: {os.path.basename(filepath)}")
 
     def resizeEvent(self, event):
-        """창 크기 변경 시 전체 폰트/비율 자동 조정"""
+        """창 크기 변경 시 전체 폰트/비율 자동 조정 + 워터마크 리사이즈"""
         super().resizeEvent(event)
+
+        # 워터마크 위치 업데이트
+        if hasattr(self, '_watermark'):
+            self._watermark.setGeometry(240, 64, self.width() - 240, self.height() - 64)
+            self._watermark.lower()
+
         base_width = 1600
         base_height = 950
         base_font = 13.0
@@ -349,12 +376,14 @@ class MainWindow(QMainWindow):
         w = self.width()
         h = self.height()
         scale = min(w / base_width, h / base_height)
-        scale = max(0.6, min(scale, 1.5))  # 0.6 ~ 1.5 범위 제한
+        scale = max(0.6, min(scale, 1.5))
 
         new_font = max(9, int(base_font * scale))
 
-        # 대시보드 영역에만 적용 (로그 패널은 별도 관리)
-        self.dashboard.setStyleSheet(f"QWidget {{ font-size: {new_font}px; }}")
+        # 대시보드 + 로그 패널 동일 폰트 (#7)
+        font_style = f"QWidget {{ font-size: {new_font}px; }}"
+        self.dashboard.setStyleSheet(font_style)
+        self.log_panel.setStyleSheet(font_style)
 
     def closeEvent(self, event):
         self.dm.save()

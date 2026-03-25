@@ -323,7 +323,7 @@ class DataManager:
             # 선박 등선
             log_msg = f"{name_list}{count_str} ({target_name}) 등선 완료"
         elif target_location == "base":
-            log_msg = f"{name_list}{count_str} {target_name} 복귀"
+            log_msg = f"{name_list}{count_str} 본함 복귀"
         else:
             log_msg = f"{name_list}{count_str} → {target_name}"
         self.add_log(log_msg)

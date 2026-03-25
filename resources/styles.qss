@@ -152,7 +152,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 /* === Section Panels === */
 #sectionPanel {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 rgba(13, 31, 60, 0.95), stop:1 rgba(10, 22, 40, 0.95));
+        stop:0 rgba(13, 31, 60, 0.85), stop:1 rgba(10, 22, 40, 0.85));
     border: 1px solid #1a2d4a;
     border-radius: 10px;
 }
@@ -260,7 +260,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
         stop:0 rgba(15, 35, 65, 0.9), stop:1 rgba(10, 25, 50, 0.9));
     border: 1px solid #1e3a5f;
     border-radius: 6px;
-    padding: 4px 8px;
+    padding: 2px 5px;
     margin: 1px 3px;
 }
 
@@ -798,7 +798,7 @@ QLabel {
 }
 
 #equipmentSectionHeader {
-    color: #8faabe;
+    color: #f0a500;
     font-size: 12px;
     font-weight: bold;
     font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
@@ -808,7 +808,7 @@ QLabel {
 }
 
 #equipmentSectionHeaderInline {
-    color: #a0c0e0;
+    color: #f0a500;
     font-size: 11px;
     font-weight: bold;
     font-family: "Malgun Gothic", "맑은 고딕", sans-serif;

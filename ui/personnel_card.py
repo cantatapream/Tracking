@@ -116,7 +116,7 @@ class PersonnelCard(QFrame):
 
     def _setup_ui(self):
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 4, 10, 4)
+        layout.setContentsMargins(5, 4, 5, 4)
         layout.setSpacing(6)
 
         # 좌측: 계급 + 이름 (고정 크기)

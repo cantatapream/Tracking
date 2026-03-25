@@ -48,7 +48,7 @@ def main():
     # "load"인 경우 이미 dm.load_operation()이 호출됨
 
     window = MainWindow(dm)
-    window.show()
+    window.showMaximized()  # 전체화면으로 시작
 
     sys.exit(app.exec())
 

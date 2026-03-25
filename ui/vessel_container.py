@@ -87,7 +87,10 @@ class VesselContainer(QFrame):
         self._move_target_mode = False
         self._editing_name = False
         self.setCursor(Qt.PointingHandCursor)
-        if not hide_header:
+        # 비본함: 내용보다 줄어들지 않도록 Minimum 설정
+        if vessel_type != "base":
+            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        elif not hide_header:
             self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self._setup_ui()
 

@@ -195,8 +195,8 @@ class EquipmentCard(QFrame):
 
     def _setup_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(6, 4, 6, 4)
-        main_layout.setSpacing(2)
+        main_layout.setContentsMargins(4, 2, 4, 2)
+        main_layout.setSpacing(1)
 
         display = QHBoxLayout()
         display.setSpacing(4)

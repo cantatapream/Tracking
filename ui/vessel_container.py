@@ -31,11 +31,6 @@ class EquipmentMiniCard(QFrame):
         layout.setContentsMargins(6, 2, 6, 2)
         layout.setSpacing(4)
 
-        icon_label = QLabel("⚙")
-        icon_label.setFixedWidth(14)
-        icon_label.setStyleSheet("color: #5a7a9a; font-size: 11px; background: transparent; border: none;")
-        layout.addWidget(icon_label)
-
         self.name_label = QLabel(self.equipment.name)
         self.name_label.setObjectName("equipmentMiniName")
         self.name_label.setWordWrap(False)

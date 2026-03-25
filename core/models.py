@@ -20,6 +20,7 @@ class Personnel:
     total_deploy_seconds: float = 0.0  # 누적 이함 시간 (초) - 과거 모든 이함 합산
     meal_timestamp: Optional[float] = None  # 마지막 식사 시각
     has_been_deployed: bool = False  # 한 번이라도 출동한 적 있는지
+    movement_history: list = field(default_factory=list)  # 이동 내역
 
     def to_dict(self) -> dict:
         return asdict(self)

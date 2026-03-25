@@ -42,9 +42,9 @@ class EquipmentInventoryPanel(QFrame):
         # 제목 행
         title_frame = QFrame()
         title_frame.setObjectName("equipmentSectionHeader")
-        title_frame.setMinimumHeight(32)
+        title_frame.setMinimumHeight(28)
         title_h = QHBoxLayout(title_frame)
-        title_h.setContentsMargins(12, 4, 12, 4)
+        title_h.setContentsMargins(8, 2, 8, 2)
         title_h.setSpacing(8)
 
         title_label = QLabel("장비 보유 목록")
@@ -59,17 +59,18 @@ class EquipmentInventoryPanel(QFrame):
 
         layout.addWidget(title_frame)
 
-        # 장비 그리드 (스크롤)
+        # 장비 목록 (1열, 스크롤)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll.setFrameShape(QFrame.NoFrame)
 
-        self._grid_widget = QWidget()
-        self._grid_layout = QGridLayout(self._grid_widget)
-        self._grid_layout.setContentsMargins(6, 4, 6, 4)
-        self._grid_layout.setSpacing(3)
-        scroll.setWidget(self._grid_widget)
+        self._list_widget = QWidget()
+        self._list_layout = QVBoxLayout(self._list_widget)
+        self._list_layout.setContentsMargins(4, 2, 4, 2)
+        self._list_layout.setSpacing(2)
+        self._list_layout.addStretch()
+        scroll.setWidget(self._list_widget)
         layout.addWidget(scroll, 1)
 
     def set_equipment(self, equipment_list):
@@ -79,19 +80,18 @@ class EquipmentInventoryPanel(QFrame):
             card.deleteLater()
         self.eq_cards.clear()
 
-        while self._grid_layout.count():
-            item = self._grid_layout.takeAt(0)
+        while self._list_layout.count():
+            item = self._list_layout.takeAt(0)
             if item.widget():
                 item.widget().setParent(None)
 
-        for idx, eq in enumerate(equipment_list):
+        for eq in equipment_list:
             card = EquipmentMiniCard(eq)
             card.clicked.connect(self._on_eq_card_clicked)
             self.eq_cards[eq.id] = card
-            row = idx // 2
-            col = idx % 2
-            self._grid_layout.addWidget(card, row, col)
+            self._list_layout.addWidget(card)
 
+        self._list_layout.addStretch()
         self.eq_count_badge.setText(f"{len(equipment_list)}개")
 
     def set_eq_card_selected(self, eid: str, selected: bool):
@@ -169,7 +169,7 @@ class DashboardView(QWidget):
         title_frame.setObjectName("sectionTitle")
         title_frame.setMinimumHeight(56)
         title_h = QHBoxLayout(title_frame)
-        title_h.setContentsMargins(12, 6, 12, 6)
+        title_h.setContentsMargins(6, 6, 8, 6)
         title_h.setSpacing(8)
 
         base_name = self.dm.vessels.get("base", {}).get("name", "본함 (KCG 3012)")
@@ -281,7 +281,7 @@ class DashboardView(QWidget):
         title_frame.setObjectName(title_style)
         title_frame.setMinimumHeight(56)
         title_h = QHBoxLayout(title_frame)
-        title_h.setContentsMargins(12, 6, 12, 6)
+        title_h.setContentsMargins(6, 6, 8, 6)
         title_h.setSpacing(8)
 
         title_label = QLabel(title)
@@ -405,6 +405,9 @@ class DashboardView(QWidget):
         if self.eq_inventory_panel:
             base_equipment = self.dm.get_equipment_at("base")
             self.eq_inventory_panel.set_equipment(base_equipment)
+            # 선택 없으면 이동 대상 테두리 초기화
+            if not self.selected_ids and not self.selected_eq_ids:
+                self.eq_inventory_panel.set_move_target(False)
 
         # 섹션 총인원 뱃지 업데이트
         if hasattr(self, '_section_badges'):

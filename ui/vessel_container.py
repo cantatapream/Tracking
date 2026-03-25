@@ -157,20 +157,16 @@ class VesselContainer(QFrame):
         self.cards_layout.setContentsMargins(0, 0, 0, 0)
         self.cards_layout.setSpacing(3)
 
-        if self.vessel_type == "base":
-            self.cards_layout.addStretch()
-            scroll = QScrollArea()
-            scroll.setWidget(self.cards_widget)
-            scroll.setWidgetResizable(True)
-            scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-            scroll.setFrameShape(QFrame.NoFrame)
-            scroll.setStyleSheet("background: transparent;")
-            layout.addWidget(scroll)
-        else:
-            # 비본함: 내용에 맞게 축소, 빈 경우 클릭 공간 확보
+        # 모든 컨테이너에 스크롤 적용 (본함/단정/등선대상선박 공통)
+        scroll = QScrollArea()
+        scroll.setWidget(self.cards_widget)
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setStyleSheet("background: transparent;")
+        if self.vessel_type != "base":
             self.cards_widget.setMinimumHeight(40)
-            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
-            layout.addWidget(self.cards_widget)
+        layout.addWidget(scroll)
 
     def set_personnel(self, personnel_list: List[Personnel]):
         """대원 카드 갱신 (기타 서브 frame 보존)"""

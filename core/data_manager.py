@@ -42,7 +42,7 @@ class DataManager:
             last_file = ops[0]["filepath"]
             self._load_from_file(last_file)
 
-            # 인원: 모두 본함으로, 타이머 초기화
+            # 인원: 모두 본함으로, 타이머/이동내역 초기화
             for p in self.personnel:
                 p.location = "base"
                 p.status = "standby"
@@ -50,6 +50,7 @@ class DataManager:
                 p.last_return_timestamp = None
                 p.total_deploy_seconds = 0.0
                 p.has_been_deployed = False
+                p.movement_history = []
 
             # 장비: 모두 본함으로, 타이머 초기화
             for e in self.equipment:

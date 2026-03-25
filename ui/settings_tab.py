@@ -37,7 +37,7 @@ def _clear_layout(layout):
 
 def _make_popup(parent_widget, min_width=320):
     """플로팅 팝업 프레임 생성"""
-    popup = QFrame(parent_widget.window(), Qt.Tool | Qt.FramelessWindowHint)
+    popup = QFrame(parent_widget.window(), Qt.Popup | Qt.FramelessWindowHint)
     popup.setMinimumWidth(min_width)
     popup.setStyleSheet("""
         QFrame { background: #0d1f3c; border: 1px solid rgba(0,212,255,0.5); border-radius: 6px; }
@@ -531,51 +531,62 @@ class SettingsTab(QWidget):
         return frame
 
     def _edit_custom_dept(self, header_label):
-        """기타 직별 이름 편집 팝업"""
-        popup, pl = _make_popup(header_label, 200)
+        """기타 직별 이름 편집 (QDialog로 한글 입력 지원)"""
+        from PySide6.QtWidgets import QDialog
+        dlg = QDialog(self)
+        dlg.setWindowTitle("직별 이름 변경")
+        dlg.setFixedSize(260, 120)
+        dlg.setStyleSheet("""
+            QDialog { background: #0d1f3c; border: 1px solid rgba(0,212,255,0.5); }
+            QLabel { color: #c8d6e5; background: transparent; border: none; }
+            QLineEdit { background: #0a1628; color: #c8d6e5; border: 1px solid #1e3a5f; border-radius: 4px; padding: 4px 8px; font-size: 13px; }
+            QLineEdit:focus { border-color: #00d4ff; }
+            QPushButton { background: #1e3a5f; color: #c8d6e5; border: 1px solid #2a4a6f; border-radius: 4px; padding: 4px 8px; font-weight: bold; }
+            QPushButton:hover { border-color: #00d4ff; color: #00d4ff; }
+        """)
+        dl = QVBoxLayout(dlg)
+        dl.setContentsMargins(10, 8, 10, 8)
+        dl.setSpacing(8)
         ni = QLineEdit(self.dm.custom_dept_name)
-        ni.setFixedHeight(26)
+        ni.setFixedHeight(30)
         ni.setPlaceholderText("직별 이름")
-        pl.addWidget(ni)
+        dl.addWidget(ni)
         row = QHBoxLayout()
         sb = QPushButton("저장")
-        sb.setObjectName("btnAccent")
-        sb.setFixedHeight(26)
+        sb.setFixedHeight(28)
         row.addWidget(sb)
         cb = QPushButton("취소")
-        cb.setFixedHeight(26)
+        cb.setFixedHeight(28)
         row.addWidget(cb)
-        row.addStretch()
-        pl.addLayout(row)
+        dl.addLayout(row)
+        self._warn_label = QLabel("")
+        self._warn_label.setStyleSheet("color: #e74c3c; font-size: 11px;")
+        dl.addWidget(self._warn_label)
 
         def save():
             new_name = ni.text().strip()
             if not new_name or new_name == self.dm.custom_dept_name:
-                popup.close()
+                dlg.accept()
                 return
-            # 기존 직별과 중복 체크
             reserved = BASE_DEPARTMENTS + BASE_TEAM_DEPARTMENTS + POSITION_DEPARTMENTS + ["전체"]
             if new_name in reserved:
-                ni.setStyleSheet("background: #0a1628; color: #e74c3c; border: 1px solid #e74c3c; border-radius: 4px; padding: 4px 8px; font-size: 12px;")
-                ni.setText("")
-                ni.setPlaceholderText(f"'{new_name}'은(는) 이미 존재합니다")
+                self._warn_label.setText(f"'{new_name}'은(는) 이미 존재합니다")
+                ni.setFocus()
                 return
             old_name = self.dm.custom_dept_name
             self.dm.custom_dept_name = new_name
-            # 기존 인원의 department 업데이트
             for p in self.dm.personnel:
                 if p.department == old_name:
                     p.department = new_name
             self.dm.save()
             self.refresh()
             self.data_changed.emit()
-            popup.close()
+            dlg.accept()
 
         sb.clicked.connect(save)
-        cb.clicked.connect(popup.close)
-        pos = header_label.mapToGlobal(QPoint(0, header_label.height()))
-        popup.move(pos)
-        popup.show()
+        cb.clicked.connect(dlg.reject)
+        ni.returnPressed.connect(save)
+        dlg.exec()
         ni.setFocus()
         ni.selectAll()
 

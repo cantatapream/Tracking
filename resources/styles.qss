@@ -71,7 +71,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     background: transparent;
     border: none;
     color: #5a7a9a;
-    padding: 10px 12px;
+    padding: 8px 6px;
     margin: 2px 0;
     text-align: left;
     font-size: 18px;
@@ -804,9 +804,7 @@ QLabel {
     font-size: 18px;
     font-weight: bold;
     font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
-    padding: 6px 8px;
-    border-top: 1px solid rgba(0, 212, 255, 0.15);
-    margin-top: 4px;
+    padding: 6px 6px;
 }
 
 #equipmentSectionHeaderInline {

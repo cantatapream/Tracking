@@ -36,11 +36,13 @@ def _clear_layout(layout):
 
 
 def _make_popup(parent_widget, min_width=320):
-    """플로팅 팝업 프레임 생성"""
-    popup = QFrame(parent_widget.window(), Qt.Popup | Qt.FramelessWindowHint)
+    """플로팅 팝업 (QDialog 기반 - 한글 IME 지원)"""
+    from PySide6.QtWidgets import QDialog
+    popup = QDialog(parent_widget.window())
+    popup.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
     popup.setMinimumWidth(min_width)
     popup.setStyleSheet("""
-        QFrame { background: #0d1f3c; border: 1px solid rgba(0,212,255,0.5); border-radius: 6px; }
+        QDialog { background: #0d1f3c; border: 1px solid rgba(0,212,255,0.5); border-radius: 6px; }
         QLabel { background: transparent; border: none; color: #c8d6e5; }
         QLineEdit { background: #0a1628; color: #c8d6e5; border: 1px solid #1e3a5f; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
         QLineEdit:focus { border-color: #00d4ff; }

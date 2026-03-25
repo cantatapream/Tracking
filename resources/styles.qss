@@ -93,8 +93,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 
 /* === Header Bar === */
 #headerBar {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-        stop:0 #0d1f3c, stop:1 #0a1628);
+    background: transparent;
     border-bottom: 1px solid #1a2d4a;
     min-height: 64px;
 }
@@ -144,7 +143,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 }
 
 #headerDate {
-    color: #5a7a9a;
+    color: #f0a500;
     font-size: 15px;
     font-weight: bold;
     font-family: "Consolas", "Courier New", monospace;

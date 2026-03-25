@@ -169,7 +169,7 @@ class MainWindow(QMainWindow):
             pixmap = QPixmap(img_path)
             sidebar.set_background_mark(pixmap)
 
-        # 탭 버튼
+        # 탭 버튼 (간격 추가)
         self.nav_buttons = []
         for key, label in [("dashboard", "  대시보드"), ("settings", "  설정")]:
             btn = QPushButton(f"  {label}")
@@ -179,6 +179,11 @@ class MainWindow(QMainWindow):
             btn.clicked.connect(lambda checked, k=key: self._switch_page(k))
             sidebar_layout.addWidget(btn)
             self.nav_buttons.append(btn)
+            # 탭 사이 구분선
+            sep = QFrame()
+            sep.setFixedHeight(1)
+            sep.setStyleSheet("background: #1a2d4a;")
+            sidebar_layout.addWidget(sep)
 
         # 설정과 장비 패널 사이 간격 (#9)
         spacer = QFrame()
@@ -315,7 +320,7 @@ class MainWindow(QMainWindow):
         self.clock_label.setText(time.strftime("%H:%M:%S"))
         weekdays = ["월", "화", "수", "목", "금", "토", "일"]
         wd = weekdays[datetime.datetime.now().weekday()]
-        self.date_label.setText(time.strftime(f"%Y.%m.%d ({wd})"))
+        self.date_label.setText(time.strftime(f"%m.%d ({wd})"))
 
     def _on_data_changed(self):
         self.dashboard.refresh()

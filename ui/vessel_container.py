@@ -167,9 +167,9 @@ class VesselContainer(QFrame):
             scroll.setStyleSheet("background: transparent;")
             layout.addWidget(scroll)
         else:
-            # 비본함: 내용 자연 크기 유지 (부모 스크롤에서 스크롤)
+            # 비본함: 내용에 맞게 축소, 빈 경우 클릭 공간 확보
             self.cards_widget.setMinimumHeight(40)
-            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
             layout.addWidget(self.cards_widget)
 
     def set_personnel(self, personnel_list: List[Personnel]):

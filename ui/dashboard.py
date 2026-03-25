@@ -400,6 +400,8 @@ class DashboardView(QWidget):
 
         sub_vid = f"{vid}__custom"
         sub_container = VesselContainer(sub_vid, "", vtype, hide_header=True)
+        sub_container.setObjectName("vesselContainerInner")
+        sub_container.setStyleSheet("#vesselContainerInner { background: transparent; border: none; margin: 0; padding: 0; }")
         sub_container.header_clicked.connect(self._on_container_clicked)
         sub_container.card_clicked.connect(self._on_card_clicked)
         if hasattr(sub_container, 'eq_card_clicked'):

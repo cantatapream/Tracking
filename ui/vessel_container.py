@@ -156,9 +156,9 @@ class VesselContainer(QFrame):
         self.cards_layout = QVBoxLayout(self.cards_widget)
         self.cards_layout.setContentsMargins(0, 0, 0, 0)
         self.cards_layout.setSpacing(3)
-        self.cards_layout.addStretch()
 
         if self.vessel_type == "base":
+            self.cards_layout.addStretch()
             scroll = QScrollArea()
             scroll.setWidget(self.cards_widget)
             scroll.setWidgetResizable(True)
@@ -167,9 +167,9 @@ class VesselContainer(QFrame):
             scroll.setStyleSheet("background: transparent;")
             layout.addWidget(scroll)
         else:
-            # 비본함: 스크롤 없이 직접 배치, 최소 높이로 1명 클릭 공간 확보
-            self.cards_widget.setMinimumHeight(50)
-            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+            # 비본함: 내용에 맞게 축소, 빈 경우 1명 클릭 공간만 확보
+            self.cards_widget.setMinimumHeight(40)
+            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
             layout.addWidget(self.cards_widget)
 
     def set_personnel(self, personnel_list: List[Personnel]):
@@ -204,8 +204,9 @@ class VesselContainer(QFrame):
             self.cards[p.id] = card
             self.cards_layout.addWidget(card)
 
-        # stretch는 set_equipment 후에 추가
-        self.cards_layout.addStretch()
+        # 본함만 stretch 추가 (비본함은 내용에 맞게 축소)
+        if self.vessel_type == "base":
+            self.cards_layout.addStretch()
         self.count_badge.setText(f"{len(personnel_list)}명")
 
     def set_equipment(self, equipment_list: List[Equipment]):

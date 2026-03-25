@@ -156,6 +156,20 @@ class DashboardView(QWidget):
         self.vessel_panel.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         main_layout.addWidget(self.vessel_panel, 1)
 
+        # 로그 패널 자리 (add_log_panel에서 추가)
+        self._main_layout = main_layout
+
+    def add_log_panel(self, log_panel):
+        """로그 패널을 대시보드 4번째 열로 추가 (하단선 자동 일치)"""
+        log_wrapper = QFrame()
+        log_wrapper.setObjectName("sectionPanel")
+        wrapper_layout = QVBoxLayout(log_wrapper)
+        wrapper_layout.setContentsMargins(0, 0, 0, 0)
+        wrapper_layout.setSpacing(0)
+        wrapper_layout.addWidget(log_panel)
+        log_wrapper.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        self._main_layout.addWidget(log_wrapper, 1)
+
     def _create_base_section(self) -> QFrame:
         """본함 섹션"""
         panel = QFrame()
@@ -205,31 +219,42 @@ class DashboardView(QWidget):
 
         layout.addWidget(title_frame)
 
-        # 직별 필터 버튼
+        # 직별 필터 버튼 (2줄)
         filter_frame = QFrame()
         filter_frame.setStyleSheet("background: transparent; border: none;")
-        filter_h = QHBoxLayout(filter_frame)
-        filter_h.setContentsMargins(8, 2, 8, 2)
-        filter_h.setSpacing(4)
+        filter_v = QVBoxLayout(filter_frame)
+        filter_v.setContentsMargins(8, 2, 8, 2)
+        filter_v.setSpacing(2)
 
         self._dept_filter = None  # None = 전체
         self._filter_buttons = []
-        dept_list = ["전체", "항해", "안전", "병기", "기관", "구조", "행정", "통신", "조리"]
-        for dept in dept_list:
-            btn = QPushButton(dept)
-            btn.setCheckable(True)
-            btn.setFixedHeight(24)
-            btn.setMinimumWidth(40)
-            btn.setStyleSheet("""
-                QPushButton { font-size: 11px; padding: 2px 6px; border-radius: 4px; }
-                QPushButton:checked { background: rgba(0, 212, 255, 0.2); border: 1px solid #00d4ff; color: #00d4ff; }
-            """)
-            if dept == "전체":
-                btn.setChecked(True)
-            btn.clicked.connect(lambda checked, d=dept, b=btn: self._on_dept_filter(d, b))
-            filter_h.addWidget(btn)
-            self._filter_buttons.append(btn)
-        filter_h.addStretch()
+
+        custom_dept = self.dm.custom_dept_name if hasattr(self.dm, 'custom_dept_name') else "기타"
+        row1_depts = ["전체", "항해", "안전", "병기", "기관"]
+        row2_depts = ["구조", "행정", "통신", "조리", custom_dept]
+
+        btn_style = """
+            QPushButton { font-size: 11px; padding: 2px 6px; border-radius: 4px; }
+            QPushButton:checked { background: rgba(0, 212, 255, 0.2); border: 1px solid #00d4ff; color: #00d4ff; }
+        """
+
+        for row_depts in [row1_depts, row2_depts]:
+            row_layout = QHBoxLayout()
+            row_layout.setSpacing(4)
+            for dept in row_depts:
+                btn = QPushButton(dept)
+                btn.setCheckable(True)
+                btn.setFixedHeight(24)
+                btn.setMinimumWidth(40)
+                btn.setStyleSheet(btn_style)
+                if dept == "전체":
+                    btn.setChecked(True)
+                btn.clicked.connect(lambda checked, d=dept, b=btn: self._on_dept_filter(d, b))
+                row_layout.addWidget(btn)
+                self._filter_buttons.append(btn)
+            row_layout.addStretch()
+            filter_v.addLayout(row_layout)
+
         layout.addWidget(filter_frame)
 
         # 인원 컨테이너 (헤더 숨김)
@@ -422,6 +447,13 @@ class DashboardView(QWidget):
                 self.eq_inventory_panel.set_eq_card_selected(eid, True)
             for container in self.containers.values():
                 container.set_eq_card_selected(eid, True)
+
+        # 커스텀 직별 버튼 텍스트 갱신
+        if hasattr(self, '_filter_buttons') and self._filter_buttons:
+            custom_dept = self.dm.custom_dept_name if hasattr(self.dm, 'custom_dept_name') else "기타"
+            last_btn = self._filter_buttons[-1]  # 마지막 버튼 = 커스텀 직별
+            if last_btn.text() != custom_dept:
+                last_btn.setText(custom_dept)
 
         # 직별 필터 재적용
         if hasattr(self, '_dept_filter'):

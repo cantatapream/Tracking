@@ -10,9 +10,21 @@ from core.data_manager import DataManager
 from core.models import Equipment
 
 RANKS = ["총경", "경정", "경감", "경위", "경사", "경장", "순경"]
-DEPARTMENTS = ["함장", "부장", "항해", "안전", "병기", "기관", "구조", "행정", "통신", "조리"]
-TEAM_DEPARTMENTS = ["항해", "안전", "병기", "기관", "구조", "행정", "통신", "조리"]
+BASE_DEPARTMENTS = ["함장", "부장", "항해", "안전", "병기", "기관", "구조", "행정", "통신", "조리"]
+BASE_TEAM_DEPARTMENTS = ["항해", "안전", "병기", "기관", "구조", "행정", "통신", "조리"]
 POSITION_DEPARTMENTS = ["함장", "부장"]
+
+
+def get_departments(dm=None):
+    """동적 직별 목록 (커스텀 직별 포함)"""
+    custom = dm.custom_dept_name if dm else "기타"
+    return BASE_DEPARTMENTS + [custom]
+
+
+def get_team_departments(dm=None):
+    """동적 팀 직별 목록 (커스텀 직별 포함)"""
+    custom = dm.custom_dept_name if dm else "기타"
+    return BASE_TEAM_DEPARTMENTS + [custom]
 
 
 def _clear_layout(layout):
@@ -54,8 +66,9 @@ class PersonnelEditCard(QFrame):
     dept_changed = Signal(str, str)
     actions_opened = Signal(object)
 
-    def __init__(self, pid: str, name: str, rank: str, dept: str = "", parent=None):
+    def __init__(self, pid: str, name: str, rank: str, dept: str = "", dm=None, parent=None):
         super().__init__(parent)
+        self._dm = dm
         self.pid = pid
         self._name = name
         self._rank = rank
@@ -100,7 +113,7 @@ class PersonnelEditCard(QFrame):
         row1.addWidget(rc)
         dc = QComboBox()
         dc.setFixedHeight(26)
-        dc.addItems(DEPARTMENTS)
+        dc.addItems(get_departments(self._dm))
         dc.setCurrentText(self._dept or "항해")
         row1.addWidget(dc)
         pl.addLayout(row1)
@@ -313,7 +326,7 @@ class SettingsTab(QWidget):
         al.addWidget(self.rank_combo)
         self.dept_combo = QComboBox()
         self.dept_combo.setFixedHeight(30)
-        self.dept_combo.addItems(DEPARTMENTS)
+        self.dept_combo.addItems(get_departments(self.dm))
         self.dept_combo.setCurrentText("항해")
         al.addWidget(self.dept_combo)
         add_btn = QPushButton("인원 추가")
@@ -358,8 +371,9 @@ class SettingsTab(QWidget):
         team_grid.setContentsMargins(4, 4, 4, 4)
         team_grid.setSpacing(4)
         self.team_columns = {}
-        for i, dept in enumerate(TEAM_DEPARTMENTS):
-            col = self._make_dept_column(dept)
+        for i, dept in enumerate(get_team_departments(self.dm)):
+            is_custom = (dept == self.dm.custom_dept_name)
+            col = self._make_dept_column(dept, editable=is_custom)
             team_grid.addWidget(col, 0, i)
             self.team_columns[dept] = col
         self.personnel_content_layout.addWidget(self.team_frame)
@@ -483,7 +497,7 @@ class SettingsTab(QWidget):
         lbl.setMinimumHeight(28)
         return lbl
 
-    def _make_dept_column(self, dept_name: str) -> QFrame:
+    def _make_dept_column(self, dept_name: str, editable: bool = False) -> QFrame:
         frame = QFrame()
         frame.setObjectName("vesselContainer")
         col_layout = QVBoxLayout(frame)
@@ -494,6 +508,10 @@ class SettingsTab(QWidget):
         header = QLabel(dept_name)
         header.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         header.setObjectName("vesselHeader")
+        if editable:
+            header.setCursor(Qt.PointingHandCursor)
+            header.setToolTip("클릭하여 직별 이름 변경")
+            header.mousePressEvent = lambda e, h=header: self._edit_custom_dept(h)
         header_row.addWidget(header)
         header_row.addStretch()
         count_badge = QLabel("0명")
@@ -509,7 +527,48 @@ class SettingsTab(QWidget):
         frame._list_layout = list_layout
         frame._dept_name = dept_name
         frame._count_badge = count_badge
+        frame._header_label = header
         return frame
+
+    def _edit_custom_dept(self, header_label):
+        """기타 직별 이름 편집 팝업"""
+        popup, pl = _make_popup(header_label, 200)
+        ni = QLineEdit(self.dm.custom_dept_name)
+        ni.setFixedHeight(26)
+        ni.setPlaceholderText("직별 이름")
+        pl.addWidget(ni)
+        row = QHBoxLayout()
+        sb = QPushButton("저장")
+        sb.setObjectName("btnAccent")
+        sb.setFixedHeight(26)
+        row.addWidget(sb)
+        cb = QPushButton("취소")
+        cb.setFixedHeight(26)
+        row.addWidget(cb)
+        row.addStretch()
+        pl.addLayout(row)
+
+        def save():
+            new_name = ni.text().strip()
+            if new_name and new_name != self.dm.custom_dept_name:
+                old_name = self.dm.custom_dept_name
+                self.dm.custom_dept_name = new_name
+                # 기존 인원의 department 업데이트
+                for p in self.dm.personnel:
+                    if p.department == old_name:
+                        p.department = new_name
+                self.dm.save()
+                self.refresh()
+                self.data_changed.emit()
+            popup.close()
+
+        sb.clicked.connect(save)
+        cb.clicked.connect(popup.close)
+        pos = header_label.mapToGlobal(QPoint(0, header_label.height()))
+        popup.move(pos)
+        popup.show()
+        ni.setFocus()
+        ni.selectAll()
 
     def _populate_position(self, layout, dept_name, persons):
         _clear_layout(layout)
@@ -519,7 +578,7 @@ class SettingsTab(QWidget):
         layout.addWidget(lbl)
         if persons:
             for p in persons:
-                card = PersonnelEditCard(p.id, p.name, p.rank, p.department)
+                card = PersonnelEditCard(p.id, p.name, p.rank, p.department, dm=self.dm)
                 card.removed.connect(self._remove_personnel)
                 card.updated.connect(self._update_personnel)
                 card.dept_changed.connect(self._change_dept)
@@ -640,15 +699,26 @@ class SettingsTab(QWidget):
         from core.data_manager import RANK_ORDER
         self._all_cards = []
 
-        dept_personnel = {dept: [] for dept in DEPARTMENTS}
+        depts = get_departments(self.dm)
+        team_depts = get_team_departments(self.dm)
+        dept_personnel = {dept: [] for dept in depts}
         for p in sorted(self.dm.personnel, key=lambda x: RANK_ORDER.get(x.rank, 99)):
-            dept = p.department if p.department in DEPARTMENTS else "항해"
+            dept = p.department if p.department in depts else "항해"
             dept_personnel[dept].append(p)
 
         self._populate_position(self.captain_layout, "함장", dept_personnel["함장"])
         self._populate_position(self.vice_layout, "부장", dept_personnel["부장"])
 
-        for dept in TEAM_DEPARTMENTS:
+        # 커스텀 직별 열이 없으면 동적 추가
+        for dept in team_depts:
+            if dept not in self.team_columns:
+                team_grid = self.team_frame.layout()
+                col = self._make_dept_column(dept, editable=(dept == self.dm.custom_dept_name))
+                idx = len(self.team_columns)
+                team_grid.addWidget(col, 0, idx)
+                self.team_columns[dept] = col
+
+        for dept in team_depts:
             col = self.team_columns[dept]
             ll = col._list_layout
             while ll.count():
@@ -658,7 +728,7 @@ class SettingsTab(QWidget):
             persons = dept_personnel[dept]
             col._count_badge.setText(f"{len(persons)}명")
             for p in persons:
-                card = PersonnelEditCard(p.id, p.name, p.rank, p.department)
+                card = PersonnelEditCard(p.id, p.name, p.rank, p.department, dm=self.dm)
                 card.removed.connect(self._remove_personnel)
                 card.updated.connect(self._update_personnel)
                 card.dept_changed.connect(self._change_dept)
@@ -694,6 +764,16 @@ class SettingsTab(QWidget):
             self.eq_grid_layout.addWidget(card, i // 4, i % 4)
 
         self._populate_eq_assignee_combo()
+
+        # dept_combo 갱신 (커스텀 직별 반영)
+        current_dept = self.dept_combo.currentText()
+        self.dept_combo.blockSignals(True)
+        self.dept_combo.clear()
+        self.dept_combo.addItems(get_departments(self.dm))
+        idx = self.dept_combo.findText(current_dept)
+        if idx >= 0:
+            self.dept_combo.setCurrentIndex(idx)
+        self.dept_combo.blockSignals(False)
 
     def _create_vessel_row(self, vid, vinfo, vtype="vessel"):
         row = QFrame()

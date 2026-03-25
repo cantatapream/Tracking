@@ -21,14 +21,14 @@ class EquipmentMiniCard(QFrame):
         self.equipment = equipment
         self._selected = False
         self.setCursor(Qt.PointingHandCursor)
-        self.setMinimumHeight(24)
+        self.setMinimumHeight(36)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.setObjectName("equipmentMiniCard")
         self._setup_ui()
 
     def _setup_ui(self):
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(6, 2, 6, 2)
+        layout.setContentsMargins(8, 4, 8, 4)
         layout.setSpacing(4)
 
         self.name_label = QLabel(self.equipment.name)

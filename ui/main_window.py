@@ -232,7 +232,10 @@ class MainWindow(QMainWindow):
         title_text = self.dm.operation_title or "클릭하여 작전명을 입력하세요"
         self.header_title = QLabel(title_text)
         self.header_title.setObjectName("headerTitle")
-        self.header_title.setStyleSheet("font-size: 18px; font-weight: bold; color: #e0e8f0; letter-spacing: 1px;")
+        self.header_title.setStyleSheet("""
+            font-size: 27px; font-weight: bold; color: #e0e8f0; letter-spacing: 2px;
+            font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
+        """)
         self.header_title.setCursor(Qt.PointingHandCursor)
         self.header_title.mousePressEvent = self._start_title_edit
         title_layout.addWidget(self.header_title)
@@ -240,7 +243,10 @@ class MainWindow(QMainWindow):
         self.title_input = QLineEdit()
         self.title_input.setObjectName("headerTitleInput")
         self.title_input.setFixedHeight(36)
-        self.title_input.setStyleSheet("font-size: 18px; font-weight: bold;")
+        self.title_input.setStyleSheet("""
+            font-size: 27px; font-weight: bold;
+            font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
+        """)
         self.title_input.setPlaceholderText("작전명을 입력하세요...")
         self.title_input.returnPressed.connect(self._save_title)
         self.title_input.hide()
@@ -276,25 +282,12 @@ class MainWindow(QMainWindow):
 
         self.dashboard = DashboardView(self.dm)
         self.dashboard.set_equipment_panel(self.eq_inventory_panel)
-        self.dashboard.refresh()
         dp_layout.addWidget(self.dashboard, 10)
 
-        # 로그 패널을 sectionPanel 스타일 프레임으로 감싸기
-        log_wrapper = QFrame()
-        log_wrapper.setObjectName("sectionPanel")
-        log_wrapper_layout = QVBoxLayout(log_wrapper)
-        log_wrapper_layout.setContentsMargins(0, 0, 0, 0)
-        log_wrapper_layout.setSpacing(0)
+        # 로그 패널: 대시보드 내부 레이아웃에 직접 추가하여 하단선 일치
         self.log_panel = LogPanel(self.dm)
-        log_wrapper_layout.addWidget(self.log_panel)
-
-        # 로그 래퍼에 대시보드와 동일한 여백 적용
-        log_outer = QWidget()
-        log_outer_layout = QVBoxLayout(log_outer)
-        log_outer_layout.setContentsMargins(0, 8, 8, 8)
-        log_outer_layout.setSpacing(0)
-        log_outer_layout.addWidget(log_wrapper)
-        dp_layout.addWidget(log_outer, 3)
+        self.dashboard.add_log_panel(self.log_panel)
+        self.dashboard.refresh()
 
         self.dashboard.log_message.connect(self.log_panel.append_log)
         self.log_panel.export_requested.connect(self._export_data)
@@ -318,8 +311,6 @@ class MainWindow(QMainWindow):
         if saved_font:
             self._content_font_size = saved_font
             self._apply_content_font()
-            self.log_panel._font_size = saved_font
-            self.log_panel._apply_font_size()
 
         self._switch_page("dashboard")
 
@@ -421,9 +412,6 @@ class MainWindow(QMainWindow):
             elif delta < 0:
                 self._content_font_size = max(self._content_font_size - 1, 8)
             self._apply_content_font()
-            # 로그 패널 내부 폰트도 동기화
-            self.log_panel._font_size = self._content_font_size
-            self.log_panel._apply_font_size()
             # 설정 저장
             self.dm.ui_settings["content_font_size"] = self._content_font_size
             event.accept()
@@ -431,11 +419,12 @@ class MainWindow(QMainWindow):
             super().wheelEvent(event)
 
     def _apply_content_font(self):
-        """대시보드 + 로그 패널에 동일 폰트 크기 적용"""
+        """대시보드에만 폰트 크기 적용 (로그 패널 텍스트는 별도 관리)"""
         sz = self._content_font_size
         font_style = f"QWidget {{ font-size: {sz}px; }}"
         self.dashboard.setStyleSheet(font_style)
-        self.log_panel.setStyleSheet(font_style)
+        # 로그 패널: 헤더 타이틀만 동기화 (본문 텍스트는 유지)
+        self.log_panel.update_title_font(sz)
 
     def closeEvent(self, event):
         self.dm.save()

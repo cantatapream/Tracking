@@ -176,13 +176,22 @@ class LogEntryWidget(QFrame):
         else:
             self.action_frame.hide()
 
-    def set_multi_selected(self, selected: bool):
-        """다중 선택 상태 설정"""
+    def set_multi_selected(self, selected: bool, position: str = "single"):
+        """다중 선택 상태 설정 (position: first, middle, last, single)"""
         self._multi_selected = selected
         if selected:
-            self.setStyleSheet("border: 1px solid #00d4ff; background: rgba(0, 80, 120, 0.3);")
+            # 노란색 점선 테두리 - 위치에 따라 다르게 적용
+            base = "background: transparent;"
+            if position == "first":
+                self.setStyleSheet(f"border: 2px dashed #f0a500; border-bottom: none; border-radius: 0; {base}")
+            elif position == "middle":
+                self.setStyleSheet(f"border-left: 2px dashed #f0a500; border-right: 2px dashed #f0a500; border-top: none; border-bottom: none; border-radius: 0; {base}")
+            elif position == "last":
+                self.setStyleSheet(f"border: 2px dashed #f0a500; border-top: none; border-radius: 0; {base}")
+            else:
+                self.setStyleSheet(f"border: 2px dashed #f0a500; border-radius: 4px; {base}")
         else:
-            self.setStyleSheet("")  # 기본 스타일시트로 복원
+            self.setStyleSheet("")
 
     def close_actions(self):
         """외부에서 호출하여 액션 패널 닫기"""
@@ -297,7 +306,6 @@ class LogPanel(QWidget):
         # 제목 행: 작전 로그 + 내보내기 버튼 (대시보드 섹션 헤더와 동일 높이)
         self.title_frame = QFrame()
         self.title_frame.setObjectName("logTitleFrame")
-        self.title_frame.setMinimumHeight(56)
         self.title_frame.setStyleSheet("""
             #logTitleFrame {
                 border-bottom: 1px solid rgba(0, 212, 255, 0.12);
@@ -308,14 +316,15 @@ class LogPanel(QWidget):
         title_h.setContentsMargins(12, 6, 12, 6)
         title_h.setSpacing(8)
 
-        title_label = QLabel("작전 로그")
-        title_label.setStyleSheet("""
-            color: #00d4ff; font-size: 16px; font-weight: bold;
+        self._title_label = QLabel("작전 로그")
+        self._title_base_font_size = 16
+        self._title_label.setStyleSheet(f"""
+            color: #00d4ff; font-size: {self._title_base_font_size}px; font-weight: bold;
             font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
             padding: 0; letter-spacing: 1px; background: transparent; border: none;
         """)
-        title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        title_h.addWidget(title_label)
+        self._title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        title_h.addWidget(self._title_label)
         title_h.addStretch()
 
         export_btn = QPushButton("내보내기")
@@ -426,10 +435,19 @@ class LogPanel(QWidget):
                     w.set_multi_selected(False)
                     w.close_actions()
                 self._multi_selected.clear()
-                # 범위 내 항목 선택
+                # 범위 내 항목 선택 (위치별 테두리 구분)
+                count = hi - lo + 1
                 for i in range(lo, hi + 1):
                     w = self.entry_widgets[i]
-                    w.set_multi_selected(True)
+                    if count == 1:
+                        pos = "single"
+                    elif i == lo:
+                        pos = "first"
+                    elif i == hi:
+                        pos = "last"
+                    else:
+                        pos = "middle"
+                    w.set_multi_selected(True, pos)
                     w.close_actions()
                     self._multi_selected.append(w)
                 self._update_multi_action_bar()
@@ -599,8 +617,16 @@ class LogPanel(QWidget):
             super().wheelEvent(event)
 
     def _apply_font_size(self):
-        """모든 로그 항목에 현재 폰트 크기 적용"""
+        """모든 로그 항목 + 타이틀에 현재 폰트 크기 적용"""
         sz = self._font_size
+        # 타이틀 폰트도 비례 조정 (base 13→16 비율 유지)
+        title_sz = max(12, int(sz * 16 / 13))
+        if hasattr(self, '_title_label'):
+            self._title_label.setStyleSheet(f"""
+                color: #00d4ff; font-size: {title_sz}px; font-weight: bold;
+                font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
+                padding: 0; letter-spacing: 1px; background: transparent; border: none;
+            """)
         for widget in self.entry_widgets:
             widget.time_label.setStyleSheet(
                 widget.time_label.styleSheet().replace(

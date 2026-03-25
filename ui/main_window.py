@@ -64,7 +64,7 @@ class SidebarFrame(QFrame):
 
 
 class WatermarkWidget(QWidget):
-    """전체 화면 중앙 워터마크 위젯 (투명, 이벤트 무시)"""
+    """전체 화면 중앙 워터마크 위젯 - 앞에 배치하되 마우스 투과"""
     def __init__(self, parent=None):
         super().__init__(parent)
         self._bg_pixmap = None
@@ -77,9 +77,8 @@ class WatermarkWidget(QWidget):
     def paintEvent(self, event):
         if self._bg_pixmap:
             painter = QPainter(self)
-            painter.setOpacity(0.15)
-            # 화면 크기의 60%를 차지하도록 크게 표시
-            size = int(min(self.width(), self.height()) * 0.6)
+            painter.setOpacity(0.07)
+            size = int(min(self.width(), self.height()) * 0.55)
             size = max(size, 300)
             scaled = self._bg_pixmap.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             x = (self.width() - scaled.width()) // 2
@@ -142,8 +141,8 @@ class MainWindow(QMainWindow):
             border-bottom: 1px solid #1a2d4a;
         """)
         logo_v = QVBoxLayout(logo_frame)
-        logo_v.setContentsMargins(10, 8, 10, 4)
-        logo_v.setSpacing(2)
+        logo_v.setContentsMargins(10, 10, 10, 6)
+        logo_v.setSpacing(1)
 
         # 상단: BridgeBoard + Ver. 1
         logo_top = QHBoxLayout()
@@ -280,8 +279,22 @@ class MainWindow(QMainWindow):
         self.dashboard.refresh()
         dp_layout.addWidget(self.dashboard, 10)
 
+        # 로그 패널을 sectionPanel 스타일 프레임으로 감싸기
+        log_wrapper = QFrame()
+        log_wrapper.setObjectName("sectionPanel")
+        log_wrapper_layout = QVBoxLayout(log_wrapper)
+        log_wrapper_layout.setContentsMargins(0, 0, 0, 0)
+        log_wrapper_layout.setSpacing(0)
         self.log_panel = LogPanel(self.dm)
-        dp_layout.addWidget(self.log_panel, 3)
+        log_wrapper_layout.addWidget(self.log_panel)
+
+        # 로그 래퍼에 대시보드와 동일한 여백 적용
+        log_outer = QWidget()
+        log_outer_layout = QVBoxLayout(log_outer)
+        log_outer_layout.setContentsMargins(0, 8, 8, 8)
+        log_outer_layout.setSpacing(0)
+        log_outer_layout.addWidget(log_wrapper)
+        dp_layout.addWidget(log_outer, 3)
 
         self.dashboard.log_message.connect(self.log_panel.append_log)
         self.log_panel.export_requested.connect(self._export_data)
@@ -294,11 +307,11 @@ class MainWindow(QMainWindow):
         content_layout.addWidget(self.page_stack, 1)
         main_layout.addLayout(content_layout, 1)
 
-        # 워터마크 오버레이 (전체 콘텐츠 영역 중앙)
+        # 워터마크 오버레이 (전체 화면 중앙, 앞에 배치하되 마우스 투과)
         self._watermark = WatermarkWidget(self)
         if self._mark_pixmap:
             self._watermark.set_background_mark(self._mark_pixmap)
-        self._watermark.lower()
+        self._watermark.raise_()
 
         # 저장된 폰트 크기 복원
         saved_font = self.dm.ui_settings.get("content_font_size")
@@ -380,10 +393,10 @@ class MainWindow(QMainWindow):
         """창 크기 변경 시 워터마크 리사이즈 + 초기 폰트 계산"""
         super().resizeEvent(event)
 
-        # 워터마크 위치 업데이트 (전체 화면 중앙)
+        # 워터마크 위치 업데이트 (전체 화면 중앙, 항상 맨 앞)
         if hasattr(self, '_watermark'):
             self._watermark.setGeometry(0, 0, self.width(), self.height())
-            self._watermark.lower()
+            self._watermark.raise_()
 
         # 폰트 크기가 아직 설정되지 않은 경우 (최초 리사이즈)만 자동 계산
         if not hasattr(self, '_content_font_size'):

@@ -252,7 +252,7 @@ class DataManager:
         if not names:
             return None
         target_name = self.get_location_display_name(target_location)
-        log_msg = f"장비 이동: {', '.join(names)} → {target_name}"
+        log_msg = f"{target_name}(으)로 {', '.join(names)} 이동 조치"
         self.add_log(log_msg)
         self.save()
         return log_msg

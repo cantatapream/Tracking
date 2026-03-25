@@ -71,7 +71,8 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     background: transparent;
     border: none;
     color: #5a7a9a;
-    padding: 14px 12px;
+    padding: 10px 12px;
+    margin: 2px 0;
     text-align: left;
     font-size: 13px;
     font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
@@ -791,8 +792,9 @@ QLabel {
 }
 
 #equipmentMiniName {
-    color: #a0c0e0;
-    font-size: 11px;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: bold;
     background: transparent;
     border: none;
 }

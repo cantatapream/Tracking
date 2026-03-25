@@ -132,7 +132,7 @@ class MainWindow(QMainWindow):
 
         # 로고 영역 - BridgeBoard + 버전 정보
         logo_frame = QFrame()
-        logo_frame.setFixedHeight(58)
+        logo_frame.setFixedHeight(46)
         logo_frame.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         logo_frame.setFixedWidth(240)
         logo_frame.setStyleSheet("""
@@ -141,8 +141,8 @@ class MainWindow(QMainWindow):
             border-bottom: 1px solid #1a2d4a;
         """)
         logo_v = QVBoxLayout(logo_frame)
-        logo_v.setContentsMargins(10, 6, 10, 2)
-        logo_v.setSpacing(1)
+        logo_v.setContentsMargins(10, 4, 10, 2)
+        logo_v.setSpacing(0)
 
         # 상단: BridgeBoard + Ver. 1
         logo_top = QHBoxLayout()
@@ -184,7 +184,9 @@ class MainWindow(QMainWindow):
         for key, label in [("dashboard", "  대시보드"), ("settings", "  설정")]:
             btn = QPushButton(f"  {label}")
             btn.setCheckable(True)
-            btn.setFixedHeight(44)
+            btn.setFixedHeight(40)
+            btn.setMaximumHeight(40)
+            btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             btn.setProperty("nav_key", key)
             btn.clicked.connect(lambda checked, k=key: self._switch_page(k))
             sidebar_layout.addWidget(btn)
@@ -204,6 +206,11 @@ class MainWindow(QMainWindow):
         # 장비 보유 목록 (사이드바 하단)
         self.eq_inventory_panel = EquipmentInventoryPanel()
         sidebar_layout.addWidget(self.eq_inventory_panel, 1)
+
+        # 사이드바 하단 stretch (장비 패널 숨김 시 빈 공간 채움)
+        self._sidebar_stretch = QWidget()
+        self._sidebar_stretch.setStyleSheet("background: transparent; border: none;")
+        sidebar_layout.addWidget(self._sidebar_stretch, 1)
 
         main_layout.addWidget(sidebar)
 
@@ -292,6 +299,14 @@ class MainWindow(QMainWindow):
             self._watermark.set_background_mark(self._mark_pixmap)
         self._watermark.lower()
 
+        # 저장된 폰트 크기 복원
+        saved_font = self.dm.ui_settings.get("content_font_size")
+        if saved_font:
+            self._content_font_size = saved_font
+            self._apply_content_font()
+            self.log_panel._font_size = saved_font
+            self.log_panel._apply_font_size()
+
         self._switch_page("dashboard")
 
     def _start_title_edit(self, event):
@@ -361,27 +376,50 @@ class MainWindow(QMainWindow):
         self.log_panel.append_log(f"데이터 내보내기 완료: {os.path.basename(filepath)}")
 
     def resizeEvent(self, event):
-        """창 크기 변경 시 전체 폰트/비율 자동 조정 + 워터마크 리사이즈"""
+        """창 크기 변경 시 워터마크 리사이즈 + 초기 폰트 계산"""
         super().resizeEvent(event)
 
-        # 워터마크 위치 업데이트
+        # 워터마크 위치 업데이트 (전체 화면 중앙)
         if hasattr(self, '_watermark'):
-            self._watermark.setGeometry(240, 64, self.width() - 240, self.height() - 64)
+            self._watermark.setGeometry(0, 0, self.width(), self.height())
             self._watermark.lower()
 
-        base_width = 1600
-        base_height = 950
-        base_font = 13.0
+        # 폰트 크기가 아직 설정되지 않은 경우 (최초 리사이즈)만 자동 계산
+        if not hasattr(self, '_content_font_size'):
+            base_width = 1600
+            base_height = 950
+            base_font = 13.0
+            w = self.width()
+            h = self.height()
+            scale = min(w / base_width, h / base_height)
+            scale = max(0.6, min(scale, 1.5))
+            self._content_font_size = max(9, int(base_font * scale))
+            self._apply_content_font()
 
-        w = self.width()
-        h = self.height()
-        scale = min(w / base_width, h / base_height)
-        scale = max(0.6, min(scale, 1.5))
+    def wheelEvent(self, event):
+        """Ctrl+휠로 대시보드+로그 패널 폰트 동시 확대/축소"""
+        if event.modifiers() & Qt.ControlModifier:
+            if not hasattr(self, '_content_font_size'):
+                self._content_font_size = 13
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self._content_font_size = min(self._content_font_size + 1, 24)
+            elif delta < 0:
+                self._content_font_size = max(self._content_font_size - 1, 8)
+            self._apply_content_font()
+            # 로그 패널 내부 폰트도 동기화
+            self.log_panel._font_size = self._content_font_size
+            self.log_panel._apply_font_size()
+            # 설정 저장
+            self.dm.ui_settings["content_font_size"] = self._content_font_size
+            event.accept()
+        else:
+            super().wheelEvent(event)
 
-        new_font = max(9, int(base_font * scale))
-
-        # 대시보드 + 로그 패널 동일 폰트 (#7)
-        font_style = f"QWidget {{ font-size: {new_font}px; }}"
+    def _apply_content_font(self):
+        """대시보드 + 로그 패널에 동일 폰트 크기 적용"""
+        sz = self._content_font_size
+        font_style = f"QWidget {{ font-size: {sz}px; }}"
         self.dashboard.setStyleSheet(font_style)
         self.log_panel.setStyleSheet(font_style)
 

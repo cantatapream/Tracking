@@ -280,9 +280,9 @@ class LogPanel(QWidget):
         # 제목 행: 작전 로그 + 내보내기 버튼
         title_frame = QFrame()
         title_frame.setObjectName("sectionTitle")
-        title_frame.setMinimumHeight(56)
+        title_frame.setFixedHeight(38)
         title_h = QHBoxLayout(title_frame)
-        title_h.setContentsMargins(12, 6, 12, 6)
+        title_h.setContentsMargins(12, 4, 12, 4)
         title_h.setSpacing(8)
 
         title_label = QLabel("작전 로그")

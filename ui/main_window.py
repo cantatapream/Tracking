@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QLineEdit, QDialog, QDateEdit
 )
 from PySide6.QtCore import Qt, QTimer, QSize, QDate
-from PySide6.QtGui import QFont, QIcon, QColor, QPixmap
+from PySide6.QtGui import QFont, QIcon, QColor, QPixmap, QPainter
 from core.data_manager import DataManager
 from ui.dashboard import DashboardView, EquipmentInventoryPanel
 from ui.log_panel import LogPanel
@@ -57,6 +57,28 @@ class ExportDateDialog(QDialog):
         return self.date_edit.date().toPython()
 
 
+class SidebarFrame(QFrame):
+    """사이드바 - 배경에 해양경찰 마크 워터마크"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._bg_pixmap = None
+
+    def set_background_mark(self, pixmap):
+        self._bg_pixmap = pixmap
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self._bg_pixmap:
+            painter = QPainter(self)
+            painter.setOpacity(0.06)
+            size = min(self.width() - 20, 160)
+            scaled = self._bg_pixmap.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            x = (self.width() - scaled.width()) // 2
+            y = 90
+            painter.drawPixmap(x, y, scaled)
+            painter.end()
+
+
 class MainWindow(QMainWindow):
     def __init__(self, data_manager: DataManager):
         super().__init__()
@@ -93,37 +115,28 @@ class MainWindow(QMainWindow):
         main_layout.setSpacing(0)
 
         # === 사이드바 ===
-        sidebar = QFrame()
+        sidebar = SidebarFrame()
         sidebar.setObjectName("sidebar")
         sidebar.setFixedWidth(240)
         sidebar_layout = QVBoxLayout(sidebar)
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         sidebar_layout.setSpacing(0)
 
-        # 로고 영역 - 해양경찰 마크 + 작전 현황
+        # 로고 영역 - BridgeBoard + 버전 정보
         logo_frame = QFrame()
-        logo_frame.setFixedHeight(60)
+        logo_frame.setFixedHeight(78)
         logo_frame.setStyleSheet("""
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                 stop:0 #0d2137, stop:1 #06101f);
             border-bottom: 1px solid #1a2d4a;
         """)
-        logo_h = QHBoxLayout(logo_frame)
-        logo_h.setContentsMargins(10, 8, 10, 8)
-        logo_h.setSpacing(8)
+        logo_v = QVBoxLayout(logo_frame)
+        logo_v.setContentsMargins(10, 6, 10, 4)
+        logo_v.setSpacing(0)
 
-        # 해양경찰 마크 (이미지)
-        mark = QLabel()
-        img_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "resources", "0504_sbimg2.png"
-        )
-        if os.path.exists(img_path):
-            pixmap = QPixmap(img_path)
-            mark.setPixmap(pixmap.scaled(36, 36, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        mark.setStyleSheet("background: transparent; border: none;")
-        mark.setFixedSize(40, 40)
-        logo_h.addWidget(mark)
+        # 상단: BridgeBoard + Ver. 1
+        logo_top = QHBoxLayout()
+        logo_top.setSpacing(6)
 
         logo_title = QLabel("BridgeBoard")
         logo_title.setStyleSheet("""
@@ -131,10 +144,30 @@ class MainWindow(QMainWindow):
             font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
             letter-spacing: 2px; background: transparent; border: none;
         """)
-        logo_h.addWidget(logo_title)
-        logo_h.addStretch()
+        logo_top.addWidget(logo_title)
+
+        ver_label = QLabel("Ver. 1")
+        ver_label.setStyleSheet("color: #5a7a9a; font-size: 10px; background: transparent; border: none;")
+        logo_top.addWidget(ver_label)
+        logo_top.addStretch()
+
+        logo_v.addLayout(logo_top)
+
+        # 하단: Made by JS Shin
+        credit_label = QLabel("Made by JS Shin")
+        credit_label.setStyleSheet("color: #3a5a7a; font-size: 9px; background: transparent; border: none;")
+        logo_v.addWidget(credit_label)
 
         sidebar_layout.addWidget(logo_frame)
+
+        # 해양경찰 마크 배경 설정
+        img_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "resources", "0504_sbimg2.png"
+        )
+        if os.path.exists(img_path):
+            pixmap = QPixmap(img_path)
+            sidebar.set_background_mark(pixmap)
 
         # 탭 버튼
         self.nav_buttons = []
@@ -147,6 +180,12 @@ class MainWindow(QMainWindow):
             sidebar_layout.addWidget(btn)
             self.nav_buttons.append(btn)
 
+        # 설정과 장비 패널 사이 간격 (#9)
+        spacer = QFrame()
+        spacer.setFixedHeight(12)
+        spacer.setStyleSheet("background: transparent; border: none;")
+        sidebar_layout.addWidget(spacer)
+
         # 장비 보유 목록 (사이드바 하단)
         self.eq_inventory_panel = EquipmentInventoryPanel()
         sidebar_layout.addWidget(self.eq_inventory_panel, 1)
@@ -158,11 +197,11 @@ class MainWindow(QMainWindow):
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(0)
 
-        # 헤더 바
+        # 헤더 바 (높이 확대)
         header = QFrame()
         header.setObjectName("headerBar")
         header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(20, 6, 20, 6)
+        header_layout.setContentsMargins(20, 8, 20, 8)
 
         # 작전명 (클릭으로 편집) - 넓은 영역
         title_layout = QVBoxLayout()
@@ -263,6 +302,9 @@ class MainWindow(QMainWindow):
             btn.setChecked(is_active)
             btn.setProperty("active", "true" if is_active else "false")
             btn.setStyleSheet(btn.styleSheet())
+
+        # 장비 보유 목록은 대시보드에서만 표출 (#3)
+        self.eq_inventory_panel.setVisible(key == "dashboard")
 
         if key == "dashboard":
             self.dashboard.refresh()

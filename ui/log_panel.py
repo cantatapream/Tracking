@@ -52,21 +52,23 @@ class LogEntryWidget(QFrame):
         time_str = self.log_entry.get("time_str", "")
         is_memo = self.log_entry.get("type") == "memo"
 
-        # 시간 라벨 (위)
-        self.time_label = QLabel(f'[{time_str}]')
+        # 시간 라벨 (위) - 메모인 경우 [메모] 표시
+        time_text = f'[{time_str}]'
+        if is_memo:
+            time_text = f'[{time_str}] [메모]'
+        self.time_label = QLabel(time_text)
         self.time_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         if self._checked:
             self.time_label.setObjectName("logTimeChecked")
         else:
-            self.time_label.setObjectName("logTime")
+            self.time_label.setObjectName("logTimeMemo" if is_memo else "logTime")
         self.time_label.setStyleSheet(self.time_label.styleSheet())
         main_layout.addWidget(self.time_label)
 
         # 메시지 라벨 (아래) - Rich text로 word-break:break-all 적용
-        prefix = "[메모] " if is_memo else ""
         self.text_label = QLabel()
         self.text_label.setTextFormat(Qt.RichText)
-        self.text_label.setText(_wrap_html(f'{prefix}{msg}'))
+        self.text_label.setText(_wrap_html(msg))
         if is_memo:
             self.text_label.setObjectName("logEntryMemo")
         else:
@@ -214,9 +216,7 @@ class LogEntryWidget(QFrame):
         new_msg = self.edit_input.text().strip()
         if new_msg:
             self.edited.emit(self.log_entry, new_msg)
-            is_memo = self.log_entry.get("type") == "memo"
-            prefix = "[메모] " if is_memo else ""
-            self.text_label.setText(_wrap_html(f'{prefix}{new_msg}'))
+            self.text_label.setText(_wrap_html(new_msg))
         self._editing = False
         self.edit_input.hide()
         self.text_label.show()
@@ -360,9 +360,19 @@ class LogPanel(QWidget):
     def _load_existing_logs(self):
         for log in self.dm.logs:
             self._add_entry_widget(log)
+        self._last_log_count = len(self.dm.logs)
         self._scroll_to_bottom()
 
     def _add_entry_widget(self, log_entry: dict):
+        # 날짜 구분선은 별도 처리
+        if log_entry.get("type") == "date_separator":
+            sep = QLabel(log_entry.get("message", ""))
+            sep.setAlignment(Qt.AlignCenter)
+            sep.setStyleSheet("color: #5a7a9a; font-size: 12px; padding: 8px 0; font-weight: bold;")
+            idx = self.log_layout.count() - 1
+            self.log_layout.insertWidget(idx, sep)
+            return
+
         widget = LogEntryWidget(log_entry)
         widget.deleted.connect(self._on_delete)
         widget.edited.connect(self._on_edit)
@@ -379,10 +389,11 @@ class LogPanel(QWidget):
                 w.close_actions()
 
     def append_log(self, message: str):
-        if self.dm.logs:
-            last_log = self.dm.logs[-1]
-            if not self.entry_widgets or self.entry_widgets[-1].log_entry is not last_log:
-                self._add_entry_widget(last_log)
+        # 마지막으로 처리한 이후의 모든 새 로그 추가
+        count = getattr(self, '_last_log_count', 0)
+        for i in range(count, len(self.dm.logs)):
+            self._add_entry_widget(self.dm.logs[i])
+        self._last_log_count = len(self.dm.logs)
         self._scroll_to_bottom()
 
     def _add_memo(self):
@@ -449,9 +460,7 @@ class LogPanel(QWidget):
             widget.time_label.setStyleSheet(ts)
             # 메시지 라벨 - HTML 재생성
             msg = widget.log_entry.get("message", "")
-            is_memo = widget.log_entry.get("type") == "memo"
-            prefix = "[메모] " if is_memo else ""
-            widget.text_label.setText(_wrap_html(f'{prefix}{msg}', sz))
+            widget.text_label.setText(_wrap_html(msg, sz))
 
     def _scroll_to_bottom(self):
         from PySide6.QtCore import QTimer

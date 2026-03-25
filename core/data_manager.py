@@ -174,8 +174,28 @@ class DataManager:
 
     # ---- 로그 ----
     def add_log(self, message: str, log_type: str = "auto"):
+        ts = time.time()
+        current_date = time.strftime("%y.%m.%d", time.localtime(ts))
+
+        # 날짜 변경 시 자동 구분선 삽입
+        if self.logs:
+            last_non_sep = None
+            for log in reversed(self.logs):
+                if log.get("type") != "date_separator":
+                    last_non_sep = log
+                    break
+            if last_non_sep:
+                last_date = time.strftime("%y.%m.%d", time.localtime(last_non_sep.get("timestamp", 0)))
+                if last_date != current_date:
+                    self.logs.append({
+                        "timestamp": ts - 0.001,
+                        "time_str": "",
+                        "message": f"<{current_date}>",
+                        "type": "date_separator",
+                    })
+
         entry = {
-            "timestamp": time.time(),
+            "timestamp": ts,
             "time_str": time.strftime("%H:%M:%S"),
             "message": message,
             "type": log_type,
@@ -260,11 +280,20 @@ class DataManager:
         self.personnel = [p for p in self.personnel if p.id != pid]
         self.save()
 
+    def _record_movement(self, person: Personnel, target_location: str):
+        """이동 내역 기록"""
+        person.movement_history.append({
+            "timestamp": time.time(),
+            "to": target_location,
+            "to_name": self.get_location_display_name(target_location),
+        })
+
     def move_personnel(self, pid: str, target_location: str) -> Optional[str]:
         person = self.get_personnel_by_id(pid)
         if not person:
             return None
         old_loc = person.deploy_to(target_location)
+        self._record_movement(person, target_location)
         old_name = self.get_location_display_name(old_loc)
         new_name = self.get_location_display_name(target_location)
         log_msg = f"{person.name} {person.rank} : {old_name} → {new_name}"
@@ -278,6 +307,7 @@ class DataManager:
             person = self.get_personnel_by_id(pid)
             if person and person.location != target_location:
                 person.deploy_to(target_location)
+                self._record_movement(person, target_location)
                 names.append(f"{person.rank} {person.name}")
         if not names:
             return None

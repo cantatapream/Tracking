@@ -181,7 +181,7 @@ class MainWindow(QMainWindow):
 
         # 탭 버튼 (간격 추가)
         self.nav_buttons = []
-        for key, label in [("dashboard", "대시보드"), ("settings", "설정")]:
+        for key, label in [("dashboard", "  대시보드"), ("settings", "  설정")]:
             btn = QPushButton(label)
             btn.setCheckable(True)
             btn.setFixedHeight(40)

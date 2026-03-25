@@ -485,13 +485,13 @@ class SettingsTab(QWidget):
         self.eq_scroll.setWidgetResizable(True)
         self.eq_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.eq_scroll.setFrameShape(QFrame.NoFrame)
-        self.eq_scroll.setMinimumHeight(80)
+        self.eq_scroll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
         self.eq_list_widget = QWidget()
         self.eq_grid_layout = QGridLayout(self.eq_list_widget)
         self.eq_grid_layout.setContentsMargins(0, 0, 0, 0)
         self.eq_grid_layout.setSpacing(4)
         self.eq_scroll.setWidget(self.eq_list_widget)
-        layout.addWidget(self.eq_scroll, 2)
+        layout.addWidget(self.eq_scroll)
 
     def _make_title(self, text):
         lbl = QLabel(text)

@@ -409,8 +409,10 @@ class DashboardView(QWidget):
         frame.hide()
         self._custom_subs[vid] = {"frame": frame, "container": sub_container, "title": title, "badge": badge}
 
-        # parent_container의 레이아웃에 직접 추가
-        parent_container.layout().addWidget(frame)
+        # VesselContainer 내부 cards_layout의 stretch 앞에 삽입
+        cl = parent_container.cards_layout
+        idx = cl.count() - 1  # stretch 앞
+        cl.insertWidget(idx, frame)
 
     def rebuild_containers(self):
         """선박 목록 변경 시 컨테이너 재구성"""

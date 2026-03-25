@@ -709,11 +709,18 @@ class SettingsTab(QWidget):
         self._populate_position(self.captain_layout, "함장", dept_personnel["함장"])
         self._populate_position(self.vice_layout, "부장", dept_personnel["부장"])
 
-        # 커스텀 직별 열이 없으면 동적 추가
+        # 커스텀 직별 열: 이름 변경 시 기존 열 제거 후 재생성
+        custom_name = self.dm.custom_dept_name
+        stale_keys = [k for k in self.team_columns if k not in team_depts and k not in BASE_TEAM_DEPARTMENTS]
+        for k in stale_keys:
+            old_col = self.team_columns.pop(k)
+            old_col.setParent(None)
+            old_col.deleteLater()
+
         for dept in team_depts:
             if dept not in self.team_columns:
                 team_grid = self.team_frame.layout()
-                col = self._make_dept_column(dept, editable=(dept == self.dm.custom_dept_name))
+                col = self._make_dept_column(dept, editable=(dept == custom_name))
                 idx = len(self.team_columns)
                 team_grid.addWidget(col, 0, idx)
                 self.team_columns[dept] = col

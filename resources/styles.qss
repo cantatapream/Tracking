@@ -71,7 +71,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     background: transparent;
     border: none;
     color: #5a7a9a;
-    padding: 8px 6px;
+    padding: 8px 2px;
     margin: 2px 0;
     text-align: left;
     font-size: 18px;

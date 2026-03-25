@@ -134,7 +134,7 @@ class DashboardView(QWidget):
 
     def _setup_ui(self):
         main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(8, 8, 8, 8)
+        main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(8)
 
         # === 좌측: 본함 ===
@@ -155,20 +155,6 @@ class DashboardView(QWidget):
         )
         self.vessel_panel.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         main_layout.addWidget(self.vessel_panel, 1)
-
-        # 로그 패널 자리 (add_log_panel에서 추가)
-        self._main_layout = main_layout
-
-    def add_log_panel(self, log_panel):
-        """로그 패널을 대시보드 4번째 열로 추가 (하단선 자동 일치)"""
-        log_wrapper = QFrame()
-        log_wrapper.setObjectName("sectionPanel")
-        wrapper_layout = QVBoxLayout(log_wrapper)
-        wrapper_layout.setContentsMargins(0, 0, 0, 0)
-        wrapper_layout.setSpacing(0)
-        wrapper_layout.addWidget(log_panel)
-        log_wrapper.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
-        self._main_layout.addWidget(log_wrapper, 1)
 
     def _create_base_section(self) -> QFrame:
         """본함 섹션"""
@@ -234,7 +220,12 @@ class DashboardView(QWidget):
         row2_depts = ["구조", "행정", "통신", "조리", custom_dept]
 
         btn_style = """
-            QPushButton { font-size: 11px; padding: 2px 6px; border-radius: 4px; }
+            QPushButton {
+                font-size: 12px; padding: 3px 8px; border-radius: 4px;
+                border: 1px solid #1e3a5f; background: rgba(15, 35, 65, 0.6);
+                color: #8faabe; font-weight: bold;
+            }
+            QPushButton:hover { border-color: rgba(0, 212, 255, 0.4); color: #c8d6e5; }
             QPushButton:checked { background: rgba(0, 212, 255, 0.2); border: 1px solid #00d4ff; color: #00d4ff; }
         """
 
@@ -244,25 +235,54 @@ class DashboardView(QWidget):
             for dept in row_depts:
                 btn = QPushButton(dept)
                 btn.setCheckable(True)
-                btn.setFixedHeight(24)
-                btn.setMinimumWidth(40)
+                btn.setFixedHeight(26)
                 btn.setStyleSheet(btn_style)
                 if dept == "전체":
                     btn.setChecked(True)
                 btn.clicked.connect(lambda checked, d=dept, b=btn: self._on_dept_filter(d, b))
-                row_layout.addWidget(btn)
+                row_layout.addWidget(btn, 1)  # 균등 배분
                 self._filter_buttons.append(btn)
-            row_layout.addStretch()
             filter_v.addLayout(row_layout)
 
         layout.addWidget(filter_frame)
 
-        # 인원 컨테이너 (헤더 숨김)
+        # 인원 컨테이너 (헤더 숨김) - 기타 직별 제외
         container = VesselContainer("base", base_name, "base", hide_header=True)
         container.header_clicked.connect(self._on_base_or_inventory_clicked)
         container.card_clicked.connect(self._on_card_clicked)
         self.containers["base"] = container
-        layout.addWidget(container, 1)
+        layout.addWidget(container, 3)
+
+        # 기타 직별 전용 서브 영역 (본함 하단, 최대 1/4 크기)
+        custom_dept = self.dm.custom_dept_name if hasattr(self.dm, 'custom_dept_name') else "기타"
+        self._custom_dept_frame = QFrame()
+        self._custom_dept_frame.setObjectName("vesselContainer")
+        self._custom_dept_frame.setMaximumHeight(200)
+        cd_layout = QVBoxLayout(self._custom_dept_frame)
+        cd_layout.setContentsMargins(4, 4, 4, 4)
+        cd_layout.setSpacing(2)
+
+        cd_header = QHBoxLayout()
+        cd_header.setSpacing(4)
+        self._custom_dept_title = QLabel(custom_dept)
+        self._custom_dept_title.setObjectName("vesselHeader")
+        cd_header.addWidget(self._custom_dept_title)
+        cd_header.addStretch()
+        self._custom_dept_badge = QLabel("0명")
+        self._custom_dept_badge.setObjectName("countBadge")
+        cd_header.addWidget(self._custom_dept_badge)
+        cd_layout.addLayout(cd_header)
+
+        # 기타 직별 인원 컨테이너
+        self._custom_dept_container = VesselContainer(
+            "base_custom", base_name, "base", hide_header=True
+        )
+        self._custom_dept_container.header_clicked.connect(self._on_base_or_inventory_clicked)
+        self._custom_dept_container.card_clicked.connect(self._on_card_clicked)
+        cd_layout.addWidget(self._custom_dept_container, 1)
+
+        self._custom_dept_frame.hide()  # 기타 인원 없으면 숨김
+        layout.addWidget(self._custom_dept_frame, 1)
 
         return panel
 
@@ -401,14 +421,33 @@ class DashboardView(QWidget):
         patrol_total = 0
         vessel_total = 0
 
+        custom_dept = self.dm.custom_dept_name if hasattr(self.dm, 'custom_dept_name') else "기타"
+
         for vid, container in self.containers.items():
             personnel = self.dm.get_personnel_at(vid)
-            container.set_personnel(personnel)
 
             if vid == "base":
-                # 본함: 장비는 인벤토리 패널에 표시 (컨테이너에는 넣지 않음)
-                pass
+                # 본함: 기타 직별 인원 분리
+                base_normal = [p for p in personnel if p.department != custom_dept]
+                base_custom = [p for p in personnel if p.department == custom_dept]
+                container.set_personnel(base_normal)
+
+                # 기타 직별 서브 영역 업데이트
+                if hasattr(self, '_custom_dept_container'):
+                    self._custom_dept_container.set_personnel(base_custom)
+                    self._custom_dept_container.update_timers()
+                    for pid in self.selected_ids:
+                        self._custom_dept_container.set_card_selected(pid, True)
+                    self._custom_dept_title.setText(custom_dept)
+                    self._custom_dept_badge.setText(f"{len(base_custom)}명")
+                    if base_custom:
+                        self._custom_dept_frame.show()
+                        self.base_count_badge.setText(f"{len(base_normal)} + {len(base_custom)}명")
+                    else:
+                        self._custom_dept_frame.hide()
+                        self.base_count_badge.setText(f"{len(base_normal)}명")
             else:
+                container.set_personnel(personnel)
                 # 단정/선박: 장비 인라인 표시
                 equipment = self.dm.get_equipment_at(vid)
                 container.set_equipment(equipment)
@@ -423,8 +462,6 @@ class DashboardView(QWidget):
                 patrol_total += len(personnel)
             elif vinfo.get("type") == "vessel":
                 vessel_total += len(personnel)
-            elif vid == "base":
-                self.base_count_badge.setText(f"{len(personnel)}명")
 
         # 본함 장비 → 인벤토리 패널
         if self.eq_inventory_panel:
@@ -524,6 +561,8 @@ class DashboardView(QWidget):
     def _set_card_selected(self, pid: str, selected: bool):
         for container in self.containers.values():
             container.set_card_selected(pid, selected)
+        if hasattr(self, '_custom_dept_container'):
+            self._custom_dept_container.set_card_selected(pid, selected)
 
     def _set_eq_card_selected(self, eid: str, selected: bool):
         if self.eq_inventory_panel:

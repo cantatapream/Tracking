@@ -37,7 +37,7 @@ def _clear_layout(layout):
 
 def _make_popup(parent_widget, min_width=320):
     """플로팅 팝업 프레임 생성"""
-    popup = QFrame(parent_widget.window(), Qt.Popup | Qt.FramelessWindowHint)
+    popup = QFrame(parent_widget.window(), Qt.Tool | Qt.FramelessWindowHint)
     popup.setMinimumWidth(min_width)
     popup.setStyleSheet("""
         QFrame { background: #0d1f3c; border: 1px solid rgba(0,212,255,0.5); border-radius: 6px; }

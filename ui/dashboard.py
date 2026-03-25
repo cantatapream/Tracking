@@ -506,6 +506,12 @@ class DashboardView(QWidget):
                 equipment = self.dm.get_equipment_at(vid)
                 container.set_equipment(equipment)
 
+                # 개별 컨테이너 뱃지: ## + #명
+                if custom:
+                    container.count_badge.setText(f"{len(normal)}+{len(custom)}명")
+                else:
+                    container.count_badge.setText(f"{len(normal)}명")
+
                 # 기타 서브 컨테이너 업데이트
                 if hasattr(self, '_custom_subs') and vid in self._custom_subs:
                     sub = self._custom_subs[vid]
@@ -524,12 +530,8 @@ class DashboardView(QWidget):
             # 섹션별 총인원 집계
             vinfo = self.dm.vessels.get(vid, {})
             if vinfo.get("type") == "patrol":
-                normal_count = len([p for p in personnel if p.department != custom_dept])
-                custom_count = len([p for p in personnel if p.department == custom_dept])
                 patrol_total += len(personnel)
             elif vinfo.get("type") == "vessel":
-                normal_count = len([p for p in personnel if p.department != custom_dept])
-                custom_count = len([p for p in personnel if p.department == custom_dept])
                 vessel_total += len(personnel)
 
         # 본함 장비 → 인벤토리 패널

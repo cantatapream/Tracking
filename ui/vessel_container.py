@@ -173,7 +173,7 @@ class VesselContainer(QFrame):
             layout.addWidget(self.cards_widget)
 
     def set_personnel(self, personnel_list: List[Personnel]):
-        """대원 카드 갱신"""
+        """대원 카드 갱신 (기타 서브 frame 보존)"""
         # 기존 카드 제거
         for card in self.cards.values():
             card.setParent(None)
@@ -191,11 +191,15 @@ class VesselContainer(QFrame):
             self._eq_header.deleteLater()
             self._eq_header = None
 
-        # 레이아웃 클리어
+        # 레이아웃 클리어 (vesselContainer objectName을 가진 frame은 보존)
+        preserved = []
         while self.cards_layout.count():
             item = self.cards_layout.takeAt(0)
-            if item.widget():
-                item.widget().setParent(None)
+            w = item.widget()
+            if w and w.objectName() == "vesselContainer":
+                preserved.append(w)
+            elif w:
+                w.setParent(None)
 
         # 새 카드 추가
         for p in personnel_list:
@@ -203,6 +207,10 @@ class VesselContainer(QFrame):
             card.clicked.connect(self._on_card_clicked)
             self.cards[p.id] = card
             self.cards_layout.addWidget(card)
+
+        # 보존된 기타 서브 frame 복원
+        for w in preserved:
+            self.cards_layout.addWidget(w)
 
         # 본함만 stretch 추가 (비본함은 내용에 맞게 축소)
         if self.vessel_type == "base":

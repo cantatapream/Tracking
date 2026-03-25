@@ -429,9 +429,7 @@ class MainWindow(QMainWindow):
         """대시보드(3섹션)에만 폰트 적용, 로그 패널은 타이틀만 동기화"""
         sz = self._content_font_size
         font_style = f"QWidget {{ font-size: {sz}px; }}"
-        # 대시보드 3섹션에만 적용 (로그 패널은 대시보드 밖이므로 영향 없음)
         self.dashboard.setStyleSheet(font_style)
-        # 로그 패널: 타이틀만 동기화
         self.log_panel.update_title_font(sz)
 
     def closeEvent(self, event):

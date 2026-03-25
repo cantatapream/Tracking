@@ -364,7 +364,6 @@ class DashboardView(QWidget):
             scroll_layout = QVBoxLayout(scroll_widget)
             scroll_layout.setContentsMargins(4, 4, 4, 4)
             scroll_layout.setSpacing(6)
-            scroll_layout.addStretch()
             self._scroll_widgets[section_type] = (scroll_widget, scroll_layout)
             scroll.setWidget(scroll_widget)
 
@@ -450,7 +449,6 @@ class DashboardView(QWidget):
                     layout.addWidget(c)
                     # 기타 직별 서브 컨테이너
                     self._add_custom_sub(vid, c, layout)
-            layout.addStretch()
 
         if "vessel" in self._scroll_widgets:
             draggable = self._scroll_widgets["vessel"]

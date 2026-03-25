@@ -180,17 +180,17 @@ class LogEntryWidget(QFrame):
         """다중 선택 상태 설정 (position: first, middle, last, single)"""
         self._multi_selected = selected
         if selected:
-            # 노란색 점선 테두리 - objectName 스타일 완전 override
-            # margin 0으로 항목간 틈 제거
+            # 자기 자신에만 적용 (자식 QFrame 제외를 위해 > 직접 objectName 사용)
+            name = self.objectName() or "logEntry"
             common = "background: transparent; margin: 0; padding: 2px 6px;"
             if position == "first":
-                self.setStyleSheet(f"QFrame {{ border: 2px dashed #f0a500; border-bottom: none; border-radius: 0; {common} }}")
+                self.setStyleSheet(f"#{name} {{ border: 2px dashed #f0a500; border-bottom: none; border-radius: 0; {common} }} #{name} QFrame {{ border: none; }}")
             elif position == "middle":
-                self.setStyleSheet(f"QFrame {{ border-left: 2px dashed #f0a500; border-right: 2px dashed #f0a500; border-top: none; border-bottom: none; border-radius: 0; {common} }}")
+                self.setStyleSheet(f"#{name} {{ border-left: 2px dashed #f0a500; border-right: 2px dashed #f0a500; border-top: none; border-bottom: none; border-radius: 0; {common} }} #{name} QFrame {{ border: none; }}")
             elif position == "last":
-                self.setStyleSheet(f"QFrame {{ border: 2px dashed #f0a500; border-top: none; border-radius: 0; {common} }}")
+                self.setStyleSheet(f"#{name} {{ border: 2px dashed #f0a500; border-top: none; border-radius: 0; {common} }} #{name} QFrame {{ border: none; }}")
             else:
-                self.setStyleSheet(f"QFrame {{ border: 2px dashed #f0a500; border-radius: 4px; {common} }}")
+                self.setStyleSheet(f"#{name} {{ border: 2px dashed #f0a500; border-radius: 4px; {common} }} #{name} QFrame {{ border: none; }}")
         else:
             self.setStyleSheet("")
 

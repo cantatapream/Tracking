@@ -277,16 +277,23 @@ class MainWindow(QMainWindow):
 
         dashboard_page = QWidget()
         dp_layout = QHBoxLayout(dashboard_page)
-        dp_layout.setContentsMargins(0, 0, 0, 0)
-        dp_layout.setSpacing(0)
+        dp_layout.setContentsMargins(8, 8, 8, 8)
+        dp_layout.setSpacing(8)
 
         self.dashboard = DashboardView(self.dm)
         self.dashboard.set_equipment_panel(self.eq_inventory_panel)
-        dp_layout.addWidget(self.dashboard, 10)
+        dp_layout.addWidget(self.dashboard, 3)
 
-        # 로그 패널: 대시보드 내부 레이아웃에 직접 추가하여 하단선 일치
+        # 로그 패널: 대시보드와 동일 레벨 + sectionPanel 래퍼
+        log_wrapper = QFrame()
+        log_wrapper.setObjectName("sectionPanel")
+        lw_layout = QVBoxLayout(log_wrapper)
+        lw_layout.setContentsMargins(0, 0, 0, 0)
+        lw_layout.setSpacing(0)
         self.log_panel = LogPanel(self.dm)
-        self.dashboard.add_log_panel(self.log_panel)
+        lw_layout.addWidget(self.log_panel)
+        dp_layout.addWidget(log_wrapper, 1)
+
         self.dashboard.refresh()
 
         self.dashboard.log_message.connect(self.log_panel.append_log)
@@ -419,11 +426,12 @@ class MainWindow(QMainWindow):
             super().wheelEvent(event)
 
     def _apply_content_font(self):
-        """대시보드에만 폰트 크기 적용 (로그 패널 텍스트는 별도 관리)"""
+        """대시보드(3섹션)에만 폰트 적용, 로그 패널은 타이틀만 동기화"""
         sz = self._content_font_size
         font_style = f"QWidget {{ font-size: {sz}px; }}"
+        # 대시보드 3섹션에만 적용 (로그 패널은 대시보드 밖이므로 영향 없음)
         self.dashboard.setStyleSheet(font_style)
-        # 로그 패널: 헤더 타이틀만 동기화 (본문 텍스트는 유지)
+        # 로그 패널: 타이틀만 동기화
         self.log_panel.update_title_font(sz)
 
     def closeEvent(self, event):

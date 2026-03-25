@@ -44,7 +44,7 @@ class EquipmentInventoryPanel(QFrame):
         title_frame.setObjectName("equipmentSectionHeader")
         title_frame.setMinimumHeight(28)
         title_h = QHBoxLayout(title_frame)
-        title_h.setContentsMargins(8, 2, 8, 2)
+        title_h.setContentsMargins(4, 2, 4, 2)
         title_h.setSpacing(8)
 
         title_label = QLabel("장비 보유 목록")

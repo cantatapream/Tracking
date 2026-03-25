@@ -372,8 +372,50 @@ class DashboardView(QWidget):
 
         return panel
 
+    def _add_custom_sub(self, vid, parent_container, parent_layout):
+        """단정/등선대상선박용 기타 직별 서브 컨테이너 생성"""
+        if not hasattr(self, '_custom_subs'):
+            self._custom_subs = {}
+        custom_dept = self.dm.custom_dept_name if hasattr(self.dm, 'custom_dept_name') else "기타"
+
+        frame = QFrame()
+        frame.setObjectName("vesselContainer")
+        frame.setMaximumHeight(150)
+        fl = QVBoxLayout(frame)
+        fl.setContentsMargins(4, 2, 4, 2)
+        fl.setSpacing(2)
+
+        hdr = QHBoxLayout()
+        title = QLabel(custom_dept)
+        title.setObjectName("vesselHeader")
+        hdr.addWidget(title)
+        hdr.addStretch()
+        badge = QLabel("0명")
+        badge.setObjectName("countBadge")
+        hdr.addWidget(badge)
+        fl.addLayout(hdr)
+
+        sub_container = VesselContainer(vid, "", parent_container._vessel_type if hasattr(parent_container, '_vessel_type') else "patrol", hide_header=True)
+        sub_container.header_clicked.connect(self._on_container_clicked)
+        sub_container.card_clicked.connect(self._on_card_clicked)
+        fl.addWidget(sub_container, 1)
+
+        frame.hide()
+        self._custom_subs[vid] = {"frame": frame, "container": sub_container, "title": title, "badge": badge}
+
+        # parent_layout이 있으면 직접 추가 (patrol), 없으면 parent_container의 layout에 추가 (vessel)
+        if parent_layout:
+            parent_layout.addWidget(frame)
+
     def rebuild_containers(self):
         """선박 목록 변경 시 컨테이너 재구성"""
+        # 기타 서브 컨테이너 정리
+        if hasattr(self, '_custom_subs'):
+            for info in self._custom_subs.values():
+                info["frame"].setParent(None)
+                info["frame"].deleteLater()
+            self._custom_subs = {}
+
         for vid in list(self.containers.keys()):
             if vid != "base":
                 c = self.containers.pop(vid)
@@ -397,6 +439,8 @@ class DashboardView(QWidget):
                     c.eq_card_clicked.connect(self._on_eq_card_clicked)
                     self.containers[vid] = c
                     layout.addWidget(c)
+                    # 기타 직별 서브 컨테이너
+                    self._add_custom_sub(vid, c, layout)
             layout.addStretch()
 
         if "vessel" in self._scroll_widgets:
@@ -413,6 +457,8 @@ class DashboardView(QWidget):
                     c.eq_card_clicked.connect(self._on_eq_card_clicked)
                     self.containers[vid] = c
                     draggable.add_container(c)
+                    # 기타 직별 서브 컨테이너 (vessel용)
+                    self._add_custom_sub(vid, c, None)
 
     def refresh(self):
         """전체 데이터 새로고침"""
@@ -446,10 +492,23 @@ class DashboardView(QWidget):
                         self._custom_dept_frame.hide()
                         self.base_count_badge.setText(f"{len(base_normal)}명")
             else:
-                container.set_personnel(personnel)
-                # 단정/선박: 장비 인라인 표시
+                # 단정/선박: 기타 인원 분리
+                normal = [p for p in personnel if p.department != custom_dept]
+                custom = [p for p in personnel if p.department == custom_dept]
+                container.set_personnel(normal)
                 equipment = self.dm.get_equipment_at(vid)
                 container.set_equipment(equipment)
+
+                # 기타 서브 컨테이너 업데이트
+                if hasattr(self, '_custom_subs') and vid in self._custom_subs:
+                    sub = self._custom_subs[vid]
+                    sub["container"].set_personnel(custom)
+                    sub["container"].update_timers()
+                    sub["title"].setText(custom_dept)
+                    sub["badge"].setText(f"{len(custom)}명")
+                    for pid in self.selected_ids:
+                        sub["container"].set_card_selected(pid, True)
+                    sub["frame"].setVisible(len(custom) > 0)
 
             container.update_timers()
             for pid in self.selected_ids:
@@ -458,8 +517,12 @@ class DashboardView(QWidget):
             # 섹션별 총인원 집계
             vinfo = self.dm.vessels.get(vid, {})
             if vinfo.get("type") == "patrol":
+                normal_count = len([p for p in personnel if p.department != custom_dept])
+                custom_count = len([p for p in personnel if p.department == custom_dept])
                 patrol_total += len(personnel)
             elif vinfo.get("type") == "vessel":
+                normal_count = len([p for p in personnel if p.department != custom_dept])
+                custom_count = len([p for p in personnel if p.department == custom_dept])
                 vessel_total += len(personnel)
 
         # 본함 장비 → 인벤토리 패널
@@ -470,12 +533,23 @@ class DashboardView(QWidget):
             if not self.selected_ids and not self.selected_eq_ids:
                 self.eq_inventory_panel.set_move_target(False)
 
-        # 섹션 총인원 뱃지 업데이트
+        # 섹션 총인원 뱃지 업데이트 (기타 인원 포함 시 ## + #명)
         if hasattr(self, '_section_badges'):
-            if "patrol" in self._section_badges:
-                self._section_badges["patrol"].setText(f"{patrol_total}명")
-            if "vessel" in self._section_badges:
-                self._section_badges["vessel"].setText(f"{vessel_total}명")
+            for stype, total in [("patrol", patrol_total), ("vessel", vessel_total)]:
+                if stype in self._section_badges:
+                    # 기타 인원 합산
+                    custom_total = 0
+                    normal_total = 0
+                    for vid, container in self.containers.items():
+                        vinfo = self.dm.vessels.get(vid, {})
+                        if vinfo.get("type") == stype:
+                            personnel = self.dm.get_personnel_at(vid)
+                            custom_total += len([p for p in personnel if p.department == custom_dept])
+                            normal_total += len([p for p in personnel if p.department != custom_dept])
+                    if custom_total > 0:
+                        self._section_badges[stype].setText(f"{normal_total} + {custom_total}명")
+                    else:
+                        self._section_badges[stype].setText(f"{total}명")
 
         # 장비 선택 상태 복원
         for eid in self.selected_eq_ids:

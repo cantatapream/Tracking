@@ -550,16 +550,25 @@ class SettingsTab(QWidget):
 
         def save():
             new_name = ni.text().strip()
-            if new_name and new_name != self.dm.custom_dept_name:
-                old_name = self.dm.custom_dept_name
-                self.dm.custom_dept_name = new_name
-                # 기존 인원의 department 업데이트
-                for p in self.dm.personnel:
-                    if p.department == old_name:
-                        p.department = new_name
-                self.dm.save()
-                self.refresh()
-                self.data_changed.emit()
+            if not new_name or new_name == self.dm.custom_dept_name:
+                popup.close()
+                return
+            # 기존 직별과 중복 체크
+            reserved = BASE_DEPARTMENTS + BASE_TEAM_DEPARTMENTS + POSITION_DEPARTMENTS + ["전체"]
+            if new_name in reserved:
+                ni.setStyleSheet("background: #0a1628; color: #e74c3c; border: 1px solid #e74c3c; border-radius: 4px; padding: 4px 8px; font-size: 12px;")
+                ni.setText("")
+                ni.setPlaceholderText(f"'{new_name}'은(는) 이미 존재합니다")
+                return
+            old_name = self.dm.custom_dept_name
+            self.dm.custom_dept_name = new_name
+            # 기존 인원의 department 업데이트
+            for p in self.dm.personnel:
+                if p.department == old_name:
+                    p.department = new_name
+            self.dm.save()
+            self.refresh()
+            self.data_changed.emit()
             popup.close()
 
         sb.clicked.connect(save)

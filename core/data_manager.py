@@ -26,6 +26,7 @@ class DataManager:
         self.logs: List[dict] = []
         self.operation_title: str = ""
         self.ui_settings: dict = {}
+        self.custom_dept_name: str = "기타"
         self._created_at: float = 0.0
         self._current_file: str = STATUS_FILE
         os.makedirs(DATA_DIR, exist_ok=True)
@@ -145,6 +146,7 @@ class DataManager:
                 self.logs.sort(key=lambda x: x.get("timestamp", 0))
 
             self.ui_settings = data.get("ui_settings", {})
+            self.custom_dept_name = data.get("custom_dept_name", "기타")
             self._current_file = filepath
             return True
         except (json.JSONDecodeError, KeyError):
@@ -160,6 +162,7 @@ class DataManager:
         self.logs = []
         self.operation_title = ""
         self.ui_settings = {}
+        self.custom_dept_name = "기타"
 
     def save(self):
         data = {
@@ -172,6 +175,7 @@ class DataManager:
             "created_at": self._created_at or time.time(),
             "last_saved": time.time(),
             "ui_settings": getattr(self, 'ui_settings', {}),
+            "custom_dept_name": getattr(self, 'custom_dept_name', '기타'),
         }
         with open(self._current_file, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)

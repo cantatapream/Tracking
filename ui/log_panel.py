@@ -322,7 +322,7 @@ class LogPanel(QWidget):
 
         self.memo_input = QTextEdit()
         self.memo_input.setObjectName("memoInput")
-        self.memo_input.setPlaceholderText("메모 입력 후 Ctrl+Enter로 전송...")
+        self.memo_input.setPlaceholderText("메모 입력 후 Enter로 전송... (Alt+Enter: 줄바꿈)")
         self.memo_input.setFixedHeight(80)
         self.memo_input.setAcceptRichText(False)
         input_layout.addWidget(self.memo_input)
@@ -342,7 +342,12 @@ class LogPanel(QWidget):
     def eventFilter(self, obj, event):
         if obj == self.memo_input and event.type() == event.Type.KeyPress:
             if event.key() in (Qt.Key_Return, Qt.Key_Enter):
-                if event.modifiers() & Qt.ControlModifier:
+                if event.modifiers() & Qt.AltModifier:
+                    # Alt+Enter: 줄바꿈
+                    self.memo_input.insertPlainText("\n")
+                    return True
+                else:
+                    # Enter: 전송
                     self._add_memo()
                     return True
         # Ctrl+휠 줌: 스크롤 영역에서도 동작

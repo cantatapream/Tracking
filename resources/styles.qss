@@ -145,7 +145,8 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 
 #headerDate {
     color: #5a7a9a;
-    font-size: 11px;
+    font-size: 15px;
+    font-weight: bold;
     font-family: "Consolas", "Courier New", monospace;
 }
 

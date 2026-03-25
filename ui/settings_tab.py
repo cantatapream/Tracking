@@ -544,14 +544,14 @@ class SettingsTab(QWidget):
         header_row = QHBoxLayout()
         header_row.setSpacing(4)
         header = QLabel(dept_name)
-        header.setAlignment(Qt.AlignCenter)
+        header.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         header.setObjectName("vesselHeader")
         header_row.addWidget(header)
+        header_row.addStretch()
         count_badge = QLabel("0명")
         count_badge.setObjectName("countBadge")
         count_badge.setAlignment(Qt.AlignCenter)
         header_row.addWidget(count_badge)
-        header_row.addStretch()
         col_layout.addLayout(header_row)
         list_widget = QWidget()
         list_layout = QVBoxLayout(list_widget)
@@ -566,7 +566,7 @@ class SettingsTab(QWidget):
     def _populate_position(self, layout, dept_name, persons):
         _clear_layout(layout)
         lbl = QLabel(dept_name)
-        lbl.setFixedWidth(36)
+        lbl.setFixedWidth(50)
         lbl.setObjectName("vesselHeader")
         layout.addWidget(lbl)
         if persons:
@@ -748,7 +748,7 @@ class SettingsTab(QWidget):
             card.updated_signal.connect(self._on_equipment_changed)
             card.actions_opened.connect(self._close_other_actions)
             self.eq_cards.append(card)
-            self.eq_grid_layout.addWidget(card, i // 2, i % 2)
+            self.eq_grid_layout.addWidget(card, i // 4, i % 4)
 
         self._populate_eq_assignee_combo()
 

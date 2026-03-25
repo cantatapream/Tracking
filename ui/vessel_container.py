@@ -158,7 +158,7 @@ class VesselContainer(QFrame):
         self.cards_layout.setSpacing(3)
 
         if self.vessel_type == "base":
-            self.cards_layout.addStretch()
+            # 본함: 개별 스크롤
             scroll = QScrollArea()
             scroll.setWidget(self.cards_widget)
             scroll.setWidgetResizable(True)
@@ -167,9 +167,8 @@ class VesselContainer(QFrame):
             scroll.setStyleSheet("background: transparent;")
             layout.addWidget(scroll)
         else:
-            # 비본함: 내용에 맞게 축소, 빈 경우 클릭 공간 확보
+            # 비본함: 스크롤 없이 배치 (섹션 전체 스크롤에 맡김)
             self.cards_widget.setMinimumHeight(40)
-            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
             layout.addWidget(self.cards_widget)
 
     def set_personnel(self, personnel_list: List[Personnel]):

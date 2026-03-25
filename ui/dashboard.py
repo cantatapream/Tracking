@@ -468,6 +468,7 @@ class DashboardView(QWidget):
                     layout.addWidget(c)
                     # 기타 직별 서브 컨테이너
                     self._add_custom_sub(vid, c, layout)
+            layout.addStretch()
 
         if "vessel" in self._scroll_widgets:
             draggable = self._scroll_widgets["vessel"]

@@ -141,8 +141,8 @@ class MainWindow(QMainWindow):
             border-bottom: 1px solid #1a2d4a;
         """)
         logo_v = QVBoxLayout(logo_frame)
-        logo_v.setContentsMargins(10, 10, 10, 6)
-        logo_v.setSpacing(1)
+        logo_v.setContentsMargins(6, 10, 10, 6)
+        logo_v.setSpacing(0)
 
         # 상단: BridgeBoard + Ver. 1
         logo_top = QHBoxLayout()

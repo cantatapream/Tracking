@@ -176,6 +176,11 @@ class DashboardView(QWidget):
         self.base_title_label = QLabel(base_name)
         self.base_title_label.setObjectName("sectionTitle")
         self.base_title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+
+        # 고정 폰트 제목 라벨 등록
+        if not hasattr(self, '_fixed_title_labels'):
+            self._fixed_title_labels = []
+        self._fixed_title_labels.append((self.base_title_label, "sectionTitle"))
         self.base_title_label.setCursor(Qt.PointingHandCursor)
         self.base_title_label.mouseDoubleClickEvent = self._start_base_name_edit
         title_h.addWidget(self.base_title_label)
@@ -202,6 +207,10 @@ class DashboardView(QWidget):
         self.base_count_badge = QLabel("0명")
         self.base_count_badge.setObjectName("countBadge")
         title_h.addWidget(self.base_count_badge)
+
+        if not hasattr(self, '_fixed_badges'):
+            self._fixed_badges = []
+        self._fixed_badges.append(self.base_count_badge)
 
         layout.addWidget(title_frame)
 
@@ -332,12 +341,21 @@ class DashboardView(QWidget):
         title_label.setObjectName(title_style)
         title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         title_h.addWidget(title_label)
+
+        # 고정 폰트 제목 라벨 등록
+        if not hasattr(self, '_fixed_title_labels'):
+            self._fixed_title_labels = []
+        self._fixed_title_labels.append((title_label, title_style))
         title_h.addStretch()
 
         badge_name = "countBadgePatrol" if section_type == "patrol" else "countBadgeVessel"
         total_badge = QLabel("0명")
         total_badge.setObjectName(badge_name)
         title_h.addWidget(total_badge)
+
+        if not hasattr(self, '_fixed_badges'):
+            self._fixed_badges = []
+        self._fixed_badges.append(total_badge)
 
         # 뱃지 참조 저장
         if not hasattr(self, '_section_badges'):
@@ -570,6 +588,20 @@ class DashboardView(QWidget):
         # 직별 필터 재적용
         if hasattr(self, '_dept_filter'):
             self._apply_base_filter()
+
+    def restore_fixed_fonts(self):
+        """Ctrl+휠 후 제목/뱃지 폰트를 고정 크기로 복원"""
+        styles = {
+            "sectionTitle": "color: #00d4ff; font-size: 16px; font-weight: bold; font-family: 'HY헤드라인M', 'HYHeadLineM', 'Malgun Gothic', sans-serif; letter-spacing: 1px;",
+            "sectionTitlePatrol": "color: #2ecc71; font-size: 16px; font-weight: bold; font-family: 'HY헤드라인M', 'HYHeadLineM', 'Malgun Gothic', sans-serif; letter-spacing: 1px;",
+            "sectionTitleVessel": "color: #f39c12; font-size: 16px; font-weight: bold; font-family: 'HY헤드라인M', 'HYHeadLineM', 'Malgun Gothic', sans-serif; letter-spacing: 1px;",
+        }
+        badge_style = "font-size: 11px; font-weight: bold;"
+        for label, style_name in getattr(self, '_fixed_title_labels', []):
+            if style_name in styles:
+                label.setStyleSheet(styles[style_name])
+        for badge in getattr(self, '_fixed_badges', []):
+            badge.setStyleSheet(badge_style)
 
     def _setup_timer(self):
         self.update_timer = QTimer(self)

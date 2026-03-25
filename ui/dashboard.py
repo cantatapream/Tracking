@@ -215,9 +215,8 @@ class DashboardView(QWidget):
         self._dept_filter = None  # None = 전체
         self._filter_buttons = []
 
-        custom_dept = self.dm.custom_dept_name if hasattr(self.dm, 'custom_dept_name') else "기타"
         row1_depts = ["전체", "항해", "안전", "병기", "기관"]
-        row2_depts = ["구조", "행정", "통신", "조리", custom_dept]
+        row2_depts = ["구조", "행정", "통신", "조리"]
 
         btn_style = """
             QPushButton {
@@ -485,13 +484,6 @@ class DashboardView(QWidget):
             for container in self.containers.values():
                 container.set_eq_card_selected(eid, True)
 
-        # 커스텀 직별 버튼 텍스트 갱신
-        if hasattr(self, '_filter_buttons') and self._filter_buttons:
-            custom_dept = self.dm.custom_dept_name if hasattr(self.dm, 'custom_dept_name') else "기타"
-            last_btn = self._filter_buttons[-1]  # 마지막 버튼 = 커스텀 직별
-            if last_btn.text() != custom_dept:
-                last_btn.setText(custom_dept)
-
         # 직별 필터 재적용
         if hasattr(self, '_dept_filter'):
             self._apply_base_filter()
@@ -638,10 +630,10 @@ class DashboardView(QWidget):
             else:
                 container.set_move_target(False)
 
-        # 인벤토리 패널: 장비가 선택되어 있고, 인벤토리 내 장비가 아닌 경우 이동 대상 표시
+        # 인벤토리 패널: 장비가 선택된 경우에만 이동 대상 표시 (사람 선택 시 제외)
         if self.eq_inventory_panel:
             has_inv_e = any(eid in self.selected_eq_ids for eid in self.eq_inventory_panel.eq_cards)
-            if has_sel and not has_inv_e:
+            if only_eq_sel and not has_inv_e:
                 self.eq_inventory_panel.set_move_target(True)
             else:
                 self.eq_inventory_panel.set_move_target(False)

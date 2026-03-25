@@ -3,7 +3,7 @@ SPT 설정 탭 - 인원 관리 + 선박 관리 + 장비 관리
 """
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QComboBox, QScrollArea, QFrame, QSizePolicy, QGridLayout
+    QComboBox, QScrollArea, QFrame, QSizePolicy, QGridLayout, QApplication
 )
 from PySide6.QtCore import Qt, Signal, QPoint
 from core.data_manager import DataManager
@@ -158,8 +158,15 @@ class PersonnelEditCard(QFrame):
         db.clicked.connect(delete)
         cb.clicked.connect(popup.close)
 
-        pos = self.mapToGlobal(QPoint(0, self.height()))
-        popup.move(pos)
+        # 화면 하단에 가까우면 위쪽으로 팝업 표시
+        global_pos = self.mapToGlobal(QPoint(0, self.height()))
+        screen = QApplication.primaryScreen()
+        if screen:
+            screen_bottom = screen.availableGeometry().bottom()
+            popup_height = popup.sizeHint().height() or 80
+            if global_pos.y() + popup_height > screen_bottom:
+                global_pos = self.mapToGlobal(QPoint(0, -popup_height))
+        popup.move(global_pos)
         popup.show()
         ni.setFocus()
         ni.selectAll()
@@ -275,8 +282,15 @@ class EquipmentCard(QFrame):
         db.clicked.connect(delete)
         cb.clicked.connect(popup.close)
 
-        pos = self.mapToGlobal(QPoint(0, self.height()))
-        popup.move(pos)
+        # 화면 하단에 가까우면 위쪽으로 팝업 표시
+        global_pos = self.mapToGlobal(QPoint(0, self.height()))
+        screen = QApplication.primaryScreen()
+        if screen:
+            screen_bottom = screen.availableGeometry().bottom()
+            popup_height = popup.sizeHint().height() or 80
+            if global_pos.y() + popup_height > screen_bottom:
+                global_pos = self.mapToGlobal(QPoint(0, -popup_height))
+        popup.move(global_pos)
         popup.show()
         ni.setFocus()
         ni.selectAll()

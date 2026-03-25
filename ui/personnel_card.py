@@ -31,28 +31,53 @@ def format_time_hm(seconds: float) -> str:
 
 
 class HistoryDialog(QDialog):
-    """인원 이동 내역 다이얼로그"""
+    """인원 이동 내역 다이얼로그 - 다크 테마"""
     def __init__(self, personnel: Personnel, parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"{personnel.rank} {personnel.name} - 이동 내역")
-        self.setMinimumWidth(340)
-        self.setMaximumHeight(500)
+        self.setMinimumWidth(380)
+        self.setMaximumHeight(520)
+        self.setStyleSheet("""
+            QDialog {
+                background: #0a1628;
+                border: 1px solid rgba(0, 212, 255, 0.3);
+                border-radius: 8px;
+            }
+            QScrollArea { border: none; background: transparent; }
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #1e3a5f, stop:1 #152d4a);
+                color: #c8d6e5; border: 1px solid #2a4a6f; border-radius: 6px;
+                padding: 6px 16px; font-size: 12px; font-weight: bold;
+            }
+            QPushButton:hover { border-color: #00d4ff; color: #00d4ff; }
+        """)
 
         layout = QVBoxLayout(self)
-        layout.setSpacing(4)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(8)
+
+        # 헤더
+        header = QLabel(f"{personnel.rank} {personnel.name}")
+        header.setStyleSheet("""
+            color: #00d4ff; font-size: 16px; font-weight: bold;
+            font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
+            padding-bottom: 4px; border-bottom: 1px solid rgba(0, 212, 255, 0.15);
+        """)
+        layout.addWidget(header)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
         content = QWidget()
         cl = QVBoxLayout(content)
-        cl.setContentsMargins(8, 8, 8, 8)
-        cl.setSpacing(2)
+        cl.setContentsMargins(4, 4, 4, 4)
+        cl.setSpacing(4)
 
         history = personnel.movement_history
         if not history:
             empty = QLabel("이동 내역이 없습니다.")
-            empty.setStyleSheet("color: #5a7a9a; font-size: 12px;")
+            empty.setStyleSheet("color: #5a7a9a; font-size: 12px; padding: 20px;")
+            empty.setAlignment(Qt.AlignCenter)
             cl.addWidget(empty)
         else:
             for i, entry in enumerate(history):
@@ -75,25 +100,47 @@ class HistoryDialog(QDialog):
                 else:
                     stay_str = f"{hours:02d}:{mins:02d}"
 
-                tl = QLabel(f"[{time_str}]")
-                tl.setStyleSheet("color: #5a7a9a; font-size: 11px; font-family: 'Consolas', monospace;")
-                cl.addWidget(tl)
+                # 항목 프레임
+                entry_frame = QFrame()
+                entry_frame.setStyleSheet("""
+                    QFrame { background: rgba(15, 35, 65, 0.7); border: 1px solid #1e3a5f;
+                             border-radius: 6px; padding: 6px 8px; }
+                """)
+                el = QVBoxLayout(entry_frame)
+                el.setContentsMargins(8, 4, 8, 4)
+                el.setSpacing(2)
 
+                # 시간 + 체류시간
+                top_row = QHBoxLayout()
+                tl = QLabel(f"[{time_str}]")
+                tl.setStyleSheet("color: #5a7a9a; font-size: 11px; font-family: 'Consolas', monospace; background: transparent; border: none;")
+                top_row.addWidget(tl)
+                top_row.addStretch()
+                stay_label = QLabel(f"체류 {stay_str}")
+                stay_label.setStyleSheet("color: #f0a500; font-size: 11px; font-family: 'Consolas', monospace; font-weight: bold; background: transparent; border: none;")
+                top_row.addWidget(stay_label)
+                el.addLayout(top_row)
+
+                # 이동 내용
                 if to_loc == "base":
-                    move_text = f"본함으로 이동 (체류시간 {stay_str})"
+                    move_text = "본함으로 이동"
+                    color = "#3498db"
                 else:
-                    move_text = f"({to_name})으로 이동 (체류시간 {stay_str})"
+                    move_text = f"{to_name}으로 이동"
+                    color = "#e0e8f0"
                 ml = QLabel(move_text)
-                ml.setStyleSheet("color: #e0e8f0; font-size: 12px;")
+                ml.setStyleSheet(f"color: {color}; font-size: 13px; font-weight: bold; background: transparent; border: none;")
                 ml.setWordWrap(True)
-                cl.addWidget(ml)
+                el.addWidget(ml)
+
+                cl.addWidget(entry_frame)
 
         cl.addStretch()
         scroll.setWidget(content)
         layout.addWidget(scroll, 1)
 
         close_btn = QPushButton("닫기")
-        close_btn.setFixedHeight(28)
+        close_btn.setFixedHeight(32)
         close_btn.clicked.connect(self.accept)
         layout.addWidget(close_btn)
 

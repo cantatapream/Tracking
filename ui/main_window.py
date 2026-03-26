@@ -512,7 +512,6 @@ class MainWindow(QMainWindow):
         self.dashboard.setStyleSheet(font_style)
         # 제목/뱃지 폰트 고정 복원
         self.dashboard.restore_fixed_fonts()
-        self.log_panel.update_title_font(sz)
 
     def _create_rescue_summary_card(self, title: str) -> QFrame:
         """구조현황 요약 카드 생성"""

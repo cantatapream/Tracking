@@ -24,6 +24,7 @@ class DataManager:
         self.vessels: dict = dict(DEFAULT_VESSELS)
         self.vessel_order: list = []
         self.logs: List[dict] = []
+        self.rescue_records: list = []
         self.operation_title: str = ""
         self.ui_settings: dict = {}
         self.custom_dept_name: str = "기타"
@@ -63,8 +64,9 @@ class DataManager:
             self.vessels = {vid: vinfo for vid, vinfo in self.vessels.items()
                            if vinfo["type"] != "vessel"}
 
-            # 로그 초기화
+            # 로그 및 구조기록 초기화
             self.logs = []
+            self.rescue_records = []
         else:
             self._init_defaults()
 
@@ -128,6 +130,7 @@ class DataManager:
             self.vessels = data.get("vessels", dict(DEFAULT_VESSELS))
             self.vessel_order = data.get("vessel_order", [])
             self.logs = data.get("logs", [])
+            self.rescue_records = data.get("rescue_records", [])
             self.operation_title = data.get("operation_title", "")
             self._created_at = data.get("created_at", data.get("last_saved", 0))
 
@@ -161,6 +164,7 @@ class DataManager:
         self.equipment = []
         self.vessels = dict(DEFAULT_VESSELS)
         self.logs = []
+        self.rescue_records = []
         self.operation_title = ""
         self.ui_settings = {}
         self.custom_dept_name = "기타"
@@ -172,6 +176,7 @@ class DataManager:
             "vessels": self.vessels,
             "vessel_order": getattr(self, 'vessel_order', []),
             "logs": self.logs,
+            "rescue_records": self.rescue_records,
             "operation_title": self.operation_title,
             "created_at": self._created_at or time.time(),
             "last_saved": time.time(),
@@ -423,6 +428,66 @@ class DataManager:
             if hasattr(self, 'vessel_order') and vessel_id in self.vessel_order:
                 self.vessel_order.remove(vessel_id)
             self.save()
+
+    # ---- 구조 기록 ----
+    def add_rescue_record(self, data: dict) -> dict:
+        """구조/인계/인수 기록 추가"""
+        # ID 생성
+        max_num = 0
+        for r in self.rescue_records:
+            try:
+                num = int(r["id"].replace("R", ""))
+                max_num = max(max_num, num)
+            except (ValueError, KeyError):
+                pass
+        new_id = f"R{max_num + 1:03d}"
+        record = {
+            "id": new_id,
+            "type": data.get("type", "rescue"),
+            "timestamp": data.get("timestamp", ""),
+            "location": data.get("location", ""),
+            "name": data.get("name", ""),
+            "gender": data.get("gender", "남"),
+            "age": data.get("age", "미상"),
+            "severity": data.get("severity", "지연"),
+            "initial_state": data.get("initial_state", ""),
+            "treatment": data.get("treatment", ""),
+            "transferred": data.get("transferred", False),
+            "transfer_target": data.get("transfer_target", ""),
+            "transfer_timestamp": data.get("transfer_timestamp", ""),
+            "source_record_id": data.get("source_record_id", ""),
+        }
+        self.rescue_records.append(record)
+        self.save()
+        return record
+
+    def get_rescue_records(self, filter_type=None) -> list:
+        """구조 기록 조회 (타입 필터링)"""
+        if filter_type is None:
+            return list(self.rescue_records)
+        return [r for r in self.rescue_records if r.get("type") == filter_type]
+
+    def update_rescue_record(self, record_id: str, field: str, value):
+        """구조 기록 특정 필드 업데이트"""
+        for r in self.rescue_records:
+            if r.get("id") == record_id:
+                r[field] = value
+                self.save()
+                return r
+        return None
+
+    def get_next_unknown_name(self) -> str:
+        """다음 미상 이름 반환 (미상1, 미상2, ...)"""
+        max_num = 0
+        for r in self.rescue_records:
+            name = r.get("name", "")
+            if name.startswith("미상"):
+                try:
+                    num = int(name.replace("미상", ""))
+                    max_num = max(max_num, num)
+                except ValueError:
+                    pass
+        return f"미상{max_num + 1}"
 
     # ---- 내보내기 ----
     def _filter_logs_by_date(self, filter_date=None):

@@ -592,18 +592,18 @@ class DashboardView(QWidget):
             self._apply_base_filter()
 
     def restore_fixed_fonts(self):
-        """Ctrl+휠 후 제목/뱃지 폰트를 고정 크기로 복원"""
+        """Ctrl+휠 후 제목 폰트를 고정 크기로 복원 (뱃지는 QSS 유지)"""
         styles = {
             "sectionTitle": "color: #00d4ff; font-size: 18px; font-weight: bold; font-family: 'HY헤드라인M', 'HYHeadLineM', 'Malgun Gothic', sans-serif; letter-spacing: 1px;",
             "sectionTitlePatrol": "color: #2ecc71; font-size: 18px; font-weight: bold; font-family: 'HY헤드라인M', 'HYHeadLineM', 'Malgun Gothic', sans-serif; letter-spacing: 1px;",
             "sectionTitleVessel": "color: #f39c12; font-size: 18px; font-weight: bold; font-family: 'HY헤드라인M', 'HYHeadLineM', 'Malgun Gothic', sans-serif; letter-spacing: 1px;",
         }
-        badge_style = "font-size: 13px; font-weight: bold;"
         for label, style_name in getattr(self, '_fixed_title_labels', []):
             if style_name in styles:
                 label.setStyleSheet(styles[style_name])
+        # 뱃지는 인라인 스타일 제거하여 QSS #countBadge 스타일 유지
         for badge in getattr(self, '_fixed_badges', []):
-            badge.setStyleSheet(badge_style)
+            badge.setStyleSheet("")
 
     def _setup_timer(self):
         self.update_timer = QTimer(self)

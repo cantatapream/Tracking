@@ -140,7 +140,7 @@ class InterceptPanel(QFrame):
         """)
         self._result_box.setObjectName("resultBox")
         rbl = QVBoxLayout(self._result_box)
-        rbl.setContentsMargins(8, 4, 8, 6)
+        rbl.setContentsMargins(8, 6, 8, 6)
         rbl.setSpacing(2)
 
         # 산출 결과 헤더 + 접기/펴기 버튼
@@ -155,10 +155,10 @@ class InterceptPanel(QFrame):
         rh.addWidget(result_header)
         rh.addStretch()
         self._fold_btn = QPushButton("접기")
-        self._fold_btn.setFixedSize(40, 20)
+        self._fold_btn.setFixedSize(50, 24)
         self._fold_btn.setStyleSheet("""
             QPushButton { background: rgba(30,58,95,0.8); color: #00d4ff; border: 1px solid #2a4a6f;
-                          border-radius: 3px; font-size: 10px; font-weight: bold; }
+                          border-radius: 4px; font-size: 12px; font-weight: bold; padding: 2px 6px; }
             QPushButton:hover { color: #ffffff; border-color: #00d4ff; }
         """)
         self._fold_btn.setCursor(Qt.PointingHandCursor)

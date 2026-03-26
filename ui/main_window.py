@@ -204,19 +204,44 @@ class MainWindow(QMainWindow):
         spacer.setStyleSheet("background: transparent; border: none;")
         sidebar_layout.addWidget(spacer)
 
-        # 장비 보유 목록 (사이드바)
-        self.eq_inventory_panel = EquipmentInventoryPanel()
-        sidebar_layout.addWidget(self.eq_inventory_panel, 1)
+        # 장비 보유 목록 + 임검침로 패널 (스크롤 가능 영역)
+        sidebar_scroll = QScrollArea()
+        sidebar_scroll.setWidgetResizable(True)
+        sidebar_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        sidebar_scroll.setFrameShape(QFrame.NoFrame)
+        sidebar_scroll.setStyleSheet("background: transparent; border: none;")
 
-        # 임검침로 산출 패널 (장비 보유 목록 하단, 결과 시 확장)
+        sidebar_content = QWidget()
+        sidebar_content.setStyleSheet("background: transparent;")
+        sc_layout = QVBoxLayout(sidebar_content)
+        sc_layout.setContentsMargins(0, 0, 0, 0)
+        sc_layout.setSpacing(0)
+
+        self.eq_inventory_panel = EquipmentInventoryPanel()
+        sc_layout.addWidget(self.eq_inventory_panel)
+
+        # 구분선 + 여백
+        sep_spacer = QFrame()
+        sep_spacer.setFixedHeight(10)
+        sep_spacer.setStyleSheet("background: transparent; border: none;")
+        sc_layout.addWidget(sep_spacer)
+        sep_line = QFrame()
+        sep_line.setFixedHeight(1)
+        sep_line.setStyleSheet("background: #1a2d4a;")
+        sc_layout.addWidget(sep_line)
+
+        # 임검침로 산출 패널
         self.intercept_panel = InterceptPanel()
-        self.intercept_panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        sidebar_layout.addWidget(self.intercept_panel)
+        sc_layout.addWidget(self.intercept_panel)
+
+        sc_layout.addStretch()
+        sidebar_scroll.setWidget(sidebar_content)
+        sidebar_layout.addWidget(sidebar_scroll, 1)
 
         # 사이드바 하단 stretch (장비 패널 숨김 시 빈 공간 채움)
         self._sidebar_stretch = QWidget()
         self._sidebar_stretch.setStyleSheet("background: transparent; border: none;")
-        sidebar_layout.addWidget(self._sidebar_stretch, 1)
+        sidebar_layout.addWidget(self._sidebar_stretch, 0)
 
         main_layout.addWidget(sidebar)
 

@@ -213,14 +213,14 @@ class RescueTab(QWidget):
         frame = QFrame()
         frame.setStyleSheet("QFrame { border: 1px solid #1e3a5f; border-radius: 4px; background: #0a1628; } QLabel { border: none; }")
         fl = QHBoxLayout(frame)
-        fl.setContentsMargins(4, 2, 2, 2)
-        fl.setSpacing(2)
+        fl.setContentsMargins(4, 0, 2, 0)
+        fl.setSpacing(4)
         inp = QLineEdit()
         inp.setPlaceholderText(placeholder)
         inp.setStyleSheet("border: none; background: transparent; color: #e0e8f0; font-size: 12px; padding: 2px;")
         fl.addWidget(inp, 1)
         now_btn = QPushButton("지금")
-        now_btn.setFixedSize(38, 22)
+        now_btn.setFixedSize(38, 26)
         now_btn.setStyleSheet("""
             QPushButton { background: #1e3a5f; color: #00d4ff; border: 1px solid #2a4a6f;
                           border-radius: 3px; font-size: 11px; font-weight: bold; padding: 0; }

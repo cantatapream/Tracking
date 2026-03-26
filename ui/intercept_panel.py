@@ -158,7 +158,8 @@ class InterceptPanel(QFrame):
         self._fold_btn.setFixedSize(50, 24)
         self._fold_btn.setStyleSheet("""
             QPushButton { background: rgba(30,58,95,0.8); color: #00d4ff; border: 1px solid #2a4a6f;
-                          border-radius: 4px; font-size: 12px; font-weight: bold; padding: 2px 6px; }
+                          border-radius: 4px; font-size: 12px; font-weight: bold;
+                          padding: 0; text-align: center; }
             QPushButton:hover { color: #ffffff; border-color: #00d4ff; }
         """)
         self._fold_btn.setCursor(Qt.PointingHandCursor)

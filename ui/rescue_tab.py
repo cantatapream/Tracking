@@ -108,7 +108,7 @@ class RescueTab(QWidget):
         # === Top: Mode buttons (왼쪽 세로) + Input form (오른쪽 2줄) + Apply ===
         top_frame = QFrame()
         top_frame.setStyleSheet("""
-            QFrame { background: rgba(13, 31, 60, 0.6); border: 1px solid #1a2d4a;
+            QFrame { background: transparent; border: 1px solid #1a2d4a;
                      border-radius: 6px; padding: 4px; }
         """)
         top_h = QHBoxLayout(top_frame)
@@ -416,7 +416,7 @@ class RescueTab(QWidget):
 
     def _make_label(self, text: str) -> QLabel:
         lbl = QLabel(text)
-        lbl.setStyleSheet("color: #8faabe; font-size: 11px; font-weight: bold; background: transparent; border: none;")
+        lbl.setStyleSheet("color: #e0e8f0; font-size: 12px; font-weight: bold; background: transparent; border: none;")
         return lbl
 
     def _set_mode(self, mode: str):

@@ -213,14 +213,15 @@ class RescueTab(QWidget):
         frame = QFrame()
         frame.setStyleSheet("QFrame { border: 1px solid #1e3a5f; border-radius: 4px; background: #0a1628; } QLabel { border: none; }")
         fl = QHBoxLayout(frame)
-        fl.setContentsMargins(4, 3, 4, 3)
+        fl.setContentsMargins(4, 0, 4, 0)
         fl.setSpacing(4)
         inp = QLineEdit()
         inp.setPlaceholderText(placeholder)
+        inp.setFixedHeight(28)
         inp.setStyleSheet("border: none; background: transparent; color: #e0e8f0; font-size: 13px; padding: 0;")
         fl.addWidget(inp, 1)
         now_btn = QPushButton("지금")
-        now_btn.setFixedHeight(24)
+        now_btn.setFixedSize(42, 28)
         now_btn.setStyleSheet("""
             QPushButton { background: #1e3a5f; color: #00d4ff; border: 1px solid #2a4a6f;
                           border-radius: 3px; font-size: 11px; font-weight: bold; padding: 0; }
@@ -391,15 +392,17 @@ class RescueTab(QWidget):
         # 2줄: 인수당시상태 | 인수세력
         row2 = QHBoxLayout()
         row2.setSpacing(8)
-        row2.addWidget(self._make_label("인수당시 상태"))
-        self.state_input = QLineEdit()
-        self.state_input.setPlaceholderText("")
-        row2.addWidget(self.state_input, 3)
-        row2.addSpacing(8)
         row2.addWidget(self._make_label("인수세력"))
         self.transfer_target_input = QLineEdit()
         self.transfer_target_input.setPlaceholderText("")
+        self.transfer_target_input.setFixedHeight(34)
         row2.addWidget(self.transfer_target_input, 1)
+        row2.addSpacing(8)
+        row2.addWidget(self._make_label("인수당시 상태"))
+        self.state_input = QLineEdit()
+        self.state_input.setPlaceholderText("미입력시 공란")
+        self.state_input.setFixedHeight(34)
+        row2.addWidget(self.state_input, 3)
         self.input_main_layout.addLayout(row2)
 
     def _populate_passenger_combo(self):

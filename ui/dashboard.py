@@ -514,7 +514,7 @@ class DashboardView(QWidget):
                     self._custom_dept_badge.setText(f"{len(base_custom)}명")
                     if base_custom:
                         self._custom_dept_frame.show()
-                        self.base_count_badge.setText(f"{len(base_normal)} + {len(base_custom)}명")
+                        self.base_count_badge.setText(f"{len(base_normal)}+{len(base_custom)}명")
                     else:
                         self._custom_dept_frame.hide()
                         self.base_count_badge.setText(f"{len(base_normal)}명")
@@ -576,7 +576,7 @@ class DashboardView(QWidget):
                             custom_total += len([p for p in personnel if p.department == custom_dept])
                             normal_total += len([p for p in personnel if p.department != custom_dept])
                     if custom_total > 0:
-                        self._section_badges[stype].setText(f"{normal_total} + {custom_total}명")
+                        self._section_badges[stype].setText(f"{normal_total}+{custom_total}명")
                     else:
                         self._section_badges[stype].setText(f"{total}명")
 

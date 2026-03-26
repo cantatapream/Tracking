@@ -223,7 +223,7 @@ class RescueTab(QWidget):
         """)
         now_btn.clicked.connect(lambda: inp.setText(time.strftime("%m.%d %H:%M")))
         fl.addWidget(now_btn)
-        frame.setFixedHeight(30)
+        frame.setFixedHeight(34)
         return frame, inp
 
     def _build_rescue_form(self):
@@ -246,7 +246,7 @@ class RescueTab(QWidget):
         self.gender_combo = QComboBox()
         self.gender_combo.addItems(["남", "여"])
         self.gender_combo.setFixedWidth(60)
-        self.gender_combo.setFixedHeight(30)
+        self.gender_combo.setFixedHeight(34)
         grid.addWidget(self.gender_combo, 0, 3)
 
         sev_label = self._make_label("중증도")
@@ -256,7 +256,7 @@ class RescueTab(QWidget):
         grid.addWidget(self._make_label("최초상태"), 0, 5)
         self.state_input = QLineEdit()
         self.state_input.setPlaceholderText("")
-        self.state_input.setFixedHeight(30)
+        self.state_input.setFixedHeight(34)
         grid.addWidget(self.state_input, 0, 6)
 
         # Row 1: 이름 | 연령 | 중증도(드롭다운) | 구조위치
@@ -264,26 +264,26 @@ class RescueTab(QWidget):
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("미입력시 미상")
         self.name_input.setMaximumWidth(180)
-        self.name_input.setFixedHeight(30)
+        self.name_input.setFixedHeight(34)
         grid.addWidget(self.name_input, 1, 1)
 
         grid.addWidget(self._make_label("연령"), 1, 2)
         self.age_input = QLineEdit()
         self.age_input.setPlaceholderText("미상")
         self.age_input.setFixedWidth(60)
-        self.age_input.setFixedHeight(30)
+        self.age_input.setFixedHeight(34)
         grid.addWidget(self.age_input, 1, 3)
 
         self.severity_combo = QComboBox()
         self.severity_combo.addItems(["지연", "긴급", "응급", "비응급"])
         self.severity_combo.setFixedWidth(80)
-        self.severity_combo.setFixedHeight(30)
+        self.severity_combo.setFixedHeight(34)
         grid.addWidget(self.severity_combo, 1, 4)
 
         grid.addWidget(self._make_label("구조위치"), 1, 5)
         self.location_input = QLineEdit()
         self.location_input.setPlaceholderText("")
-        self.location_input.setFixedHeight(30)
+        self.location_input.setFixedHeight(34)
         grid.addWidget(self.location_input, 1, 6)
 
         # 열 비율: 시각/이름 고정, 최초상태/구조위치 확장
@@ -361,7 +361,7 @@ class RescueTab(QWidget):
         self.age_input = QLineEdit()
         self.age_input.setPlaceholderText("미상")
         self.age_input.setFixedWidth(60)
-        self.age_input.setFixedHeight(30)
+        self.age_input.setFixedHeight(34)
         row1.addWidget(self.age_input)
         row1.addSpacing(8)
         row1.addWidget(self._make_label("중증도"))
@@ -424,7 +424,7 @@ class RescueTab(QWidget):
 
     def _make_label(self, text: str) -> QLabel:
         lbl = QLabel(text)
-        lbl.setStyleSheet("color: #e0e8f0; font-size: 12px; font-weight: bold; background: transparent; border: none;")
+        lbl.setStyleSheet("color: #e0e8f0; font-size: 14px; font-weight: bold; background: transparent; border: none;")
         return lbl
 
     def _set_mode(self, mode: str):

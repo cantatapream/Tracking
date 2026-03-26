@@ -7,7 +7,7 @@ import datetime
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton,
     QStackedWidget, QFrame, QFileDialog, QSizePolicy, QApplication,
-    QLineEdit, QDialog, QDateEdit
+    QLineEdit, QDialog, QDateEdit, QScrollArea
 )
 from PySide6.QtCore import Qt, QTimer, QSize, QDate
 from PySide6.QtGui import QFont, QIcon, QColor, QPixmap, QPainter

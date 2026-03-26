@@ -157,9 +157,9 @@ class InterceptPanel(QFrame):
         self._fold_btn = QPushButton("접기")
         self._fold_btn.setFixedSize(40, 20)
         self._fold_btn.setStyleSheet("""
-            QPushButton { background: rgba(30,58,95,0.8); color: #8faabe; border: 1px solid #2a4a6f;
+            QPushButton { background: rgba(30,58,95,0.8); color: #00d4ff; border: 1px solid #2a4a6f;
                           border-radius: 3px; font-size: 10px; font-weight: bold; }
-            QPushButton:hover { color: #00d4ff; border-color: #00d4ff; }
+            QPushButton:hover { color: #ffffff; border-color: #00d4ff; }
         """)
         self._fold_btn.setCursor(Qt.PointingHandCursor)
         self._fold_btn.clicked.connect(self._toggle_fold)

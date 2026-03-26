@@ -120,8 +120,7 @@ class InterceptPanel(QFrame):
             QPushButton {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #005577, stop:1 #004466);
                 border: 1px solid #0088aa; color: #00d4ff; border-radius: 6px;
-                font-size: 14px; font-weight: bold;
-                qproperty-alignment: AlignCenter;
+                font-size: 14px; font-weight: bold; text-align: center;
             }
             QPushButton:hover { background: #006688; border-color: #00d4ff; }
         """)

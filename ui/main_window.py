@@ -209,26 +209,24 @@ class MainWindow(QMainWindow):
         sidebar_scroll.setWidgetResizable(True)
         sidebar_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         sidebar_scroll.setFrameShape(QFrame.NoFrame)
-        sidebar_scroll.setStyleSheet("background: transparent; border: none;")
+        sidebar_scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
 
         sidebar_content = QWidget()
-        sidebar_content.setStyleSheet("background: transparent;")
         sc_layout = QVBoxLayout(sidebar_content)
         sc_layout.setContentsMargins(0, 0, 0, 0)
         sc_layout.setSpacing(0)
 
         self.eq_inventory_panel = EquipmentInventoryPanel()
+        self.eq_inventory_panel.setMinimumHeight(250)
         sc_layout.addWidget(self.eq_inventory_panel)
 
-        # 구분선 + 여백
-        sep_spacer = QFrame()
-        sep_spacer.setFixedHeight(10)
-        sep_spacer.setStyleSheet("background: transparent; border: none;")
-        sc_layout.addWidget(sep_spacer)
+        # 구분선 + 여백 (장비 보유 목록과 임검침로 산출 사이)
+        sc_layout.addSpacing(12)
         sep_line = QFrame()
         sep_line.setFixedHeight(1)
-        sep_line.setStyleSheet("background: #1a2d4a;")
+        sep_line.setStyleSheet("QFrame { background: #1a2d4a; border: none; }")
         sc_layout.addWidget(sep_line)
+        sc_layout.addSpacing(4)
 
         # 임검침로 산출 패널
         self.intercept_panel = InterceptPanel()

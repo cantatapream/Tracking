@@ -160,7 +160,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 
 #sectionTitle {
     color: #00d4ff;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: bold;
     font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
     padding: 8px 4px;
@@ -170,7 +170,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 
 #sectionTitlePatrol {
     color: #2ecc71;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: bold;
     font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
     padding: 8px 4px;
@@ -180,7 +180,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 
 #sectionTitleVessel {
     color: #f39c12;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: bold;
     font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
     padding: 8px 4px;
@@ -726,7 +726,7 @@ QLabel {
     border: 1px solid rgba(0, 212, 255, 0.3);
     border-radius: 10px;
     padding: 2px 8px;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: bold;
 }
 
@@ -736,7 +736,7 @@ QLabel {
     border: 1px solid rgba(46, 204, 113, 0.3);
     border-radius: 10px;
     padding: 2px 8px;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: bold;
 }
 
@@ -746,7 +746,7 @@ QLabel {
     border: 1px solid rgba(243, 156, 18, 0.3);
     border-radius: 10px;
     padding: 2px 8px;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: bold;
 }
 

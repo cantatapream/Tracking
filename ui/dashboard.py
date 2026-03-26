@@ -594,11 +594,11 @@ class DashboardView(QWidget):
     def restore_fixed_fonts(self):
         """Ctrl+휠 후 제목/뱃지 폰트를 고정 크기로 복원"""
         styles = {
-            "sectionTitle": "color: #00d4ff; font-size: 16px; font-weight: bold; font-family: 'HY헤드라인M', 'HYHeadLineM', 'Malgun Gothic', sans-serif; letter-spacing: 1px;",
-            "sectionTitlePatrol": "color: #2ecc71; font-size: 16px; font-weight: bold; font-family: 'HY헤드라인M', 'HYHeadLineM', 'Malgun Gothic', sans-serif; letter-spacing: 1px;",
-            "sectionTitleVessel": "color: #f39c12; font-size: 16px; font-weight: bold; font-family: 'HY헤드라인M', 'HYHeadLineM', 'Malgun Gothic', sans-serif; letter-spacing: 1px;",
+            "sectionTitle": "color: #00d4ff; font-size: 18px; font-weight: bold; font-family: 'HY헤드라인M', 'HYHeadLineM', 'Malgun Gothic', sans-serif; letter-spacing: 1px;",
+            "sectionTitlePatrol": "color: #2ecc71; font-size: 18px; font-weight: bold; font-family: 'HY헤드라인M', 'HYHeadLineM', 'Malgun Gothic', sans-serif; letter-spacing: 1px;",
+            "sectionTitleVessel": "color: #f39c12; font-size: 18px; font-weight: bold; font-family: 'HY헤드라인M', 'HYHeadLineM', 'Malgun Gothic', sans-serif; letter-spacing: 1px;",
         }
-        badge_style = "font-size: 11px; font-weight: bold;"
+        badge_style = "font-size: 13px; font-weight: bold;"
         for label, style_name in getattr(self, '_fixed_title_labels', []):
             if style_name in styles:
                 label.setStyleSheet(styles[style_name])

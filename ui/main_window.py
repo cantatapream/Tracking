@@ -93,7 +93,7 @@ class MainWindow(QMainWindow):
         self.dm = data_manager
         self.setWindowTitle("BridgeBoard")
         self.setMinimumSize(1400, 850)
-        self.showMaximized()  # 전체화면으로 시작
+        self.resize(1600, 950)
 
         self._load_styles()
         self._setup_ui()

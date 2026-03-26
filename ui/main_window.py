@@ -380,8 +380,9 @@ class MainWindow(QMainWindow):
             btn.setProperty("active", "true" if is_active else "false")
             btn.setStyleSheet(btn.styleSheet())
 
-        # 장비 보유 목록은 대시보드에서만 표출 (#3)
+        # 장비 보유 목록 + 임검침로 산출은 대시보드에서만 표출
         self.eq_inventory_panel.setVisible(key == "dashboard")
+        self.intercept_panel.setVisible(key == "dashboard")
 
         if key == "dashboard":
             self.dashboard.refresh()

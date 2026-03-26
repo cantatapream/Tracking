@@ -363,6 +363,7 @@ class MainWindow(QMainWindow):
         lw_layout.setSpacing(0)
         self.log_panel = LogPanel(self.dm)
         lw_layout.addWidget(self.log_panel)
+        self._log_wrapper = log_wrapper
         content_body.addWidget(log_wrapper, 1)
 
         self.dashboard.refresh()
@@ -426,6 +427,9 @@ class MainWindow(QMainWindow):
 
         # 구조현황 요약 카드는 구조 탭에서만 표출
         self.rescue_summary_widget.setVisible(key == "rescue")
+
+        # 로그 패널은 설정 탭에서 숨김
+        self._log_wrapper.setVisible(key != "settings")
 
         if key == "dashboard":
             self.dashboard.refresh()

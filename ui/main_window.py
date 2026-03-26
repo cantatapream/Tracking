@@ -15,6 +15,7 @@ from core.data_manager import DataManager
 from ui.dashboard import DashboardView, EquipmentInventoryPanel
 from ui.log_panel import LogPanel
 from ui.settings_tab import SettingsTab
+from ui.intercept_panel import InterceptPanel
 
 
 class ExportDateDialog(QDialog):
@@ -203,9 +204,13 @@ class MainWindow(QMainWindow):
         spacer.setStyleSheet("background: transparent; border: none;")
         sidebar_layout.addWidget(spacer)
 
-        # 장비 보유 목록 (사이드바 하단)
+        # 장비 보유 목록 (사이드바)
         self.eq_inventory_panel = EquipmentInventoryPanel()
         sidebar_layout.addWidget(self.eq_inventory_panel, 1)
+
+        # 임검침로 산출 패널 (장비 보유 목록 하단)
+        self.intercept_panel = InterceptPanel()
+        sidebar_layout.addWidget(self.intercept_panel, 0)
 
         # 사이드바 하단 stretch (장비 패널 숨김 시 빈 공간 채움)
         self._sidebar_stretch = QWidget()

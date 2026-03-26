@@ -97,12 +97,17 @@ class RescueTab(QWidget):
         panel = QFrame()
         panel.setStyleSheet("QFrame { background: transparent; border: none; }")
         panel_layout = QVBoxLayout(panel)
-        panel_layout.setContentsMargins(12, 8, 12, 8)
+        panel_layout.setContentsMargins(4, 4, 4, 4)
         panel_layout.setSpacing(8)
 
         # Title
-        title = QLabel("  구조현황")
-        title.setObjectName("sectionTitle")
+        title = QLabel("구조현황")
+        title.setStyleSheet("""
+            color: #00d4ff; font-size: 18px; font-weight: bold;
+            font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
+            padding: 4px 0; letter-spacing: 1px; background: transparent; border: none;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.12);
+        """)
         panel_layout.addWidget(title)
 
         # === Top: Mode buttons (왼쪽 세로) + Input form (오른쪽 2줄) + Apply ===

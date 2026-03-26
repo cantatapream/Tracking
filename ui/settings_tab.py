@@ -102,7 +102,14 @@ class PersonnelEditCard(QFrame):
 
     def _show_popup(self):
         self.actions_opened.emit(self)
+        # 기존 팝업 닫기
+        if hasattr(self, '_current_popup') and self._current_popup:
+            try:
+                self._current_popup.close()
+            except RuntimeError:
+                pass
         popup, pl = _make_popup(self)
+        self._current_popup = popup
 
         row1 = QHBoxLayout()
         ni = QLineEdit(self._name)
@@ -224,7 +231,14 @@ class EquipmentCard(QFrame):
 
     def _show_popup(self):
         self.actions_opened.emit(self)
+        # 기존 팝업 닫기
+        if hasattr(self, '_current_popup') and self._current_popup:
+            try:
+                self._current_popup.close()
+            except RuntimeError:
+                pass
         popup, pl = _make_popup(self, 300)
+        self._current_popup = popup
 
         row1 = QHBoxLayout()
         ni = QLineEdit(self.eq.name)
@@ -628,7 +642,21 @@ class SettingsTab(QWidget):
         layout.addStretch()
 
     def _close_other_actions(self, opened):
-        pass  # 팝업은 자동 닫힘
+        """다른 카드의 팝업 닫기"""
+        for card in self._all_cards:
+            if card is not opened and hasattr(card, '_current_popup') and card._current_popup:
+                try:
+                    card._current_popup.close()
+                except RuntimeError:
+                    pass
+                card._current_popup = None
+        for card in self.eq_cards:
+            if card is not opened and hasattr(card, '_current_popup') and card._current_popup:
+                try:
+                    card._current_popup.close()
+                except RuntimeError:
+                    pass
+                card._current_popup = None
 
     # ---- 인원 ----
     def _add_personnel(self):

@@ -208,9 +208,10 @@ class MainWindow(QMainWindow):
         self.eq_inventory_panel = EquipmentInventoryPanel()
         sidebar_layout.addWidget(self.eq_inventory_panel, 1)
 
-        # 임검침로 산출 패널 (장비 보유 목록 하단)
+        # 임검침로 산출 패널 (장비 보유 목록 하단, 결과 시 확장)
         self.intercept_panel = InterceptPanel()
-        sidebar_layout.addWidget(self.intercept_panel, 0)
+        self.intercept_panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        sidebar_layout.addWidget(self.intercept_panel)
 
         # 사이드바 하단 stretch (장비 패널 숨김 시 빈 공간 채움)
         self._sidebar_stretch = QWidget()

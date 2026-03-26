@@ -93,9 +93,9 @@ class RescueTab(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # Wrap everything in a sectionPanel
+        # Wrap everything in a panel
         panel = QFrame()
-        panel.setObjectName("sectionPanel")
+        panel.setStyleSheet("QFrame { background: transparent; border: none; }")
         panel_layout = QVBoxLayout(panel)
         panel_layout.setContentsMargins(12, 8, 12, 8)
         panel_layout.setSpacing(8)
@@ -108,8 +108,7 @@ class RescueTab(QWidget):
         # === Top: Mode buttons (왼쪽 세로) + Input form (오른쪽 2줄) + Apply ===
         top_frame = QFrame()
         top_frame.setStyleSheet("""
-            QFrame { background: transparent; border: 1px solid #1a2d4a;
-                     border-radius: 6px; padding: 4px; }
+            QFrame { background: transparent; border: none; padding: 0; }
         """)
         top_h = QHBoxLayout(top_frame)
         top_h.setContentsMargins(6, 6, 6, 6)
@@ -231,55 +230,64 @@ class RescueTab(QWidget):
         """구조 모드 입력 폼 (그리드 2줄)"""
         self._clear_input_form()
 
-        # 그리드: 시각/이름 왼쪽, 성별/연령 중간, 중증도 중간, 최초상태/구조위치 오른쪽
         grid = QGridLayout()
         grid.setSpacing(4)
         grid.setContentsMargins(0, 0, 0, 0)
 
-        # Row 0: 시각 | 성별 | 중증도 | 최초상태
+        # Col: 0=라벨 1=시각/이름 2=라벨 3=성별/연령 4=중증도(라벨+콤보) 5=라벨 6=최초상태/구조위치
+
+        # Row 0: 시각 | 성별 | 중증도(라벨) | 최초상태
         grid.addWidget(self._make_label("시각"), 0, 0)
         time_frame, self.time_input = self._make_time_input()
+        time_frame.setMaximumWidth(180)
         grid.addWidget(time_frame, 0, 1)
+
         grid.addWidget(self._make_label("성별"), 0, 2)
         self.gender_combo = QComboBox()
         self.gender_combo.addItems(["남", "여"])
         self.gender_combo.setFixedWidth(60)
         self.gender_combo.setFixedHeight(30)
         grid.addWidget(self.gender_combo, 0, 3)
-        grid.addWidget(self._make_label("중증도"), 0, 4)
-        grid.addWidget(self._make_label("최초상태"), 0, 6)
 
-        # Row 1: 이름 | 연령 | 중증도 드롭다운 | 구조위치
+        sev_label = self._make_label("중증도")
+        sev_label.setAlignment(Qt.AlignCenter)
+        grid.addWidget(sev_label, 0, 4)
+
+        grid.addWidget(self._make_label("최초상태"), 0, 5)
+        self.state_input = QLineEdit()
+        self.state_input.setPlaceholderText("")
+        self.state_input.setFixedHeight(30)
+        grid.addWidget(self.state_input, 0, 6)
+
+        # Row 1: 이름 | 연령 | 중증도(드롭다운) | 구조위치
         grid.addWidget(self._make_label("이름"), 1, 0)
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("미입력시 미상")
+        self.name_input.setMaximumWidth(180)
         self.name_input.setFixedHeight(30)
         grid.addWidget(self.name_input, 1, 1)
+
         grid.addWidget(self._make_label("연령"), 1, 2)
         self.age_input = QLineEdit()
         self.age_input.setPlaceholderText("미상")
         self.age_input.setFixedWidth(60)
         self.age_input.setFixedHeight(30)
         grid.addWidget(self.age_input, 1, 3)
+
         self.severity_combo = QComboBox()
         self.severity_combo.addItems(["지연", "긴급", "응급", "비응급"])
         self.severity_combo.setFixedWidth(80)
         self.severity_combo.setFixedHeight(30)
         grid.addWidget(self.severity_combo, 1, 4)
-        grid.addWidget(self._make_label("구조위치"), 1, 6)
 
-        self.state_input = QLineEdit()
-        self.state_input.setPlaceholderText("")
-        self.state_input.setFixedHeight(30)
-        grid.addWidget(self.state_input, 0, 7)
+        grid.addWidget(self._make_label("구조위치"), 1, 5)
         self.location_input = QLineEdit()
         self.location_input.setPlaceholderText("")
         self.location_input.setFixedHeight(30)
-        grid.addWidget(self.location_input, 1, 7)
+        grid.addWidget(self.location_input, 1, 6)
 
-        # 열 비율
-        grid.setColumnStretch(1, 2)  # 시각/이름
-        grid.setColumnStretch(7, 2)  # 최초상태/구조위치
+        # 열 비율: 시각/이름 고정, 최초상태/구조위치 확장
+        grid.setColumnStretch(6, 3)
 
         self.input_main_layout.addLayout(grid)
 

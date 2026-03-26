@@ -144,23 +144,22 @@ class MainWindow(QMainWindow):
         logo_v.setContentsMargins(6, 10, 10, 6)
         logo_v.setSpacing(0)
 
-        # 상단: BridgeBoard (중앙) + Ver. 1 (오른쪽)
+        # 상단: BridgeBoard + Ver. 1
         logo_top = QHBoxLayout()
-        logo_top.setSpacing(0)
+        logo_top.setSpacing(6)
 
         logo_title = QLabel("BridgeBoard")
-        logo_title.setAlignment(Qt.AlignCenter)
         logo_title.setStyleSheet("""
-            color: #00d4ff; font-size: 18px; font-weight: bold;
+            color: #00d4ff; font-size: 20px; font-weight: bold;
             font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
             letter-spacing: 2px; background: transparent; border: none;
         """)
-        logo_top.addWidget(logo_title, 1)
+        logo_top.addWidget(logo_title)
 
         ver_label = QLabel("Ver. 1")
-        ver_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         ver_label.setStyleSheet("color: #5a7a9a; font-size: 10px; font-weight: bold; background: transparent; border: none;")
         logo_top.addWidget(ver_label)
+        logo_top.addStretch()
 
         logo_v.addLayout(logo_top)
 

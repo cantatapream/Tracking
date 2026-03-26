@@ -7,7 +7,7 @@ import datetime
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton,
     QStackedWidget, QFrame, QFileDialog, QSizePolicy, QApplication,
-    QLineEdit, QDialog, QDateEdit, QScrollArea
+    QLineEdit, QDialog, QDateEdit, QScrollArea, QGridLayout
 )
 from PySide6.QtCore import Qt, QTimer, QSize, QDate
 from PySide6.QtGui import QFont, QIcon, QColor, QPixmap, QPainter
@@ -16,6 +16,7 @@ from ui.dashboard import DashboardView, EquipmentInventoryPanel
 from ui.log_panel import LogPanel
 from ui.settings_tab import SettingsTab
 from ui.intercept_panel import InterceptPanel
+from ui.rescue_tab import RescueTab
 
 
 class ExportDateDialog(QDialog):
@@ -182,7 +183,7 @@ class MainWindow(QMainWindow):
 
         # 탭 버튼 (간격 추가)
         self.nav_buttons = []
-        for key, label in [("dashboard", "  대시보드"), ("settings", "  설정")]:
+        for key, label in [("dashboard", "  대시보드"), ("rescue", "  구조현황"), ("settings", "  설정")]:
             btn = QPushButton(label)
             btn.setCheckable(True)
             btn.setFixedHeight(40)
@@ -231,6 +232,22 @@ class MainWindow(QMainWindow):
         # 임검침로 산출 패널
         self.intercept_panel = InterceptPanel()
         sc_layout.addWidget(self.intercept_panel)
+
+        # 구조현황 요약 카드 (구조 탭 활성화 시 표시)
+        self.rescue_summary_widget = QWidget()
+        self.rescue_summary_widget.setStyleSheet("background: transparent; border: none;")
+        rs_layout = QVBoxLayout(self.rescue_summary_widget)
+        rs_layout.setContentsMargins(8, 4, 8, 4)
+        rs_layout.setSpacing(6)
+
+        self.rescue_summary_cards = {}
+        for card_title in ["현재원", "본함구조", "인계현황", "인수현황"]:
+            card = self._create_rescue_summary_card(card_title)
+            rs_layout.addWidget(card)
+            self.rescue_summary_cards[card_title] = card
+
+        self.rescue_summary_widget.hide()
+        sc_layout.addWidget(self.rescue_summary_widget)
 
         sc_layout.addStretch()
         sidebar_scroll.setWidget(sidebar_content)
@@ -301,39 +318,62 @@ class MainWindow(QMainWindow):
         self._update_clock()
         content_layout.addWidget(header)
 
+        # 콘텐츠 본체: [page_stack | log_panel]
+        content_body = QHBoxLayout()
+        content_body.setContentsMargins(0, 0, 0, 0)
+        content_body.setSpacing(0)
+
         # 페이지 스택
         self.page_stack = QStackedWidget()
 
+        # 대시보드 페이지
         dashboard_page = QWidget()
         dp_layout = QHBoxLayout(dashboard_page)
         dp_layout.setContentsMargins(8, 8, 8, 8)
         dp_layout.setSpacing(8)
-
         self.dashboard = DashboardView(self.dm)
         self.dashboard.set_equipment_panel(self.eq_inventory_panel)
-        dp_layout.addWidget(self.dashboard, 3)
+        dp_layout.addWidget(self.dashboard)
+        self.page_stack.addWidget(dashboard_page)  # index 0
 
-        # 로그 패널: 대시보드와 동일 레벨 + sectionPanel 래퍼
+        # 구조현황 페이지
+        rescue_page = QWidget()
+        rp_layout = QHBoxLayout(rescue_page)
+        rp_layout.setContentsMargins(8, 8, 8, 8)
+        rp_layout.setSpacing(8)
+        self.rescue_tab = RescueTab(self.dm)
+        rp_layout.addWidget(self.rescue_tab)
+        self.page_stack.addWidget(rescue_page)  # index 1
+
+        # 설정 페이지
+        self.settings_tab = SettingsTab(self.dm)
+        self.settings_tab.data_changed.connect(self._on_data_changed)
+        self.page_stack.addWidget(self.settings_tab)  # index 2
+
+        content_body.addWidget(self.page_stack, 3)
+
+        # 로그 패널: 항상 오른쪽에 표시 (sectionPanel 래퍼)
         log_wrapper = QFrame()
         log_wrapper.setObjectName("sectionPanel")
+        log_wrapper.setStyleSheet("""
+            #sectionPanel { margin: 8px 8px 8px 0; }
+        """)
         lw_layout = QVBoxLayout(log_wrapper)
         lw_layout.setContentsMargins(0, 0, 0, 0)
         lw_layout.setSpacing(0)
         self.log_panel = LogPanel(self.dm)
         lw_layout.addWidget(self.log_panel)
-        dp_layout.addWidget(log_wrapper, 1)
+        content_body.addWidget(log_wrapper, 1)
 
         self.dashboard.refresh()
 
+        # 시그널 연결
         self.dashboard.log_message.connect(self.log_panel.append_log)
+        self.rescue_tab.log_message.connect(self.log_panel.append_log)
+        self.rescue_tab.records_changed.connect(self._update_rescue_summary)
         self.log_panel.export_requested.connect(self._export_data)
-        self.page_stack.addWidget(dashboard_page)
 
-        self.settings_tab = SettingsTab(self.dm)
-        self.settings_tab.data_changed.connect(self._on_data_changed)
-        self.page_stack.addWidget(self.settings_tab)
-
-        content_layout.addWidget(self.page_stack, 1)
+        content_layout.addLayout(content_body, 1)
         main_layout.addLayout(content_layout, 1)
 
         # 워터마크 오버레이 (전체 화면 중앙, 앞에 배치하되 마우스 투과)
@@ -371,7 +411,7 @@ class MainWindow(QMainWindow):
         self.header_title.show()
 
     def _switch_page(self, key: str):
-        idx = {"dashboard": 0, "settings": 1}.get(key, 0)
+        idx = {"dashboard": 0, "rescue": 1, "settings": 2}.get(key, 0)
         self.page_stack.setCurrentIndex(idx)
 
         for btn in self.nav_buttons:
@@ -384,8 +424,14 @@ class MainWindow(QMainWindow):
         self.eq_inventory_panel.setVisible(key == "dashboard")
         self.intercept_panel.setVisible(key == "dashboard")
 
+        # 구조현황 요약 카드는 구조 탭에서만 표출
+        self.rescue_summary_widget.setVisible(key == "rescue")
+
         if key == "dashboard":
             self.dashboard.refresh()
+        elif key == "rescue":
+            self.rescue_tab.refresh()
+            self._update_rescue_summary()
         elif key == "settings":
             self.settings_tab.refresh()
 
@@ -463,6 +509,66 @@ class MainWindow(QMainWindow):
         # 제목/뱃지 폰트 고정 복원
         self.dashboard.restore_fixed_fonts()
         self.log_panel.update_title_font(sz)
+
+    def _create_rescue_summary_card(self, title: str) -> QFrame:
+        """구조현황 요약 카드 생성"""
+        card = QFrame()
+        card.setStyleSheet("""
+            QFrame { background: rgba(13, 31, 60, 0.85); border: 1px solid #1a2d4a;
+                     border-radius: 8px; padding: 4px; }
+        """)
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(8, 6, 8, 6)
+        card_layout.setSpacing(4)
+
+        title_label = QLabel(title)
+        title_label.setStyleSheet("""
+            color: #00d4ff; font-size: 13px; font-weight: bold;
+            font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
+            background: transparent; border: none;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.12); padding-bottom: 2px;
+        """)
+        card_layout.addWidget(title_label)
+
+        grid = QGridLayout()
+        grid.setSpacing(2)
+        grid.setContentsMargins(0, 0, 0, 0)
+
+        severity_info = [
+            ("지연", "#333333", 0, 0), ("긴급", "#e74c3c", 0, 1),
+            ("응급", "#f39c12", 1, 0), ("비응급", "#2ecc71", 1, 1),
+        ]
+        labels = {}
+        for sev_name, sev_color, row, col in severity_info:
+            cell = QHBoxLayout()
+            cell.setSpacing(2)
+            name_lbl = QLabel(sev_name)
+            name_lbl.setStyleSheet(f"color: {sev_color}; font-size: 11px; font-weight: bold; background: transparent; border: none;")
+            cell.addWidget(name_lbl)
+            count_lbl = QLabel("0명")
+            count_lbl.setStyleSheet("color: #8faabe; font-size: 11px; background: transparent; border: none;")
+            count_lbl.setAlignment(Qt.AlignRight)
+            cell.addWidget(count_lbl)
+            grid.addLayout(cell, row, col)
+            labels[sev_name] = count_lbl
+
+        card_layout.addLayout(grid)
+        card.setProperty("severity_labels", labels)
+        return card
+
+    def _update_rescue_summary(self):
+        """구조현황 요약 카드 갱신"""
+        if not hasattr(self, 'rescue_tab'):
+            return
+        summary = self.rescue_tab.get_summary_data()
+        for card_title, card_widget in self.rescue_summary_cards.items():
+            data = summary.get(card_title, {})
+            by_severity = data.get("by_severity", {})
+            labels = card_widget.property("severity_labels")
+            if labels:
+                for sev_name, count_lbl in labels.items():
+                    count = by_severity.get(sev_name, 0)
+                    count_lbl.setText(f"{count}명")
 
     def closeEvent(self, event):
         self.dm.save()

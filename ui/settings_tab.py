@@ -869,50 +869,69 @@ class SettingsTab(QWidget):
             del_btn.clicked.connect(lambda c, v=vid: self._remove_vessel(v))
             rl.addWidget(del_btn)
         else:
-            # 등선 대상 선박: 이름 클릭→팝업 수정 + 삭제
-            name_label.setCursor(Qt.PointingHandCursor)
+            # 등선 대상 선박: 수정 + 삭제 버튼 직접 표시
+            # 이름 편집용 입력 (숨김)
+            name_input = QLineEdit(vinfo["name"])
+            name_input.setFixedHeight(24)
+            name_input.hide()
+            rl.addWidget(name_input)
 
-            def show_edit_popup(event, v=vid, vi=vinfo, nl=name_label):
-                popup, ppl = _make_popup(nl, 260)
-                r1 = QHBoxLayout()
-                ni = QLineEdit(vi["name"])
-                ni.setFixedHeight(26)
-                r1.addWidget(ni, 1)
-                ppl.addLayout(r1)
-                r2 = QHBoxLayout()
-                sb = QPushButton("저장")
-                sb.setObjectName("btnAccent")
-                sb.setFixedHeight(26)
-                r2.addWidget(sb)
-                dbb = QPushButton("삭제")
-                dbb.setObjectName("btnDanger")
-                dbb.setFixedHeight(26)
-                r2.addWidget(dbb)
-                cbb = QPushButton("취소")
-                cbb.setFixedHeight(26)
-                r2.addWidget(cbb)
-                r2.addStretch()
-                ppl.addLayout(r2)
+            edit_btn = QPushButton("수정")
+            edit_btn.setObjectName("btnAccent")
+            edit_btn.setFixedSize(50, 24)
+            rl.addWidget(edit_btn)
 
-                def save():
-                    n = ni.text().strip()
-                    if n:
-                        self._rename_vessel(v, n)
-                    popup.close()
+            save_btn = QPushButton("저장")
+            save_btn.setObjectName("btnAccent")
+            save_btn.setFixedSize(50, 24)
+            save_btn.hide()
+            rl.addWidget(save_btn)
 
-                def delete():
-                    popup.close()
-                    self._remove_vessel(v)
+            cancel_btn = QPushButton("취소")
+            cancel_btn.setFixedSize(50, 24)
+            cancel_btn.hide()
+            rl.addWidget(cancel_btn)
 
-                sb.clicked.connect(save)
-                dbb.clicked.connect(delete)
-                cbb.clicked.connect(popup.close)
-                pos = nl.mapToGlobal(QPoint(0, nl.height()))
-                popup.move(pos)
-                popup.show()
+            del_btn = QPushButton("삭제")
+            del_btn.setObjectName("btnDanger")
+            del_btn.setFixedSize(50, 24)
+            del_btn.clicked.connect(lambda c, v=vid: self._remove_vessel(v))
+            rl.addWidget(del_btn)
+
+            def start_edit(nl=name_label, ni=name_input, eb=edit_btn, sb=save_btn, cb=cancel_btn, cl=count_label):
+                nl.hide()
+                cl.hide()
+                eb.hide()
+                ni.setText(nl.text())
+                ni.show()
+                sb.show()
+                cb.show()
                 ni.setFocus()
                 ni.selectAll()
 
-            name_label.mousePressEvent = show_edit_popup
+            def save_edit(v=vid, nl=name_label, ni=name_input, eb=edit_btn, sb=save_btn, cb=cancel_btn, cl=count_label):
+                n = ni.text().strip()
+                if n:
+                    self._rename_vessel(v, n)
+                    nl.setText(n)
+                ni.hide()
+                sb.hide()
+                cb.hide()
+                nl.show()
+                cl.show()
+                eb.show()
+
+            def cancel_edit(nl=name_label, ni=name_input, eb=edit_btn, sb=save_btn, cb=cancel_btn, cl=count_label):
+                ni.hide()
+                sb.hide()
+                cb.hide()
+                nl.show()
+                cl.show()
+                eb.show()
+
+            edit_btn.clicked.connect(start_edit)
+            save_btn.clicked.connect(save_edit)
+            cancel_btn.clicked.connect(cancel_edit)
+            name_input.returnPressed.connect(save_edit)
 
         return row

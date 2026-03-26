@@ -236,7 +236,8 @@ class RescueTab(QWidget):
         self._clear_input_form()
 
         grid = QGridLayout()
-        grid.setSpacing(4)
+        grid.setHorizontalSpacing(10)
+        grid.setVerticalSpacing(8)
         grid.setContentsMargins(0, 0, 0, 0)
 
         # Col: 0=라벨 1=시각/이름 2=라벨 3=성별/연령 4=중증도(라벨+콤보) 5=라벨 6=최초상태/구조위치
@@ -291,8 +292,8 @@ class RescueTab(QWidget):
         self.location_input.setFixedHeight(34)
         grid.addWidget(self.location_input, 1, 6)
 
-        # 열 비율: 시각/이름 고정, 최초상태/구조위치 확장
-        grid.setColumnStretch(6, 3)
+        # 열 비율: 최초상태/구조위치 확장
+        grid.setColumnStretch(6, 2)
 
         self.input_main_layout.addLayout(grid)
 

@@ -113,7 +113,7 @@ class RescueTab(QWidget):
         # === Top: Mode buttons (왼쪽 세로) + Input form (오른쪽 2줄) + Apply ===
         top_frame = QFrame()
         top_frame.setStyleSheet("""
-            QFrame { background: transparent; border: none; padding: 0; }
+            QFrame { background: transparent; border: 1px solid #1e3a5f; border-radius: 6px; padding: 6px; }
         """)
         top_h = QHBoxLayout(top_frame)
         top_h.setContentsMargins(6, 6, 6, 6)
@@ -236,8 +236,8 @@ class RescueTab(QWidget):
         self._clear_input_form()
 
         grid = QGridLayout()
-        grid.setHorizontalSpacing(10)
-        grid.setVerticalSpacing(8)
+        grid.setHorizontalSpacing(20)
+        grid.setVerticalSpacing(16)
         grid.setContentsMargins(0, 0, 0, 0)
 
         # Col: 0=라벨 1=시각/이름 2=라벨 3=성별/연령 4=중증도(라벨+콤보) 5=라벨 6=최초상태/구조위치

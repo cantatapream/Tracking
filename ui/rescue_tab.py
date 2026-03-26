@@ -105,49 +105,54 @@ class RescueTab(QWidget):
         title.setObjectName("sectionTitle")
         panel_layout.addWidget(title)
 
-        # === Top: Mode buttons + Input form + Apply button ===
+        # === Top: Mode buttons (왼쪽 세로) + Input form (오른쪽 2줄) + Apply ===
         top_frame = QFrame()
         top_frame.setStyleSheet("""
             QFrame { background: rgba(13, 31, 60, 0.6); border: 1px solid #1a2d4a;
                      border-radius: 6px; padding: 4px; }
         """)
-        top_layout = QVBoxLayout(top_frame)
-        top_layout.setContentsMargins(8, 6, 8, 6)
-        top_layout.setSpacing(6)
+        top_h = QHBoxLayout(top_frame)
+        top_h.setContentsMargins(6, 6, 6, 6)
+        top_h.setSpacing(8)
 
-        # Mode buttons row
-        mode_row = QHBoxLayout()
-        mode_row.setSpacing(4)
-
+        # 왼쪽: 모드 버튼 (세로 배치)
+        mode_col = QVBoxLayout()
+        mode_col.setSpacing(3)
         self.mode_buttons = {}
         for key, label in [("rescue", "구조"), ("transfer_out", "인계"), ("transfer_in", "인수")]:
             btn = QPushButton(label)
             btn.setCheckable(True)
             btn.setFixedHeight(28)
-            btn.setFixedWidth(60)
+            btn.setFixedWidth(50)
             btn.clicked.connect(lambda checked, k=key: self._set_mode(k))
-            mode_row.addWidget(btn)
+            mode_col.addWidget(btn)
             self.mode_buttons[key] = btn
+        mode_col.addStretch()
+        top_h.addLayout(mode_col)
 
-        mode_row.addStretch()
-        top_layout.addLayout(mode_row)
+        # 오른쪽: 입력 폼 (2줄) + 적용 버튼
+        right_col = QVBoxLayout()
+        right_col.setSpacing(4)
 
-        # Input form area (changes based on mode)
+        # 입력 폼 영역 (모드에 따라 변경)
         self.input_container = QWidget()
-        self.input_layout = QHBoxLayout(self.input_container)
-        self.input_layout.setContentsMargins(0, 0, 0, 0)
-        self.input_layout.setSpacing(6)
-        top_layout.addWidget(self.input_container)
+        self.input_main_layout = QVBoxLayout(self.input_container)
+        self.input_main_layout.setContentsMargins(0, 0, 0, 0)
+        self.input_main_layout.setSpacing(4)
+        right_col.addWidget(self.input_container)
 
-        # Apply button row
-        apply_row = QHBoxLayout()
-        apply_row.addStretch()
-        self.apply_btn = QPushButton("적용")
+        top_h.addLayout(right_col, 1)
+
+        # 적용 버튼 (오른쪽 끝)
+        apply_col = QVBoxLayout()
+        apply_col.addStretch()
+        self.apply_btn = QPushButton("적 용")
         self.apply_btn.setObjectName("btnAccent")
-        self.apply_btn.setFixedSize(80, 30)
+        self.apply_btn.setFixedSize(60, 50)
         self.apply_btn.clicked.connect(self._apply_record)
-        apply_row.addWidget(self.apply_btn)
-        top_layout.addLayout(apply_row)
+        apply_col.addWidget(self.apply_btn)
+        apply_col.addStretch()
+        top_h.addLayout(apply_col)
 
         panel_layout.addWidget(top_frame)
 
@@ -189,179 +194,189 @@ class RescueTab(QWidget):
 
     def _clear_input_form(self):
         """Clear and rebuild input form based on current mode"""
-        while self.input_layout.count():
-            item = self.input_layout.takeAt(0)
-            w = item.widget()
-            if w:
-                w.setParent(None)
+        while self.input_main_layout.count():
+            item = self.input_main_layout.takeAt(0)
+            if item.layout():
+                while item.layout().count():
+                    sub = item.layout().takeAt(0)
+                    if sub.widget():
+                        sub.widget().setParent(None)
+            elif item.widget():
+                item.widget().setParent(None)
+
+    def _make_time_input(self, placeholder="MM.DD HH:MM"):
+        """시각 입력란 + [지금] 버튼 내장"""
+        frame = QFrame()
+        frame.setStyleSheet("QFrame { border: 1px solid #1e3a5f; border-radius: 4px; background: #0a1628; } QLabel { border: none; }")
+        fl = QHBoxLayout(frame)
+        fl.setContentsMargins(2, 0, 2, 0)
+        fl.setSpacing(2)
+        inp = QLineEdit()
+        inp.setPlaceholderText(placeholder)
+        inp.setStyleSheet("border: none; background: transparent; color: #e0e8f0; font-size: 12px; padding: 2px;")
+        inp.setFixedHeight(24)
+        fl.addWidget(inp, 1)
+        now_btn = QPushButton("지금")
+        now_btn.setFixedSize(36, 20)
+        now_btn.setStyleSheet("""
+            QPushButton { background: #1e3a5f; color: #00d4ff; border: 1px solid #2a4a6f;
+                          border-radius: 3px; font-size: 10px; font-weight: bold; }
+            QPushButton:hover { background: #2a4a6f; }
+        """)
+        now_btn.clicked.connect(lambda: inp.setText(time.strftime("%m.%d %H:%M")))
+        fl.addWidget(now_btn)
+        frame.setFixedHeight(28)
+        return frame, inp
 
     def _build_rescue_form(self):
-        """구조 모드 입력 폼"""
+        """구조 모드 입력 폼 (2줄)"""
         self._clear_input_form()
 
-        # 구조시각
-        self.input_layout.addWidget(self._make_label("시각"))
-        self.time_input = QLineEdit()
-        self.time_input.setPlaceholderText("MM.DD HH:MM")
-        self.time_input.setFixedWidth(110)
-        self.input_layout.addWidget(self.time_input)
-
-        now_btn = QPushButton("지금")
-        now_btn.setFixedSize(40, 26)
-        now_btn.clicked.connect(lambda: self.time_input.setText(time.strftime("%m.%d %H:%M")))
-        self.input_layout.addWidget(now_btn)
-
-        # 구조위치
-        self.input_layout.addWidget(self._make_label("위치"))
-        self.location_input = QLineEdit()
-        self.location_input.setPlaceholderText("구조위치")
-        self.location_input.setFixedWidth(100)
-        self.input_layout.addWidget(self.location_input)
-
-        # 이름
-        self.input_layout.addWidget(self._make_label("이름"))
+        # 1줄: 시각 | 이름 | 중증도 | 최초상태
+        row1 = QHBoxLayout()
+        row1.setSpacing(6)
+        row1.addWidget(self._make_label("시각"))
+        time_frame, self.time_input = self._make_time_input()
+        time_frame.setFixedWidth(140)
+        row1.addWidget(time_frame)
+        row1.addSpacing(8)
+        row1.addWidget(self._make_label("이름"))
         self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("미입력시 미상N")
+        self.name_input.setPlaceholderText("미입력시 미상")
         self.name_input.setFixedWidth(90)
-        self.input_layout.addWidget(self.name_input)
-
-        # 성별
-        self.input_layout.addWidget(self._make_label("성별"))
-        self.gender_combo = QComboBox()
-        self.gender_combo.addItems(["남", "여"])
-        self.gender_combo.setFixedWidth(55)
-        self.input_layout.addWidget(self.gender_combo)
-
-        # 연령
-        self.input_layout.addWidget(self._make_label("연령"))
-        self.age_input = QLineEdit()
-        self.age_input.setPlaceholderText("미상")
-        self.age_input.setFixedWidth(55)
-        self.input_layout.addWidget(self.age_input)
-
-        # 중증도
-        self.input_layout.addWidget(self._make_label("중증도"))
+        row1.addWidget(self.name_input)
+        row1.addSpacing(8)
+        row1.addWidget(self._make_label("중증도"))
         self.severity_combo = QComboBox()
         self.severity_combo.addItems(["지연", "긴급", "응급", "비응급"])
         self.severity_combo.setFixedWidth(70)
-        self.input_layout.addWidget(self.severity_combo)
-
-        # 최초상태
-        self.input_layout.addWidget(self._make_label("최초상태"))
+        row1.addWidget(self.severity_combo)
+        row1.addSpacing(8)
+        row1.addWidget(self._make_label("최초상태"))
         self.state_input = QLineEdit()
-        self.state_input.setPlaceholderText("최초상태")
-        self.state_input.setFixedWidth(120)
-        self.input_layout.addWidget(self.state_input)
+        self.state_input.setPlaceholderText("")
+        row1.addWidget(self.state_input, 1)
+        self.input_main_layout.addLayout(row1)
 
-        self.input_layout.addStretch()
+        # 2줄: 성별 | 연령 | 구조위치
+        row2 = QHBoxLayout()
+        row2.setSpacing(6)
+        # 시각 아래 빈 공간 맞춤
+        spacer = QWidget()
+        spacer.setFixedWidth(140 + 30)  # 시각 + 라벨 너비
+        spacer.setStyleSheet("background: transparent; border: none;")
+        row2.addWidget(spacer)
+        row2.addSpacing(8)
+        row2.addWidget(self._make_label("성별"))
+        self.gender_combo = QComboBox()
+        self.gender_combo.addItems(["남", "여"])
+        self.gender_combo.setFixedWidth(50)
+        row2.addWidget(self.gender_combo)
+        row2.addWidget(self._make_label("연령"))
+        self.age_combo = QComboBox()
+        self.age_combo.addItems(["미상"] + [str(i) for i in range(100)])
+        self.age_combo.setFixedWidth(60)
+        row2.addWidget(self.age_combo)
+        row2.addSpacing(8)
+        row2.addWidget(self._make_label("구조위치"))
+        self.location_input = QLineEdit()
+        self.location_input.setPlaceholderText("")
+        row2.addWidget(self.location_input, 1)
+        self.input_main_layout.addLayout(row2)
 
     def _build_transfer_out_form(self):
-        """인계 모드 입력 폼"""
+        """인계 모드 입력 폼 (2줄)"""
         self._clear_input_form()
 
-        # 인계시각
-        self.input_layout.addWidget(self._make_label("인계시각"))
-        self.time_input = QLineEdit()
-        self.time_input.setPlaceholderText("MM.DD HH:MM")
-        self.time_input.setFixedWidth(110)
-        self.input_layout.addWidget(self.time_input)
-
-        now_btn = QPushButton("지금")
-        now_btn.setFixedSize(40, 26)
-        now_btn.clicked.connect(lambda: self.time_input.setText(time.strftime("%m.%d %H:%M")))
-        self.input_layout.addWidget(now_btn)
-
-        # 대상자 (드롭다운: 현재 탑승자 = rescue not transferred + transfer_in)
-        self.input_layout.addWidget(self._make_label("대상자"))
+        # 1줄: 인계시각 | 대상자 | 성별 | 연령
+        row1 = QHBoxLayout()
+        row1.setSpacing(6)
+        row1.addWidget(self._make_label("시각"))
+        time_frame, self.time_input = self._make_time_input()
+        time_frame.setFixedWidth(140)
+        row1.addWidget(time_frame)
+        row1.addSpacing(8)
+        row1.addWidget(self._make_label("대상자"))
         self.target_combo = QComboBox()
-        self.target_combo.setFixedWidth(150)
+        self.target_combo.setFixedWidth(120)
         self._populate_passenger_combo()
         self.target_combo.currentIndexChanged.connect(self._on_passenger_selected)
-        self.input_layout.addWidget(self.target_combo)
-
-        # 성별 (auto)
-        self.input_layout.addWidget(self._make_label("성별"))
+        row1.addWidget(self.target_combo)
+        row1.addSpacing(8)
+        row1.addWidget(self._make_label("성별"))
         self.gender_label = QLabel("남")
         self.gender_label.setFixedWidth(30)
-        self.input_layout.addWidget(self.gender_label)
-
-        # 연령 (auto)
-        self.input_layout.addWidget(self._make_label("연령"))
+        self.gender_label.setStyleSheet("color: #e0e8f0; font-size: 12px; background: transparent; border: none;")
+        row1.addWidget(self.gender_label)
+        row1.addWidget(self._make_label("연령"))
         self.age_label = QLabel("미상")
         self.age_label.setFixedWidth(40)
-        self.input_layout.addWidget(self.age_label)
+        self.age_label.setStyleSheet("color: #e0e8f0; font-size: 12px; background: transparent; border: none;")
+        row1.addWidget(self.age_label)
+        row1.addStretch()
+        self.input_main_layout.addLayout(row1)
 
-        # 인계대상
-        self.input_layout.addWidget(self._make_label("인계대상"))
+        # 2줄: 인계대상
+        row2 = QHBoxLayout()
+        row2.setSpacing(6)
+        row2.addWidget(self._make_label("인계대상"))
         self.transfer_target_input = QLineEdit()
-        self.transfer_target_input.setPlaceholderText("인계대상")
-        self.transfer_target_input.setFixedWidth(120)
-        self.input_layout.addWidget(self.transfer_target_input)
+        self.transfer_target_input.setPlaceholderText("인계 대상 (세력/기관)")
+        row2.addWidget(self.transfer_target_input, 1)
+        self.input_main_layout.addLayout(row2)
 
-        self.input_layout.addStretch()
-
-        # Auto-fill from first passenger
         self._on_passenger_selected(0)
 
     def _build_transfer_in_form(self):
-        """인수 모드 입력 폼"""
+        """인수 모드 입력 폼 (2줄)"""
         self._clear_input_form()
 
-        # 인수시각
-        self.input_layout.addWidget(self._make_label("인수시각"))
-        self.time_input = QLineEdit()
-        self.time_input.setPlaceholderText("MM.DD HH:MM")
-        self.time_input.setFixedWidth(110)
-        self.input_layout.addWidget(self.time_input)
-
-        now_btn = QPushButton("지금")
-        now_btn.setFixedSize(40, 26)
-        now_btn.clicked.connect(lambda: self.time_input.setText(time.strftime("%m.%d %H:%M")))
-        self.input_layout.addWidget(now_btn)
-
-        # 이름
-        self.input_layout.addWidget(self._make_label("이름"))
+        # 1줄: 인수시각 | 이름 | 성별 | 연령 | 중증도
+        row1 = QHBoxLayout()
+        row1.setSpacing(6)
+        row1.addWidget(self._make_label("시각"))
+        time_frame, self.time_input = self._make_time_input()
+        time_frame.setFixedWidth(140)
+        row1.addWidget(time_frame)
+        row1.addSpacing(8)
+        row1.addWidget(self._make_label("이름"))
         self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("미입력시 미상N")
+        self.name_input.setPlaceholderText("미입력시 미상")
         self.name_input.setFixedWidth(90)
-        self.input_layout.addWidget(self.name_input)
-
-        # 성별
-        self.input_layout.addWidget(self._make_label("성별"))
+        row1.addWidget(self.name_input)
+        row1.addSpacing(8)
+        row1.addWidget(self._make_label("성별"))
         self.gender_combo = QComboBox()
         self.gender_combo.addItems(["남", "여"])
-        self.gender_combo.setFixedWidth(55)
-        self.input_layout.addWidget(self.gender_combo)
-
-        # 연령
-        self.input_layout.addWidget(self._make_label("연령"))
-        self.age_input = QLineEdit()
-        self.age_input.setPlaceholderText("미상")
-        self.age_input.setFixedWidth(55)
-        self.input_layout.addWidget(self.age_input)
-
-        # 중증도
-        self.input_layout.addWidget(self._make_label("중증도"))
+        self.gender_combo.setFixedWidth(50)
+        row1.addWidget(self.gender_combo)
+        row1.addWidget(self._make_label("연령"))
+        self.age_combo = QComboBox()
+        self.age_combo.addItems(["미상"] + [str(i) for i in range(100)])
+        self.age_combo.setFixedWidth(60)
+        row1.addWidget(self.age_combo)
+        row1.addSpacing(8)
+        row1.addWidget(self._make_label("중증도"))
         self.severity_combo = QComboBox()
         self.severity_combo.addItems(["지연", "긴급", "응급", "비응급"])
         self.severity_combo.setFixedWidth(70)
-        self.input_layout.addWidget(self.severity_combo)
+        row1.addWidget(self.severity_combo)
+        row1.addStretch()
+        self.input_main_layout.addLayout(row1)
 
-        # 인수당시상태
-        self.input_layout.addWidget(self._make_label("인수당시상태"))
+        # 2줄: 인수당시상태 | 조치사항 | 인수세력
+        row2 = QHBoxLayout()
+        row2.setSpacing(6)
+        row2.addWidget(self._make_label("인수당시상태"))
         self.state_input = QLineEdit()
-        self.state_input.setPlaceholderText("인수당시상태")
-        self.state_input.setFixedWidth(120)
-        self.input_layout.addWidget(self.state_input)
-
-        # 인수세력
-        self.input_layout.addWidget(self._make_label("인수세력"))
+        self.state_input.setPlaceholderText("")
+        row2.addWidget(self.state_input, 1)
+        row2.addSpacing(8)
+        row2.addWidget(self._make_label("인수세력"))
         self.transfer_target_input = QLineEdit()
-        self.transfer_target_input.setPlaceholderText("인수세력")
-        self.transfer_target_input.setFixedWidth(100)
-        self.input_layout.addWidget(self.transfer_target_input)
-
-        self.input_layout.addStretch()
+        self.transfer_target_input.setPlaceholderText("")
+        row2.addWidget(self.transfer_target_input, 1)
+        self.input_main_layout.addLayout(row2)
 
     def _populate_passenger_combo(self):
         """현재 탑승자 드롭다운 갱신"""
@@ -458,9 +473,7 @@ class RescueTab(QWidget):
         if not name:
             name = self.dm.get_next_unknown_name()
 
-        age = self.age_input.text().strip()
-        if not age:
-            age = "미상"
+        age = self.age_combo.currentText() if hasattr(self, 'age_combo') else "미상"
 
         data = {
             "type": "rescue",
@@ -479,7 +492,7 @@ class RescueTab(QWidget):
         self.time_input.clear()
         self.location_input.clear()
         self.name_input.clear()
-        self.age_input.clear()
+        self.age_combo.setCurrentIndex(0)
         self.state_input.clear()
         self.severity_combo.setCurrentIndex(0)
 
@@ -544,9 +557,7 @@ class RescueTab(QWidget):
         if not name:
             name = self.dm.get_next_unknown_name()
 
-        age = self.age_input.text().strip()
-        if not age:
-            age = "미상"
+        age = self.age_combo.currentText() if hasattr(self, 'age_combo') else "미상"
 
         transfer_target = self.transfer_target_input.text().strip()
 
@@ -567,7 +578,7 @@ class RescueTab(QWidget):
         # Clear inputs
         self.time_input.clear()
         self.name_input.clear()
-        self.age_input.clear()
+        self.age_combo.setCurrentIndex(0)
         self.state_input.clear()
         self.transfer_target_input.clear()
         self.severity_combo.setCurrentIndex(0)

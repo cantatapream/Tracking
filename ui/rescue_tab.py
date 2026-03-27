@@ -770,7 +770,7 @@ class RescueTab(QWidget):
         if getter:
             base_name = getter()
             if base_name:
-                message = f"{base_name}\n{message}"
+                message = f"{base_name})\n{message}"
         self.dm.add_log(message)
         self.log_message.emit(message)
 

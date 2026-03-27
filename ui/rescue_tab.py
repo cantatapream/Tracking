@@ -555,7 +555,7 @@ class RescueTab(QWidget):
         record = self.dm.add_rescue_record(data)
         ts = data['timestamp']
         state = data.get('initial_state', '')
-        parts = [f"{name}({data['gender']}, {age})", data['severity']]
+        parts = [f"{name}({data['gender']}, {self._fmt_age(age)})", data['severity']]
         if state:
             parts.append(state)
         msg = ", ".join(parts)
@@ -594,6 +594,8 @@ class RescueTab(QWidget):
 
         timestamp = self.time_input.text().strip()
         transfer_target = self.transfer_target_input.text().strip()
+        if not transfer_target:
+            return
 
         # Create transfer_out record
         data = {
@@ -616,7 +618,7 @@ class RescueTab(QWidget):
         self.dm.update_rescue_record(source_id, "transfer_timestamp", timestamp)
 
         etc = self.etc_input.text().strip() if hasattr(self, 'etc_input') else ""
-        parts = [f"{source_rec['name']}({source_rec['gender']}, {source_rec['age']})", source_rec['severity']]
+        parts = [f"{source_rec['name']}({source_rec['gender']}, {self._fmt_age(source_rec['age'])})", source_rec['severity']]
         if etc:
             parts.append(etc)
         msg = ", ".join(parts)
@@ -647,6 +649,8 @@ class RescueTab(QWidget):
             age = "미상"
 
         transfer_target = self.transfer_target_input.text().strip()
+        if not transfer_target:
+            return
 
         data = {
             "type": "transfer_in",
@@ -662,7 +666,7 @@ class RescueTab(QWidget):
         record = self.dm.add_rescue_record(data)
         ts = data['timestamp']
         state = data.get('initial_state', '')
-        parts = [f"{name}({data['gender']}, {age})", data['severity']]
+        parts = [f"{name}({data['gender']}, {self._fmt_age(age)})", data['severity']]
         if state:
             parts.append(state)
         msg = ", ".join(parts)
@@ -697,6 +701,12 @@ class RescueTab(QWidget):
         old_short = str(old_val)[:20] if old_val else "(빈값)"
         new_short = str(new_val)[:20] if new_val else "(빈값)"
         self._emit_log(f"[수정] {name} {field_name}: {old_short} → {new_short}")
+
+    def _fmt_age(self, age: str) -> str:
+        """연령 표시: 미상 → '연령 미상', 숫자 → 그대로"""
+        if not age or age == "미상":
+            return "연령 미상"
+        return age
 
     def _emit_log(self, message: str):
         """작전 로그에 기록 + 시그널 발행"""

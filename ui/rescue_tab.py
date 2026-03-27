@@ -553,7 +553,14 @@ class RescueTab(QWidget):
             "initial_state": self.state_input.text().strip(),
         }
         record = self.dm.add_rescue_record(data)
-        self._emit_log(f"[구조] {name} ({data['gender']}/{age}) {data['severity']} - {data.get('location', '')}")
+        ts = data['timestamp']
+        state = data.get('initial_state', '')
+        parts = [f"{name}({data['gender']}, {age})", data['severity']]
+        if state:
+            parts.append(state)
+        msg = ", ".join(parts)
+        prefix = f"{ts} " if ts else ""
+        self._emit_log(f"{prefix}[구조] {msg}")
 
         # Clear inputs
         self.time_input.clear()
@@ -608,7 +615,13 @@ class RescueTab(QWidget):
         self.dm.update_rescue_record(source_id, "transfer_target", transfer_target)
         self.dm.update_rescue_record(source_id, "transfer_timestamp", timestamp)
 
-        self._emit_log(f"[인계] {source_rec['name']} → {transfer_target}")
+        etc = self.etc_input.text().strip() if hasattr(self, 'etc_input') else ""
+        parts = [f"{source_rec['name']}({source_rec['gender']}, {source_rec['age']})", source_rec['severity']]
+        if etc:
+            parts.append(etc)
+        msg = ", ".join(parts)
+        prefix = f"{timestamp} " if timestamp else ""
+        self._emit_log(f"{prefix}[{transfer_target}에 인계] {msg}")
 
         # Clear inputs
         self.time_input.clear()
@@ -647,7 +660,14 @@ class RescueTab(QWidget):
             "transfer_target": transfer_target,
         }
         record = self.dm.add_rescue_record(data)
-        self._emit_log(f"[인수] {name} ({data['gender']}/{age}) {data['severity']} ← {transfer_target}")
+        ts = data['timestamp']
+        state = data.get('initial_state', '')
+        parts = [f"{name}({data['gender']}, {age})", data['severity']]
+        if state:
+            parts.append(state)
+        msg = ", ".join(parts)
+        prefix = f"{ts} " if ts else ""
+        self._emit_log(f"{prefix}[{transfer_target}으로부터 인수] {msg}")
 
         # Clear inputs
         self.time_input.clear()

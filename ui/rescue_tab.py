@@ -765,7 +765,12 @@ class RescueTab(QWidget):
         return age
 
     def _emit_log(self, message: str):
-        """작전 로그에 기록 + 시그널 발행"""
+        """작전 로그에 기록 + 시그널 발행 (본함명 붙이기 옵션 반영)"""
+        getter = getattr(self.dm, '_log_base_name_getter', None)
+        if getter:
+            base_name = getter()
+            if base_name:
+                message = f"{base_name}\n{message}"
         self.dm.add_log(message)
         self.log_message.emit(message)
 

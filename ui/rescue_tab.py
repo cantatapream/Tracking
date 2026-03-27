@@ -717,13 +717,42 @@ class RescueTab(QWidget):
         "transfer_target": "인계/인수대상", "transferred": "인계여부",
     }
 
+    def _get_field_display_name(self, record: dict, field: str) -> str:
+        """레코드 유형에 따른 필드 표시명"""
+        if field == "timestamp":
+            rec_type = record.get("type", "rescue")
+            if rec_type == "rescue":
+                return "구조일시"
+            elif rec_type == "transfer_out":
+                return "인계일시"
+            elif rec_type == "transfer_in":
+                return "인수일시"
+            return "일시"
+        return self._FIELD_NAMES.get(field, field)
+
     def _log_edit(self, record: dict, field: str, old_val, new_val):
         """수정 내역을 작전 로그에 기록"""
-        name = record.get("name", "미상")
-        field_name = self._FIELD_NAMES.get(field, field)
-        old_short = str(old_val)[:20] if old_val else "(빈값)"
-        new_short = str(new_val)[:20] if new_val else "(빈값)"
-        self._emit_log(f"[수정] {name} {field_name}: {old_short} → {new_short}")
+        # 이름 변경 시 이전 이름 기준으로 표시
+        if field == "name":
+            display_name = old_val if old_val else "미상"
+        else:
+            display_name = record.get("name", "미상")
+
+        field_name = self._get_field_display_name(record, field)
+
+        # 여러 줄 필드: 수정 전/후 형식
+        if field in ("initial_state", "treatment"):
+            old_display = old_val if old_val else "(빈값)"
+            new_display = new_val if new_val else "(빈값)"
+            self._emit_log(
+                f"[수정] {display_name} {field_name} 변경\n"
+                f"[수정 전]\n{old_display}\n"
+                f"[수정 후]\n{new_display}"
+            )
+        else:
+            old_short = str(old_val)[:20] if old_val else "(빈값)"
+            new_short = str(new_val)[:20] if new_val else "(빈값)"
+            self._emit_log(f"[수정] {display_name} {field_name}: {old_short} → {new_short}")
 
     def _fmt_age(self, age: str) -> str:
         """연령 표시: 미상 → '연령 미상', 숫자 → 그대로"""
@@ -1273,7 +1302,7 @@ class RescueTab(QWidget):
         else:
             for h in history:
                 raw_field = h.get("field", "")
-                field = self._FIELD_NAMES.get(raw_field, raw_field)
+                field = self._get_field_display_name(record, raw_field)
                 old_val = h.get("old", "")
                 new_val = h.get("new", "")
                 ts = h.get("time", "")

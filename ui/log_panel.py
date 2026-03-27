@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QTextEdit
 )
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QWheelEvent
+from PySide6.QtGui import QWheelEvent, QKeyEvent
 from core.data_manager import DataManager
 
 # 로그 텍스트 폰트 크기 (전역, Ctrl+휠로 조절)
@@ -296,6 +296,7 @@ class LogPanel(QWidget):
         self._multi_selected: list[LogEntryWidget] = []
         self._last_clicked_widget = None  # Shift 선택 기준점
         self.setObjectName("logPanelVertical")
+        self.setFocusPolicy(Qt.StrongFocus)
         self._setup_ui()
         self._load_existing_logs()
 
@@ -543,6 +544,20 @@ class LogPanel(QWidget):
                 self.wheelEvent(event)
                 return True
         return super().eventFilter(obj, event)
+
+    def keyPressEvent(self, event: QKeyEvent):
+        """Del 키로 선택된 로그 삭제"""
+        if event.key() == Qt.Key_Delete:
+            if self._multi_selected:
+                self._multi_delete()
+                return
+            # 단일 선택 (액션 열린 항목)
+            for w in self.entry_widgets:
+                if w._actions_visible:
+                    self.dm.delete_log(w.log_entry)
+                    self._rebuild_entries()
+                    return
+        super().keyPressEvent(event)
 
     def _load_existing_logs(self):
         for log in self.dm.logs:

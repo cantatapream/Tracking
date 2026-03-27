@@ -92,6 +92,7 @@ class RescueTab(QWidget):
         self._sort_col = None  # 현재 정렬 컬럼
         self._sort_asc = True  # 오름차순 여부
         self._pending_records = []  # 추가 대기열
+        self._refreshing = False  # 테이블 갱신 중 플래그
         self._setup_ui()
 
     def _setup_ui(self):
@@ -160,21 +161,20 @@ class RescueTab(QWidget):
 
         top_h.addLayout(right_col, 1)
 
-        # 적용/추가 버튼 (오른쪽 끝)
+        # 적용/추가 버튼 (오른쪽 끝, 등록=상단 정렬, 추가=하단 정렬)
         apply_col = QVBoxLayout()
-        apply_col.setSpacing(2)
-        apply_col.addStretch()
+        apply_col.setSpacing(0)
         self.apply_btn = QPushButton("구조\n등록")
         self.apply_btn.setObjectName("btnAccent")
         self.apply_btn.setFixedSize(60, 48)
         self.apply_btn.clicked.connect(self._apply_record)
         apply_col.addWidget(self.apply_btn)
+        apply_col.addStretch()
         self.add_btn = QPushButton("추가")
         self.add_btn.setObjectName("btnAccent")
         self.add_btn.setFixedSize(60, 28)
         self.add_btn.clicked.connect(self._add_to_pending)
         apply_col.addWidget(self.add_btn)
-        apply_col.addStretch()
         top_h.addLayout(apply_col)
 
         # === 추가 대기열 표시 (입력 폼 아래, top_frame 내부) ===
@@ -665,8 +665,28 @@ class RescueTab(QWidget):
         if hasattr(self, 'gender_combo'):
             self.gender_combo.setCurrentIndex(0)
 
+        # 인계: 대상자 콤보에서 추가된 사람 제외
+        if mode == "transfer_out" and hasattr(self, 'target_combo'):
+            self._populate_passenger_combo_filtered()
+        if hasattr(self, 'etc_input'):
+            self.etc_input.clear()
+
         self._update_apply_btn_text()
         self._refresh_pending_display()
+
+    def _populate_passenger_combo_filtered(self):
+        """대기열에 이미 추가된 대상자 제외하고 콤보 갱신"""
+        if not hasattr(self, 'target_combo'):
+            return
+        pending_ids = {r.get("source_record_id") for r in self._pending_records}
+        self.target_combo.clear()
+        passengers = self._get_current_passengers()
+        for rec in passengers:
+            if rec["id"] not in pending_ids:
+                self.target_combo.addItem(
+                    f"{rec['name']} ({rec['gender']}/{rec['age']})",
+                    rec["id"]
+                )
 
     def _clear_pending(self):
         """대기열 초기화"""
@@ -732,9 +752,11 @@ class RescueTab(QWidget):
             parts.append(rec.get("name", "미상"))
             parts.append(f"{rec.get('gender', '')}/{rec.get('age', '미상')}")
             parts.append(rec.get("severity", ""))
-            state = rec.get("initial_state", "")
-            if state:
-                parts.append(state)
+            # 인계 모드에서는 상태 미표시 (인적사항만)
+            if mode != "transfer_out":
+                state = rec.get("initial_state", "")
+                if state:
+                    parts.append(state)
             info = QLabel("  ".join(parts))
             info.setStyleSheet("color: #c8d6e5; font-size: 12px; border: none;")
             rl.addWidget(info, 1)
@@ -760,6 +782,32 @@ class RescueTab(QWidget):
             else:
                 self._update_apply_btn_text()
                 self._refresh_pending_display()
+
+    def _confirm_empty_register(self) -> bool:
+        """빈 입력 상태 등록 확인"""
+        dlg = QDialog(self)
+        dlg.setWindowTitle("등록 확인")
+        dlg.setFixedSize(300, 120)
+        dlg.setStyleSheet("QDialog { background: #0d1f3c; border: 2px solid #f39c12; border-radius: 8px; } QLabel { background: transparent; border: none; color: #c8d6e5; }")
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(16, 12, 16, 12)
+        lbl = QLabel("입력된 내용이 없습니다.\n미상 정보로 등록하시겠습니까?")
+        lbl.setStyleSheet("font-size: 13px;")
+        lbl.setAlignment(Qt.AlignCenter)
+        layout.addWidget(lbl)
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        cancel = QPushButton("취소")
+        cancel.setFixedSize(60, 28)
+        cancel.clicked.connect(dlg.reject)
+        btn_row.addWidget(cancel)
+        ok = QPushButton("등록")
+        ok.setFixedSize(60, 28)
+        ok.setObjectName("btnAccent")
+        ok.clicked.connect(dlg.accept)
+        btn_row.addWidget(ok)
+        layout.addLayout(btn_row)
+        return dlg.exec() == QDialog.Accepted
 
     def _apply_record(self):
         """적용 버튼 클릭 (대기열 포함 일괄 등록)"""
@@ -792,6 +840,9 @@ class RescueTab(QWidget):
             else:
                 all_records = list(self._pending_records)
         else:
+            if not self._has_user_input():
+                if not self._confirm_empty_register():
+                    return
             current = self._collect_current_input()
             all_records = [current] if current else []
 
@@ -1133,6 +1184,15 @@ class RescueTab(QWidget):
 
     def _refresh_table(self):
         """테이블 갱신"""
+        if self._refreshing:
+            return
+        self._refreshing = True
+        try:
+            self._refresh_table_inner()
+        finally:
+            self._refreshing = False
+
+    def _refresh_table_inner(self):
         # 선택 초기화
         self._selected_record = None
         self._selected_row_widget = None

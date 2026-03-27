@@ -207,7 +207,14 @@ class RescueTab(QWidget):
 
         panel_layout.addLayout(filter_row)
 
-        # === Table area (scrollable) ===
+        # === 고정 헤더 ===
+        self.header_container = QWidget()
+        self.header_layout = QVBoxLayout(self.header_container)
+        self.header_layout.setContentsMargins(0, 0, 0, 0)
+        self.header_layout.setSpacing(0)
+        panel_layout.addWidget(self.header_container)
+
+        # === Table area (scrollable, 데이터만) ===
         self.table_scroll = QScrollArea()
         self.table_scroll.setWidgetResizable(True)
         self.table_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -837,6 +844,12 @@ class RescueTab(QWidget):
         self._selected_record = None
         self._selected_row_widget = None
         self.delete_btn.setEnabled(False)
+        # Clear header
+        while self.header_layout.count():
+            item = self.header_layout.takeAt(0)
+            w = item.widget()
+            if w:
+                w.setParent(None)
         # Clear table
         while self.table_layout.count():
             item = self.table_layout.takeAt(0)
@@ -904,7 +917,7 @@ class RescueTab(QWidget):
         history_lbl.setFixedWidth(30)
         header_grid.addWidget(history_lbl)
 
-        self.table_layout.addWidget(header_frame)
+        self.header_layout.addWidget(header_frame)
 
         # Data rows
         for record in records:

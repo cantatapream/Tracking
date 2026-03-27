@@ -969,7 +969,7 @@ class RescueTab(QWidget):
                 lbl.setFixedWidth(w)
                 row_layout.addWidget(lbl)
             elif col == "인계/인수":
-                text = ""
+                text = "-"
                 if rec_type == "transfer_out":
                     text = f"→{record.get('transfer_target', '')}"
                 elif rec_type == "transfer_in":
@@ -1132,6 +1132,13 @@ class RescueTab(QWidget):
                 counts[s] = sum(1 for r in rec_list if r.get("severity") == s)
             return counts
 
+        def names_by_severity(rec_list):
+            names = {}
+            for s in severities:
+                names[s] = [f"{r.get('name', '미상')}({r.get('age', '미상')})"
+                            for r in rec_list if r.get("severity") == s]
+            return names
+
         # 현재원: rescue(not transferred) + transfer_in
         current = [r for r in records
                    if (r["type"] == "rescue" and not r.get("transferred", False))
@@ -1140,11 +1147,15 @@ class RescueTab(QWidget):
         transfer_out = [r for r in records if r["type"] == "transfer_out"]
         transfer_in = [r for r in records if r["type"] == "transfer_in"]
 
+        def make_data(rec_list):
+            return {"total": len(rec_list), "by_severity": count_by_severity(rec_list),
+                    "names_by_severity": names_by_severity(rec_list)}
+
         return {
-            "현재원": {"total": len(current), "by_severity": count_by_severity(current)},
-            "본함구조": {"total": len(rescue_only), "by_severity": count_by_severity(rescue_only)},
-            "인계현황": {"total": len(transfer_out), "by_severity": count_by_severity(transfer_out)},
-            "인수현황": {"total": len(transfer_in), "by_severity": count_by_severity(transfer_in)},
+            "현재원": make_data(current),
+            "본함구조": make_data(rescue_only),
+            "인계현황": make_data(transfer_out),
+            "인수현황": make_data(transfer_in),
         }
 
     @staticmethod

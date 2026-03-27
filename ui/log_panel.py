@@ -559,8 +559,8 @@ class LogPanel(QWidget):
     def _multi_delete(self):
         """선택된 항목 모두 삭제"""
         for w in self._multi_selected:
-            self._deleted_stack.append(w.log_entry.copy())
             self.dm.delete_log(w.log_entry)
+            self._deleted_stack.append(w.log_entry.copy())
         self._multi_selected.clear()
         self._multi_action_frame.hide()
         self._rebuild_entries()
@@ -589,8 +589,8 @@ class LogPanel(QWidget):
                 return
             for w in self.entry_widgets:
                 if w._actions_visible:
-                    self._deleted_stack.append(w.log_entry.copy())
                     self.dm.delete_log(w.log_entry)
+                    self._deleted_stack.append(w.log_entry.copy())
                     self._rebuild_entries()
                     return
         elif event.key() == Qt.Key_Z and event.modifiers() & Qt.ControlModifier:
@@ -654,8 +654,8 @@ class LogPanel(QWidget):
         self._scroll_to_bottom()
 
     def _on_delete(self, log_entry):
-        self._deleted_stack.append(log_entry.copy())
         self.dm.delete_log(log_entry)
+        self._deleted_stack.append(log_entry.copy())
         self._rebuild_entries()
 
     def _on_edit(self, log_entry, new_msg):

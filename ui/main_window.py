@@ -585,28 +585,10 @@ class MainWindow(QMainWindow):
         for card_title, card_widget in self.rescue_summary_cards.items():
             data = summary.get(card_title, {})
             by_severity = data.get("by_severity", {})
-            names_by_sev = data.get("names_by_severity", {})
             labels = getattr(card_widget, '_severity_labels', {})
-            frames = getattr(card_widget, '_severity_frames', {})
             for sev_name, count_lbl in labels.items():
                 count = by_severity.get(sev_name, 0)
                 count_lbl.setText(f"{count}명")
-            for sev_name, frame in frames.items():
-                name_list = names_by_sev.get(sev_name, [])
-                if name_list:
-                    rows = []
-                    for j in range(0, len(name_list), 2):
-                        if j + 1 < len(name_list):
-                            rows.append(f"{name_list[j]}  |  {name_list[j+1]}")
-                        else:
-                            rows.append(name_list[j])
-                    tip_html = "<br>".join(rows)
-                    tip = f"<span style='font-size:12px;'>{tip_html}</span>"
-                else:
-                    tip = ""
-                frame.setToolTip(tip)
-                for child in frame.findChildren(QLabel):
-                    child.setToolTip(tip)
             total_badge = getattr(card_widget, '_total_badge', None)
             if total_badge:
                 total_badge.setText(f"{data.get('total', 0)}명")

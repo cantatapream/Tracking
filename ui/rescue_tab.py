@@ -595,6 +595,7 @@ class RescueTab(QWidget):
         timestamp = self.time_input.text().strip()
         transfer_target = self.transfer_target_input.text().strip()
         if not transfer_target:
+            self._show_toast("인계대상을 입력해주세요")
             return
 
         # Create transfer_out record
@@ -650,6 +651,7 @@ class RescueTab(QWidget):
 
         transfer_target = self.transfer_target_input.text().strip()
         if not transfer_target:
+            self._show_toast("인수대상을 지정해주세요")
             return
 
         data = {
@@ -686,6 +688,20 @@ class RescueTab(QWidget):
 
         self._refresh_table()
         self.records_changed.emit()
+
+    def _show_toast(self, message: str):
+        """토스트 메시지 표시"""
+        from PySide6.QtCore import QTimer
+        toast = QLabel(message, self)
+        toast.setStyleSheet("""
+            QLabel { background: rgba(231, 76, 60, 0.9); color: #ffffff; font-size: 13px;
+                     font-weight: bold; padding: 8px 16px; border-radius: 6px; }
+        """)
+        toast.setAlignment(Qt.AlignCenter)
+        toast.adjustSize()
+        toast.move((self.width() - toast.width()) // 2, 80)
+        toast.show()
+        QTimer.singleShot(2000, lambda: (toast.hide(), toast.deleteLater()))
 
     _FIELD_NAMES = {
         "timestamp": "일시", "location": "구조위치", "name": "이름",

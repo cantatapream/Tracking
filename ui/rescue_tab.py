@@ -553,7 +553,7 @@ class RescueTab(QWidget):
             "initial_state": self.state_input.text().strip(),
         }
         record = self.dm.add_rescue_record(data)
-        self.log_message.emit(f"[구조] {name} ({data['gender']}/{age}) {data['severity']} - {data.get('location', '')}")
+        self._emit_log(f"[구조] {name} ({data['gender']}/{age}) {data['severity']} - {data.get('location', '')}")
 
         # Clear inputs
         self.time_input.clear()
@@ -608,7 +608,7 @@ class RescueTab(QWidget):
         self.dm.update_rescue_record(source_id, "transfer_target", transfer_target)
         self.dm.update_rescue_record(source_id, "transfer_timestamp", timestamp)
 
-        self.log_message.emit(f"[인계] {source_rec['name']} → {transfer_target}")
+        self._emit_log(f"[인계] {source_rec['name']} → {transfer_target}")
 
         # Clear inputs
         self.time_input.clear()
@@ -647,7 +647,7 @@ class RescueTab(QWidget):
             "transfer_target": transfer_target,
         }
         record = self.dm.add_rescue_record(data)
-        self.log_message.emit(f"[인수] {name} ({data['gender']}/{age}) {data['severity']} ← {transfer_target}")
+        self._emit_log(f"[인수] {name} ({data['gender']}/{age}) {data['severity']} ← {transfer_target}")
 
         # Clear inputs
         self.time_input.clear()
@@ -676,7 +676,12 @@ class RescueTab(QWidget):
         field_name = self._FIELD_NAMES.get(field, field)
         old_short = str(old_val)[:20] if old_val else "(빈값)"
         new_short = str(new_val)[:20] if new_val else "(빈값)"
-        self.log_message.emit(f"[수정] {name} {field_name}: {old_short} → {new_short}")
+        self._emit_log(f"[수정] {name} {field_name}: {old_short} → {new_short}")
+
+    def _emit_log(self, message: str):
+        """작전 로그에 기록 + 시그널 발행"""
+        self.dm.add_log(message)
+        self.log_message.emit(message)
 
     def _record_history(self, record: dict, field: str, old_val, new_val):
         """변경 이력 기록"""
@@ -1372,7 +1377,7 @@ class RescueTab(QWidget):
                     if r.get("source_record_id") == rec_id:
                         self.dm.delete_rescue_record(r["id"])
             self.dm.delete_rescue_record(rec_id)
-            self.log_message.emit(f"[삭제] 구조 기록 - {name}")
+            self._emit_log(f"[삭제] 구조 기록 - {name}")
         elif rec_type == "transfer_out":
             # 원본 rescue 인계 상태 복원
             source_id = record.get("source_record_id")
@@ -1381,10 +1386,10 @@ class RescueTab(QWidget):
                 self.dm.update_rescue_record(source_id, "transfer_target", "")
                 self.dm.update_rescue_record(source_id, "transfer_timestamp", "")
             self.dm.delete_rescue_record(rec_id)
-            self.log_message.emit(f"[삭제] 인계 기록 - {name}")
+            self._emit_log(f"[삭제] 인계 기록 - {name}")
         elif rec_type == "transfer_in":
             self.dm.delete_rescue_record(rec_id)
-            self.log_message.emit(f"[삭제] 인수 기록 - {name}")
+            self._emit_log(f"[삭제] 인수 기록 - {name}")
 
         self._selected_record = None
         self._selected_row_widget = None

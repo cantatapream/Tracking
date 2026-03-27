@@ -225,7 +225,17 @@ class LogEntryWidget(QFrame):
     def _copy(self):
         clipboard = QApplication.clipboard()
         msg = self.log_entry.get("message", "")
-        clipboard.setText(f'[{self.log_entry.get("time_str", "")}] {msg}')
+        # 부모 LogPanel의 시간 없이 복사 체크박스 확인
+        panel = self.parent()
+        while panel and not isinstance(panel, LogPanel):
+            panel = panel.parent()
+        no_time = False
+        if panel and hasattr(panel, '_no_time_copy_cb'):
+            no_time = panel._no_time_copy_cb.isChecked()
+        if no_time:
+            clipboard.setText(msg)
+        else:
+            clipboard.setText(f'[{self.log_entry.get("time_str", "")}] {msg}')
         self._show_toast("복사되었습니다")
 
     def _start_edit(self):
@@ -399,6 +409,18 @@ class LogPanel(QWidget):
         self.scroll.setWidget(self.log_container)
         layout.addWidget(self.scroll, 1)
 
+        # 시간 없이 복사 체크박스
+        from PySide6.QtWidgets import QCheckBox
+        copy_option_frame = QFrame()
+        copy_option_frame.setStyleSheet("QFrame { background: transparent; border-top: 1px solid rgba(0, 212, 255, 0.08); }")
+        co_layout = QHBoxLayout(copy_option_frame)
+        co_layout.setContentsMargins(8, 3, 8, 3)
+        self._no_time_copy_cb = QCheckBox("시간 없이 텍스트 복사")
+        self._no_time_copy_cb.setStyleSheet("QCheckBox { color: #8faabe; font-size: 11px; } QCheckBox::indicator { width: 14px; height: 14px; }")
+        co_layout.addWidget(self._no_time_copy_cb)
+        co_layout.addStretch()
+        layout.addWidget(copy_option_frame)
+
         input_frame = QFrame()
         input_frame.setObjectName("logInputFrame")
         input_layout = QHBoxLayout(input_frame)
@@ -483,14 +505,19 @@ class LogPanel(QWidget):
                 w.set_multi_selected(True, "single")
             return
         indices = sorted(self._get_widget_index(w) for w in self._multi_selected if self._get_widget_index(w) is not None)
+        # 연속 선택인지 확인
+        is_contiguous = len(indices) == (max(indices) - min(indices) + 1)
+        if not is_contiguous:
+            # 비연속: 모두 single (완전 테두리)
+            for w in self._multi_selected:
+                w.set_multi_selected(True, "single")
+            return
         idx_set = set(indices)
         for w in self._multi_selected:
             idx = self._get_widget_index(w)
             if idx is None:
                 continue
-            if len(idx_set) == 1:
-                w.set_multi_selected(True, "single")
-            elif idx == min(idx_set):
+            if idx == min(idx_set):
                 w.set_multi_selected(True, "first")
             elif idx == max(idx_set):
                 w.set_multi_selected(True, "last")
@@ -547,11 +574,15 @@ class LogPanel(QWidget):
 
     def _multi_copy(self):
         """선택된 항목 모두 복사"""
+        no_time = self._no_time_copy_cb.isChecked()
         lines = []
         for w in self._multi_selected:
             msg = w.log_entry.get("message", "")
             ts = w.log_entry.get("time_str", "")
-            lines.append(f"[{ts}] {msg}")
+            if no_time:
+                lines.append(msg)
+            else:
+                lines.append(f"[{ts}] {msg}")
         clipboard = QApplication.clipboard()
         clipboard.setText("\n".join(lines))
         self._clear_multi_selection()

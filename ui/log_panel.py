@@ -589,11 +589,23 @@ class LogPanel(QWidget):
 
     def _multi_delete(self):
         """선택된 항목 모두 삭제 (그룹으로 복원 가능)"""
-        group = []
+        # 원래 인덱스를 먼저 기록 (삭제 전)
+        entries_with_idx = []
         for w in self._multi_selected:
-            self.dm.delete_log(w.log_entry)
-            group.append(w.log_entry.copy())
-        self._deleted_stack.append(group)  # 그룹으로 저장
+            idx = self.dm.logs.index(w.log_entry) if w.log_entry in self.dm.logs else -1
+            entries_with_idx.append((idx, w.log_entry))
+        # 삭제 (인덱스 영향 없도록 뒤에서부터)
+        for idx, entry in sorted(entries_with_idx, key=lambda x: x[0], reverse=True):
+            if entry in self.dm.logs:
+                self.dm.logs.remove(entry)
+        self.dm.save()
+        # 그룹 저장 (원래 인덱스 포함)
+        group = []
+        for idx, entry in entries_with_idx:
+            cp = entry.copy()
+            cp["_deleted_index"] = idx
+            group.append(cp)
+        self._deleted_stack.append(group)
         self._multi_selected.clear()
         self._multi_action_frame.hide()
         self._rebuild_entries()

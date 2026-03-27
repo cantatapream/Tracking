@@ -749,14 +749,14 @@ class RescueTab(QWidget):
             old_display = old_val if old_val else "(빈값)"
             new_display = new_val if new_val else "(빈값)"
             self._emit_log(
-                f"[수정] {display_name} {field_name} 변경\n"
+                f"[수정] {display_name} {field_name}\n"
                 f"[수정 전]\n{old_display}\n"
                 f"[수정 후]\n{new_display}"
             )
         else:
             old_short = str(old_val)[:20] if old_val else "(빈값)"
             new_short = str(new_val)[:20] if new_val else "(빈값)"
-            self._emit_log(f"[수정] {display_name} {field_name} 변경 : {old_short} → {new_short}")
+            self._emit_log(f"[수정] {display_name} {field_name} : {old_short} → {new_short}")
 
     def _fmt_age(self, age: str) -> str:
         """연령 표시: 미상 → '연령 미상', 숫자 → 그대로"""

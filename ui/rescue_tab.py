@@ -86,6 +86,8 @@ class RescueTab(QWidget):
         self.dm = data_manager
         self._current_mode = "rescue"  # rescue / transfer_out / transfer_in
         self._current_filter = "all"   # all / current / rescue / transfer_out / transfer_in
+        self._selected_record = None   # 현재 선택된 행의 record
+        self._selected_row_widget = None  # 현재 선택된 행 위젯
         self._setup_ui()
 
     def _setup_ui(self):
@@ -175,6 +177,20 @@ class RescueTab(QWidget):
             filter_row.addWidget(btn)
             self.filter_buttons[key] = btn
         filter_row.addStretch()
+
+        self.delete_btn = QPushButton("삭제")
+        self.delete_btn.setFixedHeight(30)
+        self.delete_btn.setFixedWidth(55)
+        self.delete_btn.setStyleSheet("""
+            QPushButton { background: #c0392b; color: #ffffff; font-size: 13px; font-weight: bold;
+                          border: 1px solid #e74c3c; border-radius: 4px; }
+            QPushButton:hover { background: #e74c3c; }
+            QPushButton:disabled { background: #555555; color: #888888; border-color: #666666; }
+        """)
+        self.delete_btn.setEnabled(False)
+        self.delete_btn.clicked.connect(self._delete_selected_record)
+        filter_row.addWidget(self.delete_btn)
+
         panel_layout.addLayout(filter_row)
 
         # === Table area (scrollable) ===
@@ -667,6 +683,10 @@ class RescueTab(QWidget):
 
     def _refresh_table(self):
         """테이블 갱신"""
+        # 선택 초기화
+        self._selected_record = None
+        self._selected_row_widget = None
+        self.delete_btn.setEnabled(False)
         # Clear table
         while self.table_layout.count():
             item = self.table_layout.takeAt(0)
@@ -846,6 +866,36 @@ class RescueTab(QWidget):
             label_widget.setText(new_text)
             self.records_changed.emit()
 
+    def _select_row(self, row_widget, record):
+        """행 선택/해제"""
+        # 이전 선택 해제
+        if self._selected_row_widget and self._selected_row_widget is not row_widget:
+            self._selected_row_widget.setStyleSheet("""
+                QFrame { background: transparent; border-bottom: 1px solid rgba(0, 212, 255, 0.12);
+                         border-radius: 0; }
+                QFrame:hover { background: rgba(0, 212, 255, 0.04); }
+            """)
+
+        if self._selected_record and self._selected_record.get("id") == record.get("id"):
+            # 같은 행 다시 클릭 → 선택 해제
+            row_widget.setStyleSheet("""
+                QFrame { background: transparent; border-bottom: 1px solid rgba(0, 212, 255, 0.12);
+                         border-radius: 0; }
+                QFrame:hover { background: rgba(0, 212, 255, 0.04); }
+            """)
+            self._selected_record = None
+            self._selected_row_widget = None
+            self.delete_btn.setEnabled(False)
+        else:
+            # 새 행 선택
+            row_widget.setStyleSheet("""
+                QFrame { background: rgba(0, 212, 255, 0.1); border-bottom: 1px solid rgba(0, 212, 255, 0.12);
+                         border-left: 3px solid #00d4ff; border-radius: 0; }
+            """)
+            self._selected_record = record
+            self._selected_row_widget = row_widget
+            self.delete_btn.setEnabled(True)
+
     def _create_row_widget(self, record: dict, columns: list, col_widths: list) -> QFrame:
         """테이블 행 위젯 생성"""
         row = QFrame()
@@ -854,6 +904,8 @@ class RescueTab(QWidget):
                      border-radius: 0; }
             QFrame:hover { background: rgba(0, 212, 255, 0.04); }
         """)
+        row.setCursor(Qt.PointingHandCursor)
+        row.mousePressEvent = lambda e, r=record, w=row: self._select_row(w, r)
         row_layout = QHBoxLayout(row)
         row_layout.setContentsMargins(8, 2, 8, 2)
         row_layout.setSpacing(2)
@@ -930,6 +982,123 @@ class RescueTab(QWidget):
                 row_layout.addWidget(lbl, 1 if is_stretch else 0)
 
         return row
+
+    def _delete_selected_record(self):
+        """선택된 행 삭제 (확인 다이얼로그)"""
+        if not self._selected_record:
+            return
+        record = self._selected_record
+        rec_type = record.get("type", "rescue")
+        name = record.get("name", "미상")
+        gender = record.get("gender", "")
+        age = record.get("age", "미상")
+        severity = record.get("severity", "")
+        timestamp = record.get("timestamp", "")
+        state = record.get("initial_state", "")
+
+        sev_color = SEVERITY_COLORS.get(severity, "#8faabe")
+        type_label = TYPE_LABELS.get(rec_type, "구조")
+
+        # 확인 다이얼로그
+        dlg = QDialog(self.window())
+        dlg.setWindowTitle("기록 삭제 확인")
+        dlg.setFixedSize(340, 220)
+        dlg.setStyleSheet("""
+            QDialog { background: #0d1f3c; border: 2px solid #c0392b; border-radius: 8px; }
+            QLabel { background: transparent; border: none; color: #c8d6e5; }
+        """)
+        layout = QVBoxLayout(dlg)
+        layout.setSpacing(10)
+        layout.setContentsMargins(16, 12, 16, 12)
+
+        # 제목
+        title = QLabel("정말 삭제하시겠습니까?")
+        title.setStyleSheet("color: #e74c3c; font-size: 16px; font-weight: bold;")
+        title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title)
+
+        # 인적사항 정보
+        info_frame = QFrame()
+        info_frame.setStyleSheet("QFrame { background: rgba(0,0,0,0.3); border: 1px solid #1a2d4a; border-radius: 6px; }")
+        info_layout = QGridLayout(info_frame)
+        info_layout.setContentsMargins(12, 8, 12, 8)
+        info_layout.setSpacing(6)
+
+        info_items = [
+            ("유형", type_label), ("일시", timestamp),
+            ("이름", name), ("성별/연령", f"{gender} / {age}"),
+            ("중증도", severity), ("상태", state),
+        ]
+        for idx, (label_text, value_text) in enumerate(info_items):
+            r, c = idx // 2, (idx % 2) * 2
+            lbl = QLabel(label_text)
+            lbl.setStyleSheet("color: #5a7a9a; font-size: 12px;")
+            info_layout.addWidget(lbl, r, c)
+            val = QLabel(value_text)
+            if label_text == "중증도":
+                val.setStyleSheet(f"color: {sev_color}; font-size: 13px; font-weight: bold;")
+            else:
+                val.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: bold;")
+            info_layout.addWidget(val, r, c + 1)
+
+        layout.addWidget(info_frame)
+
+        # 부가 안내 (인계 기록 동반 삭제 시)
+        if rec_type == "rescue" and record.get("transferred", False):
+            warn = QLabel("※ 연결된 인계 기록도 함께 삭제됩니다.")
+            warn.setStyleSheet("color: #f39c12; font-size: 11px;")
+            warn.setAlignment(Qt.AlignCenter)
+            layout.addWidget(warn)
+
+        # 버튼
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        cancel_btn = QPushButton("취소")
+        cancel_btn.setFixedSize(70, 30)
+        cancel_btn.clicked.connect(dlg.reject)
+        btn_row.addWidget(cancel_btn)
+        confirm_btn = QPushButton("삭제")
+        confirm_btn.setFixedSize(70, 30)
+        confirm_btn.setStyleSheet("""
+            QPushButton { background: #c0392b; color: #ffffff; font-size: 13px; font-weight: bold;
+                          border: 1px solid #e74c3c; border-radius: 4px; }
+            QPushButton:hover { background: #e74c3c; }
+        """)
+        confirm_btn.clicked.connect(dlg.accept)
+        btn_row.addWidget(confirm_btn)
+        layout.addLayout(btn_row)
+
+        if dlg.exec() != QDialog.Accepted:
+            return
+
+        # 실제 삭제
+        rec_id = record["id"]
+        if rec_type == "rescue":
+            # 인계된 경우 transfer_out도 삭제
+            if record.get("transferred", False):
+                for r in list(self.dm.rescue_records):
+                    if r.get("source_record_id") == rec_id:
+                        self.dm.delete_rescue_record(r["id"])
+            self.dm.delete_rescue_record(rec_id)
+            self.log_message.emit(f"[삭제] 구조 기록 - {name}")
+        elif rec_type == "transfer_out":
+            # 원본 rescue 인계 상태 복원
+            source_id = record.get("source_record_id")
+            if source_id:
+                self.dm.update_rescue_record(source_id, "transferred", False)
+                self.dm.update_rescue_record(source_id, "transfer_target", "")
+                self.dm.update_rescue_record(source_id, "transfer_timestamp", "")
+            self.dm.delete_rescue_record(rec_id)
+            self.log_message.emit(f"[삭제] 인계 기록 - {name}")
+        elif rec_type == "transfer_in":
+            self.dm.delete_rescue_record(rec_id)
+            self.log_message.emit(f"[삭제] 인수 기록 - {name}")
+
+        self._selected_record = None
+        self._selected_row_widget = None
+        self.delete_btn.setEnabled(False)
+        self._refresh_table()
+        self.records_changed.emit()
 
     def refresh(self):
         """외부에서 호출 가능한 갱신"""

@@ -476,6 +476,11 @@ class DataManager:
                 return r
         return None
 
+    def delete_rescue_record(self, record_id: str):
+        """구조 기록 삭제"""
+        self.rescue_records = [r for r in self.rescue_records if r.get("id") != record_id]
+        self.save()
+
     def get_next_unknown_name(self) -> str:
         """다음 미상 이름 반환 (미상1, 미상2, ...)"""
         max_num = 0

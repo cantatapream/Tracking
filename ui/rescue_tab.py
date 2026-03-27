@@ -12,7 +12,7 @@ from core.data_manager import DataManager
 
 
 SEVERITY_COLORS = {
-    "지연": "#333333",
+    "지연": "#8faabe",
     "긴급": "#e74c3c",
     "응급": "#f39c12",
     "비응급": "#2ecc71",

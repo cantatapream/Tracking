@@ -86,6 +86,8 @@ class RescueTab(QWidget):
         self.dm = data_manager
         self._current_mode = "rescue"  # rescue / transfer_out / transfer_in
         self._current_filter = "all"   # all / current / rescue / transfer_out / transfer_in
+        self._selected_record = None   # 현재 선택된 행의 record
+        self._selected_row_widget = None  # 현재 선택된 행 위젯
         self._setup_ui()
 
     def _setup_ui(self):
@@ -175,6 +177,20 @@ class RescueTab(QWidget):
             filter_row.addWidget(btn)
             self.filter_buttons[key] = btn
         filter_row.addStretch()
+
+        self.delete_btn = QPushButton("삭제")
+        self.delete_btn.setFixedHeight(30)
+        self.delete_btn.setFixedWidth(55)
+        self.delete_btn.setStyleSheet("""
+            QPushButton { background: #c0392b; color: #ffffff; font-size: 13px; font-weight: bold;
+                          border: 1px solid #e74c3c; border-radius: 4px; }
+            QPushButton:hover { background: #e74c3c; }
+            QPushButton:disabled { background: #555555; color: #888888; border-color: #666666; }
+        """)
+        self.delete_btn.setEnabled(False)
+        self.delete_btn.clicked.connect(self._delete_selected_record)
+        filter_row.addWidget(self.delete_btn)
+
         panel_layout.addLayout(filter_row)
 
         # === Table area (scrollable) ===
@@ -660,13 +676,17 @@ class RescueTab(QWidget):
         elif f == "transfer_out":
             return ["인계일시", "이름", "성별", "연령", "중증도", "최초상태", "조치경과", "인계대상"]
         elif f == "transfer_in":
-            return ["인수일시", "이름", "성별", "연령", "중증도", "인수당시상태", "조치경과", "인수세력"]
+            return ["인수일시", "이름", "성별", "연령", "중증도", "인수당시 상태", "조치경과", "인수세력"]
         else:
             # all / current
             return ["유형", "일시", "이름", "성별", "연령", "중증도", "최초상태", "조치경과", "비고"]
 
     def _refresh_table(self):
         """테이블 갱신"""
+        # 선택 초기화
+        self._selected_record = None
+        self._selected_row_widget = None
+        self.delete_btn.setEnabled(False)
         # Clear table
         while self.table_layout.count():
             item = self.table_layout.takeAt(0)
@@ -684,8 +704,8 @@ class RescueTab(QWidget):
                      border-radius: 0; }
         """)
         header_grid = QHBoxLayout(header_frame)
-        header_grid.setContentsMargins(8, 6, 8, 6)
-        header_grid.setSpacing(4)
+        header_grid.setContentsMargins(8, 4, 8, 4)
+        header_grid.setSpacing(2)
 
         col_widths = self._get_col_widths(columns)
         for i, col in enumerate(columns):
@@ -711,54 +731,29 @@ class RescueTab(QWidget):
         width_map = {
             "유형": 55, "일시": 100, "인계일시": 100, "인수일시": 100,
             "구조위치": 100, "이름": 80, "성별": 35, "연령": 40,
-            "중증도": 65, "최초상태": -1, "인수당시상태": -1,
+            "중증도": 65, "최초상태": -1, "인수당시 상태": -1,
             "조치경과": -1, "인계": 35,
             "인계대상": 100, "인수세력": 100, "비고": 100,
         }
         return [width_map.get(c, 80) for c in columns]
 
     def _make_editable_cell(self, record, field, display_text, width, stretch=False, edit_type="text", options=None):
-        """인라인 편집 가능한 셀 생성"""
-        from PySide6.QtWidgets import QStackedWidget
-
+        """인라인 편집 가능한 셀 생성 - 더블클릭 시 편집 모드 진입"""
         stack = QStackedWidget()
         if not stretch and width > 0:
             stack.setFixedWidth(width)
+        stack.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
 
-        # --- Page 0: 표시 모드 ---
-        display_frame = QFrame()
-        display_frame.setStyleSheet("QFrame { background: transparent; border: none; }")
-        df_layout = QHBoxLayout(display_frame)
-        df_layout.setContentsMargins(0, 0, 0, 0)
-        df_layout.setSpacing(2)
-
+        # --- Page 0: 표시 모드 (더블클릭 시 편집 전환) ---
         if field == "severity":
             sev_color = SEVERITY_COLORS.get(display_text, "#8faabe")
             lbl = QLabel(display_text)
             lbl.setStyleSheet(f"color: {sev_color}; font-size: 13px; font-weight: bold; background: transparent; border: none;")
-        elif edit_type == "dialog":
+        else:
             lbl = QLabel(display_text if display_text else "")
             lbl.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: bold; background: transparent; border: none;")
-        else:
-            lbl = QLabel(display_text)
-            lbl.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: bold; background: transparent; border: none;")
         lbl.setAlignment(Qt.AlignCenter)
-        df_layout.addWidget(lbl, 1)
-
-        edit_btn = QPushButton("수정")
-        edit_btn.setFixedSize(36, 20)
-        edit_btn.setStyleSheet("""
-            QPushButton { background: rgba(0,212,255,0.15); color: #00d4ff; border: 1px solid rgba(0,212,255,0.4);
-                          border-radius: 3px; font-size: 10px; font-weight: bold; padding: 0; }
-            QPushButton:hover { background: rgba(0,212,255,0.3); }
-        """)
-        edit_btn.hide()
-        df_layout.addWidget(edit_btn)
-
-        display_frame.enterEvent = lambda e: edit_btn.show()
-        display_frame.leaveEvent = lambda e: edit_btn.hide()
-
-        stack.addWidget(display_frame)
+        stack.addWidget(lbl)
 
         # --- Page 1: 편집 모드 ---
         edit_frame = QFrame()
@@ -767,18 +762,20 @@ class RescueTab(QWidget):
         ef_layout.setContentsMargins(0, 0, 0, 0)
         ef_layout.setSpacing(2)
 
+        # 더블클릭 핸들러를 저장할 변수
+        start_edit_fn = None
+
         if edit_type == "dialog":
-            # 조치경과 / 최초상태: 다이얼로그 팝업
-            edit_btn.clicked.connect(lambda: self._edit_field_dialog(record, field, lbl))
-            stack.addWidget(edit_frame)  # placeholder, 실제 사용 안 함
+            start_edit_fn = lambda: self._edit_field_dialog(record, field, lbl)
+            stack.addWidget(edit_frame)
         elif edit_type == "combo":
             combo = QComboBox()
             combo.addItems(options or [])
-            combo.setFixedHeight(26)
-            combo.setStyleSheet("QComboBox { background: #0a1628; color: #e0e8f0; border: 1px solid #00d4ff; border-radius: 3px; font-size: 12px; padding: 2px; }")
+            combo.setFixedHeight(22)
+            combo.setStyleSheet("QComboBox { background: #0a1628; color: #e0e8f0; border: 1px solid #00d4ff; border-radius: 3px; font-size: 12px; padding: 1px; }")
             ef_layout.addWidget(combo, 1)
             ok_btn = QPushButton("확인")
-            ok_btn.setFixedSize(36, 24)
+            ok_btn.setFixedSize(32, 20)
             ok_btn.setStyleSheet("""
                 QPushButton { background: rgba(0,212,255,0.2); color: #00d4ff; border: 1px solid #00d4ff;
                               border-radius: 3px; font-size: 10px; font-weight: bold; }
@@ -790,6 +787,7 @@ class RescueTab(QWidget):
             def start_combo_edit():
                 combo.setCurrentText(lbl.text())
                 stack.setCurrentIndex(1)
+                combo.showPopup()
             def finish_combo_edit():
                 new_val = combo.currentText()
                 self.dm.update_rescue_record(record["id"], field, new_val)
@@ -800,22 +798,13 @@ class RescueTab(QWidget):
                 stack.setCurrentIndex(0)
                 self.records_changed.emit()
 
-            edit_btn.clicked.connect(start_combo_edit)
+            start_edit_fn = start_combo_edit
             ok_btn.clicked.connect(finish_combo_edit)
         else:
-            # 텍스트 인라인 편집
             inp = QLineEdit()
-            inp.setFixedHeight(26)
-            inp.setStyleSheet("QLineEdit { background: #0a1628; color: #e0e8f0; border: 1px solid #00d4ff; border-radius: 3px; font-size: 12px; padding: 2px; }")
+            inp.setFixedHeight(22)
+            inp.setStyleSheet("QLineEdit { background: #0a1628; color: #e0e8f0; border: 1px solid #00d4ff; border-radius: 3px; font-size: 12px; padding: 1px; }")
             ef_layout.addWidget(inp, 1)
-            ok_btn = QPushButton("확인")
-            ok_btn.setFixedSize(36, 24)
-            ok_btn.setStyleSheet("""
-                QPushButton { background: rgba(0,212,255,0.2); color: #00d4ff; border: 1px solid #00d4ff;
-                              border-radius: 3px; font-size: 10px; font-weight: bold; }
-                QPushButton:hover { background: rgba(0,212,255,0.4); }
-            """)
-            ef_layout.addWidget(ok_btn)
             stack.addWidget(edit_frame)
 
             def start_text_edit():
@@ -824,6 +813,8 @@ class RescueTab(QWidget):
                 inp.setFocus()
                 inp.selectAll()
             def finish_text_edit():
+                if stack.currentIndex() != 1:
+                    return
                 new_val = inp.text().strip()
                 if field == "transfer_target":
                     self._sync_transfer_target(record, new_val)
@@ -833,9 +824,15 @@ class RescueTab(QWidget):
                 stack.setCurrentIndex(0)
                 self.records_changed.emit()
 
-            edit_btn.clicked.connect(start_text_edit)
-            ok_btn.clicked.connect(finish_text_edit)
+            start_edit_fn = start_text_edit
             inp.returnPressed.connect(finish_text_edit)
+            inp.editingFinished.connect(finish_text_edit)
+
+        # 더블클릭으로 편집 시작
+        if start_edit_fn:
+            fn = start_edit_fn
+            orig_event = lbl.mouseDoubleClickEvent
+            lbl.mouseDoubleClickEvent = lambda e: fn()
 
         return stack
 
@@ -869,17 +866,49 @@ class RescueTab(QWidget):
             label_widget.setText(new_text)
             self.records_changed.emit()
 
+    def _select_row(self, row_widget, record):
+        """행 선택/해제"""
+        # 이전 선택 해제
+        if self._selected_row_widget and self._selected_row_widget is not row_widget:
+            self._selected_row_widget.setStyleSheet("""
+                QFrame { background: transparent; border-bottom: 1px solid rgba(0, 212, 255, 0.12);
+                         border-radius: 0; }
+                QFrame:hover { background: rgba(0, 212, 255, 0.04); }
+            """)
+
+        if self._selected_record and self._selected_record.get("id") == record.get("id"):
+            # 같은 행 다시 클릭 → 선택 해제
+            row_widget.setStyleSheet("""
+                QFrame { background: transparent; border-bottom: 1px solid rgba(0, 212, 255, 0.12);
+                         border-radius: 0; }
+                QFrame:hover { background: rgba(0, 212, 255, 0.04); }
+            """)
+            self._selected_record = None
+            self._selected_row_widget = None
+            self.delete_btn.setEnabled(False)
+        else:
+            # 새 행 선택
+            row_widget.setStyleSheet("""
+                QFrame { background: rgba(0, 212, 255, 0.1); border-bottom: 1px solid rgba(0, 212, 255, 0.12);
+                         border-left: 3px solid #00d4ff; border-radius: 0; }
+            """)
+            self._selected_record = record
+            self._selected_row_widget = row_widget
+            self.delete_btn.setEnabled(True)
+
     def _create_row_widget(self, record: dict, columns: list, col_widths: list) -> QFrame:
         """테이블 행 위젯 생성"""
         row = QFrame()
         row.setStyleSheet("""
-            QFrame { background: transparent; border-bottom: 1px solid rgba(26, 45, 74, 0.4);
+            QFrame { background: transparent; border-bottom: 1px solid rgba(0, 212, 255, 0.12);
                      border-radius: 0; }
             QFrame:hover { background: rgba(0, 212, 255, 0.04); }
         """)
+        row.setCursor(Qt.PointingHandCursor)
+        row.mousePressEvent = lambda e, r=record, w=row: self._select_row(w, r)
         row_layout = QHBoxLayout(row)
-        row_layout.setContentsMargins(8, 5, 8, 5)
-        row_layout.setSpacing(4)
+        row_layout.setContentsMargins(8, 2, 8, 2)
+        row_layout.setSpacing(2)
 
         rec_type = record.get("type", "rescue")
 
@@ -894,7 +923,7 @@ class RescueTab(QWidget):
             "연령": ("age", "text", None),
             "중증도": ("severity", "combo", ["지연", "긴급", "응급", "비응급"]),
             "최초상태": ("initial_state", "dialog", None),
-            "인수당시상태": ("initial_state", "dialog", None),
+            "인수당시 상태": ("initial_state", "dialog", None),
             "조치경과": ("treatment", "dialog", None),
             "인계대상": ("transfer_target", "text", None),
             "인수세력": ("transfer_target", "text", None),
@@ -953,6 +982,123 @@ class RescueTab(QWidget):
                 row_layout.addWidget(lbl, 1 if is_stretch else 0)
 
         return row
+
+    def _delete_selected_record(self):
+        """선택된 행 삭제 (확인 다이얼로그)"""
+        if not self._selected_record:
+            return
+        record = self._selected_record
+        rec_type = record.get("type", "rescue")
+        name = record.get("name", "미상")
+        gender = record.get("gender", "")
+        age = record.get("age", "미상")
+        severity = record.get("severity", "")
+        timestamp = record.get("timestamp", "")
+        state = record.get("initial_state", "")
+
+        sev_color = SEVERITY_COLORS.get(severity, "#8faabe")
+        type_label = TYPE_LABELS.get(rec_type, "구조")
+
+        # 확인 다이얼로그
+        dlg = QDialog(self.window())
+        dlg.setWindowTitle("기록 삭제 확인")
+        dlg.setFixedSize(340, 220)
+        dlg.setStyleSheet("""
+            QDialog { background: #0d1f3c; border: 2px solid #c0392b; border-radius: 8px; }
+            QLabel { background: transparent; border: none; color: #c8d6e5; }
+        """)
+        layout = QVBoxLayout(dlg)
+        layout.setSpacing(10)
+        layout.setContentsMargins(16, 12, 16, 12)
+
+        # 제목
+        title = QLabel("정말 삭제하시겠습니까?")
+        title.setStyleSheet("color: #e74c3c; font-size: 16px; font-weight: bold;")
+        title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title)
+
+        # 인적사항 정보
+        info_frame = QFrame()
+        info_frame.setStyleSheet("QFrame { background: rgba(0,0,0,0.3); border: 1px solid #1a2d4a; border-radius: 6px; }")
+        info_layout = QGridLayout(info_frame)
+        info_layout.setContentsMargins(12, 8, 12, 8)
+        info_layout.setSpacing(6)
+
+        info_items = [
+            ("유형", type_label), ("일시", timestamp),
+            ("이름", name), ("성별/연령", f"{gender} / {age}"),
+            ("중증도", severity), ("상태", state),
+        ]
+        for idx, (label_text, value_text) in enumerate(info_items):
+            r, c = idx // 2, (idx % 2) * 2
+            lbl = QLabel(label_text)
+            lbl.setStyleSheet("color: #5a7a9a; font-size: 12px;")
+            info_layout.addWidget(lbl, r, c)
+            val = QLabel(value_text)
+            if label_text == "중증도":
+                val.setStyleSheet(f"color: {sev_color}; font-size: 13px; font-weight: bold;")
+            else:
+                val.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: bold;")
+            info_layout.addWidget(val, r, c + 1)
+
+        layout.addWidget(info_frame)
+
+        # 부가 안내 (인계 기록 동반 삭제 시)
+        if rec_type == "rescue" and record.get("transferred", False):
+            warn = QLabel("※ 연결된 인계 기록도 함께 삭제됩니다.")
+            warn.setStyleSheet("color: #f39c12; font-size: 11px;")
+            warn.setAlignment(Qt.AlignCenter)
+            layout.addWidget(warn)
+
+        # 버튼
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        cancel_btn = QPushButton("취소")
+        cancel_btn.setFixedSize(70, 30)
+        cancel_btn.clicked.connect(dlg.reject)
+        btn_row.addWidget(cancel_btn)
+        confirm_btn = QPushButton("삭제")
+        confirm_btn.setFixedSize(70, 30)
+        confirm_btn.setStyleSheet("""
+            QPushButton { background: #c0392b; color: #ffffff; font-size: 13px; font-weight: bold;
+                          border: 1px solid #e74c3c; border-radius: 4px; }
+            QPushButton:hover { background: #e74c3c; }
+        """)
+        confirm_btn.clicked.connect(dlg.accept)
+        btn_row.addWidget(confirm_btn)
+        layout.addLayout(btn_row)
+
+        if dlg.exec() != QDialog.Accepted:
+            return
+
+        # 실제 삭제
+        rec_id = record["id"]
+        if rec_type == "rescue":
+            # 인계된 경우 transfer_out도 삭제
+            if record.get("transferred", False):
+                for r in list(self.dm.rescue_records):
+                    if r.get("source_record_id") == rec_id:
+                        self.dm.delete_rescue_record(r["id"])
+            self.dm.delete_rescue_record(rec_id)
+            self.log_message.emit(f"[삭제] 구조 기록 - {name}")
+        elif rec_type == "transfer_out":
+            # 원본 rescue 인계 상태 복원
+            source_id = record.get("source_record_id")
+            if source_id:
+                self.dm.update_rescue_record(source_id, "transferred", False)
+                self.dm.update_rescue_record(source_id, "transfer_target", "")
+                self.dm.update_rescue_record(source_id, "transfer_timestamp", "")
+            self.dm.delete_rescue_record(rec_id)
+            self.log_message.emit(f"[삭제] 인계 기록 - {name}")
+        elif rec_type == "transfer_in":
+            self.dm.delete_rescue_record(rec_id)
+            self.log_message.emit(f"[삭제] 인수 기록 - {name}")
+
+        self._selected_record = None
+        self._selected_row_widget = None
+        self.delete_btn.setEnabled(False)
+        self._refresh_table()
+        self.records_changed.emit()
 
     def refresh(self):
         """외부에서 호출 가능한 갱신"""

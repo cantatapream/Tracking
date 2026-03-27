@@ -719,8 +719,8 @@ class RescueTab(QWidget):
 
     def _get_field_display_name(self, record: dict, field: str) -> str:
         """레코드 유형에 따른 필드 표시명"""
+        rec_type = record.get("type", "rescue")
         if field == "timestamp":
-            rec_type = record.get("type", "rescue")
             if rec_type == "rescue":
                 return "구조일시"
             elif rec_type == "transfer_out":
@@ -728,6 +728,10 @@ class RescueTab(QWidget):
             elif rec_type == "transfer_in":
                 return "인수일시"
             return "일시"
+        if field == "initial_state":
+            if rec_type == "transfer_in":
+                return "인수당시 상태"
+            return "최초상태"
         return self._FIELD_NAMES.get(field, field)
 
     def _log_edit(self, record: dict, field: str, old_val, new_val):
@@ -752,7 +756,7 @@ class RescueTab(QWidget):
         else:
             old_short = str(old_val)[:20] if old_val else "(빈값)"
             new_short = str(new_val)[:20] if new_val else "(빈값)"
-            self._emit_log(f"[수정] {display_name} {field_name}: {old_short} → {new_short}")
+            self._emit_log(f"[수정] {display_name} {field_name} 변경 : {old_short} → {new_short}")
 
     def _fmt_age(self, age: str) -> str:
         """연령 표시: 미상 → '연령 미상', 숫자 → 그대로"""

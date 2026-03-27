@@ -554,13 +554,34 @@ class RescueTab(QWidget):
                 btn.setStyleSheet("QPushButton { font-size: 13px; }")
         self._refresh_table()
 
+    def _get_next_name(self) -> str:
+        """대기열의 미상 이름도 고려한 다음 미상 번호"""
+        base_name = self.dm.get_next_unknown_name()
+        # 대기열에 있는 미상 번호도 확인
+        max_num = 0
+        for r in self._pending_records:
+            n = r.get("name", "")
+            if n.startswith("미상"):
+                try:
+                    num = int(n.replace("미상", ""))
+                    max_num = max(max_num, num)
+                except ValueError:
+                    pass
+        # dm에서 가져온 번호와 대기열 번호 중 큰 것 + 1
+        base_num = 0
+        try:
+            base_num = int(base_name.replace("미상", ""))
+        except ValueError:
+            pass
+        return f"미상{max(base_num, max_num + 1)}"
+
     def _collect_current_input(self) -> dict:
         """현재 입력 폼에서 데이터 수집"""
         mode = self._current_mode
         if mode == "rescue":
             name = self.name_input.text().strip() if hasattr(self, 'name_input') else ""
             if not name:
-                name = self.dm.get_next_unknown_name()
+                name = self._get_next_name()
             age = self.age_input.text().strip() if hasattr(self, 'age_input') else "미상"
             if not age:
                 age = "미상"
@@ -605,7 +626,7 @@ class RescueTab(QWidget):
         elif mode == "transfer_in":
             name = self.name_input.text().strip() if hasattr(self, 'name_input') else ""
             if not name:
-                name = self.dm.get_next_unknown_name()
+                name = self._get_next_name()
             age = ""
             if hasattr(self, 'age_input'):
                 age = self.age_input.text().strip()
@@ -665,9 +686,11 @@ class RescueTab(QWidget):
         if hasattr(self, 'gender_combo'):
             self.gender_combo.setCurrentIndex(0)
 
-        # 인계: 대상자 콤보에서 추가된 사람 제외
+        # 인계: 대상자 콤보에서 추가된 사람 제외 + "대상자 선택" 기본값
         if mode == "transfer_out" and hasattr(self, 'target_combo'):
             self._populate_passenger_combo_filtered()
+            self.target_combo.insertItem(0, "대상자 선택", None)
+            self.target_combo.setCurrentIndex(0)
         if hasattr(self, 'etc_input'):
             self.etc_input.clear()
 
@@ -734,7 +757,7 @@ class RescueTab(QWidget):
 
         for i, rec in enumerate(self._pending_records):
             row = QFrame()
-            row.setStyleSheet("QFrame { background: transparent; border-bottom: 1px solid rgba(0,212,255,0.08); }")
+            row.setStyleSheet("QFrame { background: transparent; border: none; border-bottom: 1px solid rgba(0,212,255,0.08); } QPushButton { border: none; }")
             rl = QHBoxLayout(row)
             rl.setContentsMargins(4, 2, 4, 2)
             rl.setSpacing(8)
@@ -890,10 +913,14 @@ class RescueTab(QWidget):
         """인계 기록 추가 (대기열 포함 일괄)"""
         # 대기열 + 현재 입력
         if self._pending_records:
-            # 현재 대상자 선택이 있으면 추가
-            current = self._collect_current_input()
-            if current and current.get("source_record_id"):
-                all_records = self._pending_records + [current]
+            # 대기열만 등록 (현재 콤보 "대상자 선택"이면 무시)
+            current_data = self.target_combo.currentData() if hasattr(self, 'target_combo') else None
+            if current_data:
+                current = self._collect_current_input()
+                if current and current.get("source_record_id"):
+                    all_records = self._pending_records + [current]
+                else:
+                    all_records = list(self._pending_records)
             else:
                 all_records = list(self._pending_records)
         else:
@@ -924,6 +951,17 @@ class RescueTab(QWidget):
                 self.dm.update_rescue_record(source_id, "transfer_timestamp", ts)
 
             parts = [f"{data['name']}({data['gender']}, {self._fmt_age(data['age'])})", data['severity']]
+            state = data.get("initial_state", "")
+            if state:
+                # 원본이 인수 기록이면 "인수당시 상태", 아니면 "최초상태"
+                source_type = ""
+                if source_id:
+                    for sr in self.dm.rescue_records:
+                        if sr.get("id") == source_id:
+                            source_type = sr.get("type", "")
+                            break
+                state_label = "인수당시 상태" if source_type == "transfer_in" else "최초상태"
+                parts.append(f"{state_label} : {state}")
             if etc:
                 parts.append(etc)
             log_lines.append(", ".join(parts))

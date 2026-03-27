@@ -600,11 +600,11 @@ class MainWindow(QMainWindow):
                             rows.append(f"{name_list[j]}  |  {name_list[j+1]}")
                         else:
                             rows.append(name_list[j])
-                    tip = "\n".join(rows)
+                    tip_html = "<br>".join(rows)
+                    tip = f"<span style='font-size:12px;'>{tip_html}</span>"
                 else:
                     tip = ""
                 frame.setToolTip(tip)
-                # 자식 위젯에도 툴팁 설정 (마우스 이벤트 전파)
                 for child in frame.findChildren(QLabel):
                     child.setToolTip(tip)
             total_badge = getattr(card_widget, '_total_badge', None)

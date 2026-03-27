@@ -227,18 +227,16 @@ class DataManager:
 
     def delete_log(self, log_entry: dict):
         if log_entry in self.logs:
+            idx = self.logs.index(log_entry)
+            log_entry["_deleted_index"] = idx
             self.logs.remove(log_entry)
             self.save()
 
     def restore_log(self, log_entry: dict):
-        """삭제된 로그 복원 (시간 순서에 맞게 삽입)"""
-        ts = log_entry.get("time_str", "")
-        insert_idx = len(self.logs)
-        for i, existing in enumerate(self.logs):
-            if existing.get("time_str", "") > ts:
-                insert_idx = i
-                break
-        self.logs.insert(insert_idx, log_entry)
+        """삭제된 로그 복원 (원래 위치에 삽입)"""
+        idx = log_entry.pop("_deleted_index", len(self.logs))
+        idx = min(idx, len(self.logs))
+        self.logs.insert(idx, log_entry)
         self.save()
 
     # ---- 인원 ----

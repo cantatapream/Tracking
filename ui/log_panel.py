@@ -557,10 +557,12 @@ class LogPanel(QWidget):
         self._clear_multi_selection()
 
     def _multi_delete(self):
-        """선택된 항목 모두 삭제"""
+        """선택된 항목 모두 삭제 (그룹으로 복원 가능)"""
+        group = []
         for w in self._multi_selected:
             self.dm.delete_log(w.log_entry)
-            self._deleted_stack.append(w.log_entry.copy())
+            group.append(w.log_entry.copy())
+        self._deleted_stack.append(group)  # 그룹으로 저장
         self._multi_selected.clear()
         self._multi_action_frame.hide()
         self._rebuild_entries()
@@ -590,7 +592,7 @@ class LogPanel(QWidget):
             for w in self.entry_widgets:
                 if w._actions_visible:
                     self.dm.delete_log(w.log_entry)
-                    self._deleted_stack.append(w.log_entry.copy())
+                    self._deleted_stack.append([w.log_entry.copy()])
                     self._rebuild_entries()
                     return
         elif event.key() == Qt.Key_Z and event.modifiers() & Qt.ControlModifier:
@@ -599,11 +601,13 @@ class LogPanel(QWidget):
         super().keyPressEvent(event)
 
     def _undo_delete(self):
-        """Ctrl+Z: 마지막 삭제된 로그 복원"""
+        """Ctrl+Z: 마지막 삭제된 로그 그룹 복원"""
         if not self._deleted_stack:
             return
-        entry = self._deleted_stack.pop()
-        self.dm.restore_log(entry)
+        group = self._deleted_stack.pop()
+        # 인덱스 순서대로 복원 (낮은 인덱스부터)
+        for entry in sorted(group, key=lambda e: e.get("_deleted_index", 9999)):
+            self.dm.restore_log(entry)
         self._rebuild_entries()
         self._scroll_to_bottom()
 
@@ -655,7 +659,7 @@ class LogPanel(QWidget):
 
     def _on_delete(self, log_entry):
         self.dm.delete_log(log_entry)
-        self._deleted_stack.append(log_entry.copy())
+        self._deleted_stack.append([log_entry.copy()])
         self._rebuild_entries()
 
     def _on_edit(self, log_entry, new_msg):

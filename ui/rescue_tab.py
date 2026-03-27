@@ -181,6 +181,17 @@ class RescueTab(QWidget):
             self.filter_buttons[key] = btn
         filter_row.addStretch()
 
+        self.sort_reset_btn = QPushButton("정렬 초기화")
+        self.sort_reset_btn.setFixedHeight(30)
+        self.sort_reset_btn.setStyleSheet("""
+            QPushButton { background: #27ae60; color: #ffffff; font-size: 12px; font-weight: bold;
+                          border: 1px solid #2ecc71; border-radius: 4px; padding: 0 8px; }
+            QPushButton:hover { background: #2ecc71; }
+        """)
+        self.sort_reset_btn.clicked.connect(self._reset_sort)
+        self.sort_reset_btn.hide()
+        filter_row.addWidget(self.sort_reset_btn)
+
         self.delete_btn = QPushButton("삭제")
         self.delete_btn.setFixedHeight(30)
         self.delete_btn.setFixedWidth(55)
@@ -652,6 +663,21 @@ class RescueTab(QWidget):
         self._refresh_table()
         self.records_changed.emit()
 
+    _FIELD_NAMES = {
+        "timestamp": "일시", "location": "구조위치", "name": "이름",
+        "gender": "성별", "age": "연령", "severity": "중증도",
+        "initial_state": "최초상태", "treatment": "조치경과",
+        "transfer_target": "인계/인수대상", "transferred": "인계여부",
+    }
+
+    def _log_edit(self, record: dict, field: str, old_val, new_val):
+        """수정 내역을 작전 로그에 기록"""
+        name = record.get("name", "미상")
+        field_name = self._FIELD_NAMES.get(field, field)
+        old_short = str(old_val)[:20] if old_val else "(빈값)"
+        new_short = str(new_val)[:20] if new_val else "(빈값)"
+        self.log_message.emit(f"[수정] {name} {field_name}: {old_short} → {new_short}")
+
     def _record_history(self, record: dict, field: str, old_val, new_val):
         """변경 이력 기록"""
         if old_val == new_val:
@@ -672,12 +698,14 @@ class RescueTab(QWidget):
         else:
             self._sort_col = col
             self._sort_asc = True
+        self.sort_reset_btn.show()
         self._refresh_table()
 
     def _reset_sort(self):
         """정렬 초기화"""
         self._sort_col = None
         self._sort_asc = True
+        self.sort_reset_btn.hide()
         self._refresh_table()
 
     def _sort_records(self, records: list) -> list:
@@ -825,19 +853,6 @@ class RescueTab(QWidget):
         history_lbl.setFixedWidth(30)
         header_grid.addWidget(history_lbl)
 
-        # 정렬 초기화 버튼 (정렬 중일 때만 표시)
-        if self._sort_col:
-            reset_btn = QPushButton("↺")
-            reset_btn.setFixedSize(22, 22)
-            reset_btn.setStyleSheet("""
-                QPushButton { color: #5a7a9a; font-size: 14px; background: transparent; border: none; padding: 0; }
-                QPushButton:hover { color: #00d4ff; }
-            """)
-            reset_btn.setCursor(Qt.PointingHandCursor)
-            reset_btn.setToolTip("정렬 초기화")
-            reset_btn.clicked.connect(self._reset_sort)
-            header_grid.addWidget(reset_btn)
-
         self.table_layout.addWidget(header_frame)
 
         # Data rows
@@ -909,6 +924,9 @@ class RescueTab(QWidget):
             def finish_combo_edit(index=None):
                 new_val = combo.currentText()
                 old_val = record.get(field, "")
+                if old_val == new_val:
+                    stack.setCurrentIndex(0)
+                    return
                 self._record_history(record, field, old_val, new_val)
                 self.dm.update_rescue_record(record["id"], field, new_val)
                 if field == "severity":
@@ -917,6 +935,7 @@ class RescueTab(QWidget):
                 lbl.setText(new_val)
                 stack.setCurrentIndex(0)
                 self._active_edit_stack = None
+                self._log_edit(record, field, old_val, new_val)
                 self.records_changed.emit()
 
             start_edit_fn = start_combo_edit
@@ -943,6 +962,9 @@ class RescueTab(QWidget):
                     return
                 new_val = inp.text().strip()
                 old_val = record.get(field, "")
+                if old_val == new_val:
+                    stack.setCurrentIndex(0)
+                    return
                 self._record_history(record, field, old_val, new_val)
                 if field == "transfer_target":
                     self._sync_transfer_target(record, new_val)
@@ -951,6 +973,7 @@ class RescueTab(QWidget):
                 lbl.setText(new_val)
                 stack.setCurrentIndex(0)
                 self._active_edit_stack = None
+                self._log_edit(record, field, old_val, new_val)
                 self.records_changed.emit()
 
             start_edit_fn = start_text_edit
@@ -997,10 +1020,12 @@ class RescueTab(QWidget):
         if dlg.exec() == QDialog.Accepted:
             new_text = dlg.get_text()
             old_text = record.get(field, "")
-            self._record_history(record, field, old_text, new_text)
-            self.dm.update_rescue_record(record["id"], field, new_text)
-            label_widget.setText(new_text.split("\n")[0] if new_text else "")
-            self.records_changed.emit()
+            if old_text != new_text:
+                self._record_history(record, field, old_text, new_text)
+                self.dm.update_rescue_record(record["id"], field, new_text)
+                label_widget.setText(new_text.split("\n")[0] if new_text else "")
+                self._log_edit(record, field, old_text, new_text)
+                self.records_changed.emit()
 
     def _select_row(self, row_widget, record):
         """행 선택/해제"""

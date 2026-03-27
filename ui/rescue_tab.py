@@ -150,9 +150,9 @@ class RescueTab(QWidget):
         # 적용 버튼 (오른쪽 끝)
         apply_col = QVBoxLayout()
         apply_col.addStretch()
-        self.apply_btn = QPushButton("적 용")
+        self.apply_btn = QPushButton("구조\n등록")
         self.apply_btn.setObjectName("btnAccent")
-        self.apply_btn.setFixedSize(60, 50)
+        self.apply_btn.setFixedSize(60, 60)
         self.apply_btn.clicked.connect(self._apply_record)
         apply_col.addWidget(self.apply_btn)
         apply_col.addStretch()
@@ -213,15 +213,14 @@ class RescueTab(QWidget):
         frame = QFrame()
         frame.setStyleSheet("QFrame { border: 1px solid #1e3a5f; border-radius: 4px; background: #0a1628; } QLabel { border: none; }")
         fl = QHBoxLayout(frame)
-        fl.setContentsMargins(4, 0, 4, 0)
-        fl.setSpacing(4)
+        fl.setContentsMargins(4, 2, 2, 2)
+        fl.setSpacing(2)
         inp = QLineEdit()
         inp.setPlaceholderText(placeholder)
-        inp.setFixedHeight(28)
-        inp.setStyleSheet("border: none; background: transparent; color: #e0e8f0; font-size: 13px; padding: 0;")
+        inp.setStyleSheet("border: none; background: transparent; color: #e0e8f0; font-size: 12px; padding: 2px;")
         fl.addWidget(inp, 1)
         now_btn = QPushButton("지금")
-        now_btn.setFixedSize(42, 28)
+        now_btn.setFixedSize(38, 26)
         now_btn.setStyleSheet("""
             QPushButton { background: #1e3a5f; color: #00d4ff; border: 1px solid #2a4a6f;
                           border-radius: 3px; font-size: 11px; font-weight: bold; padding: 0; }
@@ -460,6 +459,14 @@ class RescueTab(QWidget):
                 """)
             else:
                 btn.setStyleSheet("")
+
+        # 적용 버튼 텍스트 변경
+        mode_btn_labels = {
+            "rescue": "구조\n등록",
+            "transfer_out": "인계\n등록",
+            "transfer_in": "인수\n등록",
+        }
+        self.apply_btn.setText(mode_btn_labels.get(mode, "등록"))
 
         if mode == "rescue":
             self._build_rescue_form()

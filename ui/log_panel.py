@@ -409,12 +409,17 @@ class LogPanel(QWidget):
         self.scroll.setWidget(self.log_container)
         layout.addWidget(self.scroll, 1)
 
-        # 시간 없이 복사 체크박스
+        # 옵션 체크박스 행
         from PySide6.QtWidgets import QCheckBox
         copy_option_frame = QFrame()
         copy_option_frame.setStyleSheet("QFrame { background: transparent; border-top: 1px solid rgba(0, 212, 255, 0.08); }")
         co_layout = QHBoxLayout(copy_option_frame)
         co_layout.setContentsMargins(8, 3, 8, 3)
+        self._base_name_cb = QCheckBox("본함명 붙이기")
+        self._base_name_cb.setStyleSheet("QCheckBox { color: #8faabe; font-size: 11px; } QCheckBox::indicator { width: 14px; height: 14px; }")
+        self._base_name_cb.toggled.connect(self._on_base_name_toggled)
+        co_layout.addWidget(self._base_name_cb)
+        co_layout.addSpacing(12)
         self._no_time_copy_cb = QCheckBox("시간 없이 텍스트 복사")
         self._no_time_copy_cb.setStyleSheet("QCheckBox { color: #8faabe; font-size: 11px; } QCheckBox::indicator { width: 14px; height: 14px; }")
         co_layout.addWidget(self._no_time_copy_cb)
@@ -653,6 +658,17 @@ class LogPanel(QWidget):
             self.dm.restore_log(entry)
         self._rebuild_entries()
         self._scroll_to_bottom()
+
+    def set_base_name_getter(self, getter):
+        """본함명 가져오는 함수 설정 (main_window에서 호출)"""
+        self._get_base_name = getter
+
+    def _on_base_name_toggled(self, checked):
+        """본함명 붙이기 체크박스 토글"""
+        if checked:
+            self.dm._log_base_name_getter = self._get_base_name if hasattr(self, '_get_base_name') else None
+        else:
+            self.dm._log_base_name_getter = None
 
     def _load_existing_logs(self):
         for log in self.dm.logs:

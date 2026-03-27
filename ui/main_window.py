@@ -373,6 +373,7 @@ class MainWindow(QMainWindow):
         self.rescue_tab.log_message.connect(self.log_panel.append_log)
         self.rescue_tab.records_changed.connect(self._update_rescue_summary)
         self.log_panel.export_requested.connect(self._export_data)
+        self.log_panel.set_base_name_getter(lambda: self.dashboard.base_title_label.text())
 
         content_layout.addLayout(content_body, 1)
         main_layout.addLayout(content_layout, 1)

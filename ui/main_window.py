@@ -522,23 +522,34 @@ class MainWindow(QMainWindow):
         """)
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(8, 6, 8, 6)
-        card_layout.setSpacing(4)
+        card_layout.setSpacing(6)
 
+        # 헤더 행: 제목 + 총원 뱃지
+        header_row = QHBoxLayout()
+        header_row.setContentsMargins(0, 0, 0, 0)
         title_label = QLabel(title)
         title_label.setStyleSheet("""
-            color: #00d4ff; font-size: 15px; font-weight: bold;
+            color: #00d4ff; font-size: 17px; font-weight: bold;
             font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
             background: transparent; border: none;
-            border-bottom: 1px solid rgba(0, 212, 255, 0.12); padding-bottom: 3px;
         """)
-        card_layout.addWidget(title_label)
+        header_row.addWidget(title_label)
+        header_row.addStretch()
+        total_badge = QLabel("0명")
+        total_badge.setObjectName("countBadge")
+        header_row.addWidget(total_badge)
+
+        header_frame = QFrame()
+        header_frame.setStyleSheet("QFrame { background: transparent; border: none; border-bottom: 1px solid rgba(0, 212, 255, 0.12); }")
+        header_frame.setLayout(header_row)
+        card_layout.addWidget(header_frame)
 
         grid = QGridLayout()
-        grid.setSpacing(4)
+        grid.setSpacing(6)
         grid.setContentsMargins(0, 2, 0, 2)
 
         severity_info = [
-            ("지연", "#333333", 0, 0), ("긴급", "#e74c3c", 0, 1),
+            ("지연", "#8faabe", 0, 0), ("긴급", "#e74c3c", 0, 1),
             ("응급", "#f39c12", 1, 0), ("비응급", "#2ecc71", 1, 1),
         ]
         labels = {}
@@ -546,10 +557,10 @@ class MainWindow(QMainWindow):
             cell = QHBoxLayout()
             cell.setSpacing(4)
             name_lbl = QLabel(sev_name)
-            name_lbl.setStyleSheet(f"color: {sev_color}; font-size: 13px; font-weight: bold; background: transparent; border: none;")
+            name_lbl.setStyleSheet(f"color: {sev_color}; font-size: 14px; font-weight: bold; background: transparent; border: none;")
             cell.addWidget(name_lbl)
             count_lbl = QLabel("0명")
-            count_lbl.setStyleSheet("color: #c8d6e5; font-size: 13px; font-weight: bold; background: transparent; border: none;")
+            count_lbl.setStyleSheet("color: #c8d6e5; font-size: 14px; font-weight: bold; background: transparent; border: none;")
             count_lbl.setAlignment(Qt.AlignRight)
             cell.addWidget(count_lbl)
             grid.addLayout(cell, row, col)
@@ -557,6 +568,7 @@ class MainWindow(QMainWindow):
 
         card_layout.addLayout(grid)
         card.setProperty("severity_labels", labels)
+        card.setProperty("total_badge", total_badge)
         return card
 
     def _update_rescue_summary(self):
@@ -572,6 +584,9 @@ class MainWindow(QMainWindow):
                 for sev_name, count_lbl in labels.items():
                     count = by_severity.get(sev_name, 0)
                     count_lbl.setText(f"{count}명")
+            total_badge = card_widget.property("total_badge")
+            if total_badge:
+                total_badge.setText(f"{data.get('total', 0)}명")
 
     def closeEvent(self, event):
         self.dm.save()

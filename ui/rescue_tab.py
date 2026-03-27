@@ -1246,9 +1246,18 @@ class RescueTab(QWidget):
 
                     cl.addWidget(box)
                 else:
-                    # 한 줄 필드: 기존 방식
-                    entry = QLabel(f"[{ts}] {field}: {old_val if old_val else '(빈값)'} → {new_val if new_val else '(빈값)'}")
-                    entry.setStyleSheet("color: #c8d6e5; font-size: 12px; background: rgba(0,0,0,0.2); border-radius: 3px; padding: 4px;")
+                    # 한 줄 필드: 시안 헤더 + 회색 기존값 + 밝은 수정값
+                    old_display = old_val if old_val else "(빈값)"
+                    new_display = new_val if new_val else "(빈값)"
+                    entry = QLabel()
+                    entry.setTextFormat(Qt.RichText)
+                    entry.setText(
+                        f'<span style="color:#00d4ff; font-weight:bold;">[{ts}] {field}:</span> '
+                        f'<span style="color:#8faabe;">{old_display}</span> '
+                        f'<span style="color:#5a7a9a;">→</span> '
+                        f'<span style="color:#e0e8f0; font-weight:bold;">{new_display}</span>'
+                    )
+                    entry.setStyleSheet("font-size: 12px; background: rgba(0,0,0,0.2); border-radius: 3px; padding: 4px;")
                     entry.setWordWrap(True)
                     cl.addWidget(entry)
 

@@ -594,16 +594,19 @@ class MainWindow(QMainWindow):
             for sev_name, frame in frames.items():
                 name_list = names_by_sev.get(sev_name, [])
                 if name_list:
-                    # 2열 형식: 이름1 | 이름2
                     rows = []
                     for j in range(0, len(name_list), 2):
                         if j + 1 < len(name_list):
                             rows.append(f"{name_list[j]}  |  {name_list[j+1]}")
                         else:
                             rows.append(name_list[j])
-                    frame.setToolTip("\n".join(rows))
+                    tip = "\n".join(rows)
                 else:
-                    frame.setToolTip("")
+                    tip = ""
+                frame.setToolTip(tip)
+                # 자식 위젯에도 툴팁 설정 (마우스 이벤트 전파)
+                for child in frame.findChildren(QLabel):
+                    child.setToolTip(tip)
             total_badge = getattr(card_widget, '_total_badge', None)
             if total_badge:
                 total_badge.setText(f"{data.get('total', 0)}명")

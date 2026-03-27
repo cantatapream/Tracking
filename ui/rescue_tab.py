@@ -88,6 +88,7 @@ class RescueTab(QWidget):
         self._current_filter = "all"   # all / current / rescue / transfer_out / transfer_in
         self._selected_record = None   # 현재 선택된 행의 record
         self._selected_row_widget = None  # 현재 선택된 행 위젯
+        self._active_edit_stack = None  # 현재 편집 중인 스택 위젯
         self._setup_ui()
 
     def _setup_ui(self):
@@ -672,7 +673,7 @@ class RescueTab(QWidget):
         """현재 필터에 따른 컬럼 목록"""
         f = self._current_filter
         if f == "rescue":
-            return ["일시", "구조위치", "이름", "성별", "연령", "중증도", "최초상태", "조치경과", "인계", "인계대상"]
+            return ["일시", "구조위치", "이름", "성별", "연령", "중증도", "최초상태", "조치경과", "인계대상"]
         elif f == "transfer_out":
             return ["인계일시", "이름", "성별", "연령", "중증도", "최초상태", "조치경과", "인계대상"]
         elif f == "transfer_in":
@@ -798,10 +799,10 @@ class RescueTab(QWidget):
                     lbl.setStyleSheet(f"color: {sev_c}; font-size: 13px; font-weight: bold; background: transparent; border: none;")
                 lbl.setText(new_val)
                 stack.setCurrentIndex(0)
+                self._active_edit_stack = None
                 self.records_changed.emit()
 
             start_edit_fn = start_combo_edit
-            # 드롭다운에서 선택하면 바로 반영
             combo.activated.connect(finish_combo_edit)
         else:
             edit_frame = QFrame()
@@ -830,16 +831,23 @@ class RescueTab(QWidget):
                     self.dm.update_rescue_record(record["id"], field, new_val)
                 lbl.setText(new_val)
                 stack.setCurrentIndex(0)
+                self._active_edit_stack = None
                 self.records_changed.emit()
 
             start_edit_fn = start_text_edit
             inp.returnPressed.connect(finish_text_edit)
             inp.editingFinished.connect(finish_text_edit)
 
-        # 더블클릭으로 편집 시작
+        # 더블클릭으로 편집 시작 (기존 편집 취소 후)
         if start_edit_fn:
             fn = start_edit_fn
-            lbl.mouseDoubleClickEvent = lambda e: fn()
+            def on_double_click(e, _fn=fn, _stack=stack):
+                # 기존 편집 중인 스택 취소
+                if self._active_edit_stack and self._active_edit_stack is not _stack:
+                    self._active_edit_stack.setCurrentIndex(0)
+                self._active_edit_stack = _stack
+                _fn()
+            lbl.mouseDoubleClickEvent = on_double_click
 
         return stack
 
@@ -980,10 +988,14 @@ class RescueTab(QWidget):
                 lbl.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: bold; background: transparent; border: none;")
                 lbl.setAlignment(Qt.AlignCenter)
                 lbl.setFixedWidth(w)
+                lbl.setFixedHeight(24)
                 row_layout.addWidget(lbl)
             elif col in col_config:
                 field, edit_type, options = col_config[col]
                 display_text = record.get(field, "")
+                # 인계대상: 인계되지 않은 구조 기록은 "-"
+                if col == "인계대상" and rec_type == "rescue" and not record.get("transferred", False):
+                    display_text = "-"
                 cell = self._make_editable_cell(record, field, display_text, w, stretch=is_stretch, edit_type=edit_type, options=options)
                 if is_stretch:
                     row_layout.addWidget(cell, 1)

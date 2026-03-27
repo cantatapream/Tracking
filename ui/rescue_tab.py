@@ -119,11 +119,18 @@ class RescueTab(QWidget):
         # === Top: Mode buttons (왼쪽 세로) + Input form (오른쪽 2줄) + Apply ===
         top_frame = QFrame()
         top_frame.setStyleSheet("""
-            QFrame { background: transparent; border: 1px solid #1e3a5f; border-radius: 6px; padding: 6px; }
+            QFrame#topFrame { background: transparent; border: 1px solid #1e3a5f; border-radius: 6px; padding: 6px; }
         """)
-        top_h = QHBoxLayout(top_frame)
+        top_frame.setObjectName("topFrame")
+        top_vbox = QVBoxLayout(top_frame)
+        top_vbox.setContentsMargins(0, 0, 0, 0)
+        top_vbox.setSpacing(0)
+
+        input_row_widget = QWidget()
+        top_h = QHBoxLayout(input_row_widget)
         top_h.setContentsMargins(6, 6, 6, 6)
         top_h.setSpacing(8)
+        top_vbox.addWidget(input_row_widget)
 
         # 왼쪽: 모드 버튼 (세로 배치)
         mode_col = QVBoxLayout()
@@ -155,38 +162,31 @@ class RescueTab(QWidget):
 
         # 적용/추가 버튼 (오른쪽 끝)
         apply_col = QVBoxLayout()
-        apply_col.setSpacing(4)
+        apply_col.setSpacing(2)
         apply_col.addStretch()
         self.apply_btn = QPushButton("구조\n등록")
         self.apply_btn.setObjectName("btnAccent")
-        self.apply_btn.setFixedSize(60, 44)
+        self.apply_btn.setFixedSize(60, 48)
         self.apply_btn.clicked.connect(self._apply_record)
         apply_col.addWidget(self.apply_btn)
         self.add_btn = QPushButton("추가")
-        self.add_btn.setFixedSize(60, 26)
-        self.add_btn.setStyleSheet("""
-            QPushButton { background: #1e3a5f; color: #00d4ff; font-size: 12px; font-weight: bold;
-                          border: 1px solid #2a4a6f; border-radius: 4px; }
-            QPushButton:hover { background: #2a4a6f; }
-        """)
+        self.add_btn.setObjectName("btnAccent")
+        self.add_btn.setFixedSize(60, 28)
         self.add_btn.clicked.connect(self._add_to_pending)
         apply_col.addWidget(self.add_btn)
         apply_col.addStretch()
         top_h.addLayout(apply_col)
 
-        panel_layout.addWidget(top_frame)
-
-        # === 추가 대기열 표시 영역 ===
+        # === 추가 대기열 표시 (입력 폼 아래, top_frame 내부) ===
         self.pending_frame = QFrame()
-        self.pending_frame.setStyleSheet("""
-            QFrame { background: rgba(0, 212, 255, 0.03); border: 1px solid rgba(0, 212, 255, 0.15);
-                     border-radius: 4px; }
-        """)
+        self.pending_frame.setStyleSheet("QFrame { background: transparent; border: none; border-top: 1px solid rgba(0, 212, 255, 0.1); }")
         self.pending_layout = QVBoxLayout(self.pending_frame)
-        self.pending_layout.setContentsMargins(6, 4, 6, 4)
+        self.pending_layout.setContentsMargins(6, 2, 6, 2)
         self.pending_layout.setSpacing(0)
         self.pending_frame.hide()
-        panel_layout.addWidget(self.pending_frame)
+        top_vbox.addWidget(self.pending_frame)
+
+        panel_layout.addWidget(top_frame)
 
         # === Filter buttons row ===
         filter_row = QHBoxLayout()
@@ -574,6 +574,34 @@ class RescueTab(QWidget):
                 "severity": self.severity_combo.currentText(),
                 "initial_state": self.state_input.text().strip() if hasattr(self, 'state_input') else "",
             }
+        elif mode == "transfer_out":
+            if not hasattr(self, 'target_combo') or self.target_combo.count() == 0:
+                return {}
+            source_id = self.target_combo.currentData()
+            if not source_id:
+                return {}
+            source_rec = None
+            for r in self.dm.rescue_records:
+                if r["id"] == source_id:
+                    source_rec = r
+                    break
+            if not source_rec:
+                return {}
+            transfer_target = self.transfer_target_input.text().strip() if hasattr(self, 'transfer_target_input') else ""
+            etc = self.etc_input.text().strip() if hasattr(self, 'etc_input') else ""
+            return {
+                "type": "transfer_out",
+                "timestamp": self.time_input.text().strip(),
+                "name": source_rec["name"],
+                "gender": source_rec["gender"],
+                "age": source_rec["age"],
+                "severity": source_rec["severity"],
+                "initial_state": source_rec.get("initial_state", ""),
+                "treatment": source_rec.get("treatment", ""),
+                "transfer_target": transfer_target,
+                "source_record_id": source_id,
+                "etc": etc,
+            }
         elif mode == "transfer_in":
             name = self.name_input.text().strip() if hasattr(self, 'name_input') else ""
             if not name:
@@ -599,8 +627,6 @@ class RescueTab(QWidget):
     def _add_to_pending(self):
         """추가 버튼: 현재 입력을 대기열에 추가"""
         mode = self._current_mode
-        if mode == "transfer_out":
-            return  # 인계는 대상자 선택이므로 대기열 미지원
 
         data = self._collect_current_input()
         if not data:
@@ -610,15 +636,21 @@ class RescueTab(QWidget):
         if mode == "transfer_in" and not data.get("transfer_target"):
             self._show_toast("인수대상을 지정해주세요")
             return
+        # 인계: 인계대상 필수
+        if mode == "transfer_out" and not data.get("transfer_target"):
+            self._show_toast("인계대상을 입력해주세요")
+            return
 
         self._pending_records.append(data)
 
-        # 시각/구조위치/인수대상 잠금 (첫 입력값 고정)
+        # 시각/구조위치/인수대상/인계대상 잠금 (첫 입력값 고정)
         if hasattr(self, 'time_input'):
             self.time_input.setEnabled(False)
         if mode == "rescue" and hasattr(self, 'location_input'):
             self.location_input.setEnabled(False)
         if mode == "transfer_in" and hasattr(self, 'transfer_target_input'):
+            self.transfer_target_input.setEnabled(False)
+        if mode == "transfer_out" and hasattr(self, 'transfer_target_input'):
             self.transfer_target_input.setEnabled(False)
 
         # 나머지 입력 초기화
@@ -656,10 +688,12 @@ class RescueTab(QWidget):
         count = len(self._pending_records)
         if count > 0:
             self.apply_btn.setText(f"{label}\n등록\n({count}명)")
-            self.apply_btn.setFixedSize(60, 54)
+            self.apply_btn.setFixedSize(60, 58)
+            self.apply_btn.setStyleSheet("")  # reset to use objectName style
         else:
             self.apply_btn.setText(f"{label}\n등록")
-            self.apply_btn.setFixedSize(60, 44)
+            self.apply_btn.setFixedSize(60, 48)
+            self.apply_btn.setStyleSheet("")
 
     def _refresh_pending_display(self):
         """대기열 표시 갱신"""
@@ -738,14 +772,28 @@ class RescueTab(QWidget):
         elif mode == "transfer_in":
             self._apply_transfer_in()
 
+    def _has_user_input(self) -> bool:
+        """사용자가 입력란에 뭔가 입력했는지 확인"""
+        if hasattr(self, 'name_input') and self.name_input.text().strip():
+            return True
+        if hasattr(self, 'state_input') and self.state_input.text().strip():
+            return True
+        if hasattr(self, 'age_input') and self.age_input.text().strip() and self.age_input.text().strip() != "미상":
+            return True
+        return False
+
     def _apply_rescue(self):
         """구조 기록 추가 (대기열 포함 일괄)"""
-        # 현재 입력도 포함
-        current = self._collect_current_input()
-        if current:
-            all_records = self._pending_records + [current]
+        # 대기열이 있으면 현재 입력은 실제 입력이 있을 때만 포함
+        if self._pending_records:
+            if self._has_user_input():
+                current = self._collect_current_input()
+                all_records = self._pending_records + [current]
+            else:
+                all_records = list(self._pending_records)
         else:
-            all_records = list(self._pending_records)
+            current = self._collect_current_input()
+            all_records = [current] if current else []
 
         if not all_records:
             return
@@ -788,77 +836,78 @@ class RescueTab(QWidget):
         self.records_changed.emit()
 
     def _apply_transfer_out(self):
-        """인계 기록 추가"""
-        if not hasattr(self, 'target_combo') or self.target_combo.count() == 0:
+        """인계 기록 추가 (대기열 포함 일괄)"""
+        # 대기열 + 현재 입력
+        if self._pending_records:
+            # 현재 대상자 선택이 있으면 추가
+            current = self._collect_current_input()
+            if current and current.get("source_record_id"):
+                all_records = self._pending_records + [current]
+            else:
+                all_records = list(self._pending_records)
+        else:
+            current = self._collect_current_input()
+            if not current:
+                return
+            if not current.get("transfer_target"):
+                self._show_toast("인계대상을 입력해주세요")
+                return
+            all_records = [current]
+
+        if not all_records:
             return
 
-        source_id = self.target_combo.currentData()
-        if not source_id:
-            return
+        transfer_target = all_records[0].get("transfer_target", "")
+        ts = all_records[0].get("timestamp", "")
+        prefix = f"{ts} " if ts else ""
+        log_lines = []
 
-        # Find source record
-        source_rec = None
-        for r in self.dm.rescue_records:
-            if r["id"] == source_id:
-                source_rec = r
-                break
-        if not source_rec:
-            return
+        for data in all_records:
+            source_id = data.get("source_record_id")
+            etc = data.get("etc", "")
+            record = self.dm.add_rescue_record(data)
+            # Mark original as transferred
+            if source_id:
+                self.dm.update_rescue_record(source_id, "transferred", True)
+                self.dm.update_rescue_record(source_id, "transfer_target", transfer_target)
+                self.dm.update_rescue_record(source_id, "transfer_timestamp", ts)
 
-        timestamp = self.time_input.text().strip()
-        transfer_target = self.transfer_target_input.text().strip()
-        if not transfer_target:
-            self._show_toast("인계대상을 입력해주세요")
-            return
+            parts = [f"{data['name']}({data['gender']}, {self._fmt_age(data['age'])})", data['severity']]
+            if etc:
+                parts.append(etc)
+            log_lines.append(", ".join(parts))
 
-        # Create transfer_out record
-        data = {
-            "type": "transfer_out",
-            "timestamp": timestamp,
-            "name": source_rec["name"],
-            "gender": source_rec["gender"],
-            "age": source_rec["age"],
-            "severity": source_rec["severity"],
-            "initial_state": source_rec.get("initial_state", ""),
-            "treatment": source_rec.get("treatment", ""),
-            "transfer_target": transfer_target,
-            "source_record_id": source_id,
-        }
-        record = self.dm.add_rescue_record(data)
+        if len(log_lines) == 1:
+            self._emit_log(f"{prefix}[{transfer_target}에 인계] {log_lines[0]}")
+        else:
+            body = "\n".join(f"  {i+1}. {line}" for i, line in enumerate(log_lines))
+            self._emit_log(f"{prefix}[{transfer_target}에 인계 {len(log_lines)}명]\n{body}")
 
-        # Mark original as transferred
-        self.dm.update_rescue_record(source_id, "transferred", True)
-        self.dm.update_rescue_record(source_id, "transfer_target", transfer_target)
-        self.dm.update_rescue_record(source_id, "transfer_timestamp", timestamp)
-
-        etc = self.etc_input.text().strip() if hasattr(self, 'etc_input') else ""
-        parts = [f"{source_rec['name']}({source_rec['gender']}, {self._fmt_age(source_rec['age'])})", source_rec['severity']]
-        if etc:
-            parts.append(etc)
-        msg = ", ".join(parts)
-        prefix = f"{timestamp} " if timestamp else ""
-        self._emit_log(f"{prefix}[{transfer_target}에 인계] {msg}")
-
-        # Clear inputs
+        # Clear
+        self._clear_pending()
         self.time_input.clear()
-        self.transfer_target_input.clear()
-
-        # Refresh passenger combo
+        if hasattr(self, 'transfer_target_input'):
+            self.transfer_target_input.clear()
+        if hasattr(self, 'etc_input'):
+            self.etc_input.clear()
         self._populate_passenger_combo()
         self._refresh_table()
         self.records_changed.emit()
 
     def _apply_transfer_in(self):
         """인수 기록 추가 (대기열 포함 일괄)"""
-        # 현재 입력도 포함
-        current = self._collect_current_input()
-        if current:
-            if not current.get("transfer_target"):
+        if self._pending_records:
+            if self._has_user_input():
+                current = self._collect_current_input()
+                all_records = self._pending_records + [current]
+            else:
+                all_records = list(self._pending_records)
+        else:
+            current = self._collect_current_input()
+            if not current or not current.get("transfer_target"):
                 self._show_toast("인수대상을 지정해주세요")
                 return
-            all_records = self._pending_records + [current]
-        else:
-            all_records = list(self._pending_records)
+            all_records = [current]
 
         if not all_records:
             return

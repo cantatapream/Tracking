@@ -540,7 +540,7 @@ class MainWindow(QMainWindow):
         header_row.addWidget(total_badge)
 
         header_frame = QFrame()
-        header_frame.setStyleSheet("QFrame { background: transparent; border: none; border-bottom: 1px solid rgba(0, 212, 255, 0.12); }")
+        header_frame.setStyleSheet("QFrame { background: transparent; border: none; border-bottom: 1px solid rgba(0, 212, 255, 0.12); } QLabel#countBadge { background: rgba(0,212,255,0.15); color: #00d4ff; border: 1px solid rgba(0,212,255,0.3); border-radius: 10px; padding: 2px 8px; font-size: 13px; font-weight: bold; }")
         header_frame.setLayout(header_row)
         card_layout.addWidget(header_frame)
 

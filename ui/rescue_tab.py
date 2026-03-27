@@ -91,6 +91,7 @@ class RescueTab(QWidget):
         self._active_edit_stack = None  # 현재 편집 중인 스택 위젯
         self._sort_col = None  # 현재 정렬 컬럼
         self._sort_asc = True  # 오름차순 여부
+        self._pending_records = []  # 추가 대기열
         self._setup_ui()
 
     def _setup_ui(self):
@@ -152,18 +153,40 @@ class RescueTab(QWidget):
 
         top_h.addLayout(right_col, 1)
 
-        # 적용 버튼 (오른쪽 끝)
+        # 적용/추가 버튼 (오른쪽 끝)
         apply_col = QVBoxLayout()
+        apply_col.setSpacing(4)
         apply_col.addStretch()
         self.apply_btn = QPushButton("구조\n등록")
         self.apply_btn.setObjectName("btnAccent")
-        self.apply_btn.setFixedSize(60, 60)
+        self.apply_btn.setFixedSize(60, 44)
         self.apply_btn.clicked.connect(self._apply_record)
         apply_col.addWidget(self.apply_btn)
+        self.add_btn = QPushButton("추가")
+        self.add_btn.setFixedSize(60, 26)
+        self.add_btn.setStyleSheet("""
+            QPushButton { background: #1e3a5f; color: #00d4ff; font-size: 12px; font-weight: bold;
+                          border: 1px solid #2a4a6f; border-radius: 4px; }
+            QPushButton:hover { background: #2a4a6f; }
+        """)
+        self.add_btn.clicked.connect(self._add_to_pending)
+        apply_col.addWidget(self.add_btn)
         apply_col.addStretch()
         top_h.addLayout(apply_col)
 
         panel_layout.addWidget(top_frame)
+
+        # === 추가 대기열 표시 영역 ===
+        self.pending_frame = QFrame()
+        self.pending_frame.setStyleSheet("""
+            QFrame { background: rgba(0, 212, 255, 0.03); border: 1px solid rgba(0, 212, 255, 0.15);
+                     border-radius: 4px; }
+        """)
+        self.pending_layout = QVBoxLayout(self.pending_frame)
+        self.pending_layout.setContentsMargins(6, 4, 6, 4)
+        self.pending_layout.setSpacing(0)
+        self.pending_frame.hide()
+        panel_layout.addWidget(self.pending_frame)
 
         # === Filter buttons row ===
         filter_row = QHBoxLayout()
@@ -506,6 +529,9 @@ class RescueTab(QWidget):
         }
         self.apply_btn.setText(mode_btn_labels.get(mode, "등록"))
 
+        # 모드 변경 시 대기열 초기화
+        self._clear_pending()
+
         if mode == "rescue":
             self._build_rescue_form()
         elif mode == "transfer_out":
@@ -528,8 +554,181 @@ class RescueTab(QWidget):
                 btn.setStyleSheet("QPushButton { font-size: 13px; }")
         self._refresh_table()
 
+    def _collect_current_input(self) -> dict:
+        """현재 입력 폼에서 데이터 수집"""
+        mode = self._current_mode
+        if mode == "rescue":
+            name = self.name_input.text().strip() if hasattr(self, 'name_input') else ""
+            if not name:
+                name = self.dm.get_next_unknown_name()
+            age = self.age_input.text().strip() if hasattr(self, 'age_input') else "미상"
+            if not age:
+                age = "미상"
+            return {
+                "type": "rescue",
+                "timestamp": self.time_input.text().strip(),
+                "location": self.location_input.text().strip() if hasattr(self, 'location_input') else "",
+                "name": name,
+                "gender": self.gender_combo.currentText(),
+                "age": age,
+                "severity": self.severity_combo.currentText(),
+                "initial_state": self.state_input.text().strip() if hasattr(self, 'state_input') else "",
+            }
+        elif mode == "transfer_in":
+            name = self.name_input.text().strip() if hasattr(self, 'name_input') else ""
+            if not name:
+                name = self.dm.get_next_unknown_name()
+            age = ""
+            if hasattr(self, 'age_input'):
+                age = self.age_input.text().strip()
+            if not age:
+                age = "미상"
+            transfer_target = self.transfer_target_input.text().strip() if hasattr(self, 'transfer_target_input') else ""
+            return {
+                "type": "transfer_in",
+                "timestamp": self.time_input.text().strip(),
+                "name": name,
+                "gender": self.gender_combo.currentText(),
+                "age": age,
+                "severity": self.severity_combo.currentText(),
+                "initial_state": self.state_input.text().strip() if hasattr(self, 'state_input') else "",
+                "transfer_target": transfer_target,
+            }
+        return {}
+
+    def _add_to_pending(self):
+        """추가 버튼: 현재 입력을 대기열에 추가"""
+        mode = self._current_mode
+        if mode == "transfer_out":
+            return  # 인계는 대상자 선택이므로 대기열 미지원
+
+        data = self._collect_current_input()
+        if not data:
+            return
+
+        # 인수: 인수대상 필수
+        if mode == "transfer_in" and not data.get("transfer_target"):
+            self._show_toast("인수대상을 지정해주세요")
+            return
+
+        self._pending_records.append(data)
+
+        # 시각/구조위치/인수대상 잠금 (첫 입력값 고정)
+        if hasattr(self, 'time_input'):
+            self.time_input.setEnabled(False)
+        if mode == "rescue" and hasattr(self, 'location_input'):
+            self.location_input.setEnabled(False)
+        if mode == "transfer_in" and hasattr(self, 'transfer_target_input'):
+            self.transfer_target_input.setEnabled(False)
+
+        # 나머지 입력 초기화
+        if hasattr(self, 'name_input'):
+            self.name_input.clear()
+        if hasattr(self, 'age_input'):
+            self.age_input.clear()
+        if hasattr(self, 'state_input'):
+            self.state_input.clear()
+        if hasattr(self, 'severity_combo'):
+            self.severity_combo.setCurrentIndex(0)
+        if hasattr(self, 'gender_combo'):
+            self.gender_combo.setCurrentIndex(0)
+
+        self._update_apply_btn_text()
+        self._refresh_pending_display()
+
+    def _clear_pending(self):
+        """대기열 초기화"""
+        self._pending_records.clear()
+        self.pending_frame.hide()
+        # 입력란 잠금 해제
+        if hasattr(self, 'time_input'):
+            self.time_input.setEnabled(True)
+        if hasattr(self, 'location_input'):
+            self.location_input.setEnabled(True)
+        if hasattr(self, 'transfer_target_input'):
+            self.transfer_target_input.setEnabled(True)
+        self._update_apply_btn_text()
+
+    def _update_apply_btn_text(self):
+        """등록 버튼 텍스트 갱신 (대기열 인원수 표시)"""
+        mode_labels = {"rescue": "구조", "transfer_out": "인계", "transfer_in": "인수"}
+        label = mode_labels.get(self._current_mode, "등록")
+        count = len(self._pending_records)
+        if count > 0:
+            self.apply_btn.setText(f"{label}\n등록\n({count}명)")
+            self.apply_btn.setFixedSize(60, 54)
+        else:
+            self.apply_btn.setText(f"{label}\n등록")
+            self.apply_btn.setFixedSize(60, 44)
+
+    def _refresh_pending_display(self):
+        """대기열 표시 갱신"""
+        # 기존 내용 삭제
+        while self.pending_layout.count():
+            item = self.pending_layout.takeAt(0)
+            w = item.widget()
+            if w:
+                w.setParent(None)
+
+        if not self._pending_records:
+            self.pending_frame.hide()
+            return
+
+        self.pending_frame.show()
+        mode = self._current_mode
+        type_labels = {"rescue": "구조", "transfer_out": "인계", "transfer_in": "인수"}
+
+        for i, rec in enumerate(self._pending_records):
+            row = QFrame()
+            row.setStyleSheet("QFrame { background: transparent; border-bottom: 1px solid rgba(0,212,255,0.08); }")
+            rl = QHBoxLayout(row)
+            rl.setContentsMargins(4, 2, 4, 2)
+            rl.setSpacing(8)
+
+            # 번호
+            num = QLabel(f"{i+1}.")
+            num.setStyleSheet("color: #00d4ff; font-size: 12px; font-weight: bold; border: none;")
+            num.setFixedWidth(20)
+            rl.addWidget(num)
+
+            # 주요 정보
+            parts = []
+            if rec.get("timestamp"):
+                parts.append(rec["timestamp"])
+            parts.append(rec.get("name", "미상"))
+            parts.append(f"{rec.get('gender', '')}/{rec.get('age', '미상')}")
+            parts.append(rec.get("severity", ""))
+            state = rec.get("initial_state", "")
+            if state:
+                parts.append(state)
+            info = QLabel("  ".join(parts))
+            info.setStyleSheet("color: #c8d6e5; font-size: 12px; border: none;")
+            rl.addWidget(info, 1)
+
+            # 삭제 버튼
+            del_btn = QPushButton("✕")
+            del_btn.setFixedSize(20, 20)
+            del_btn.setStyleSheet("""
+                QPushButton { color: #e74c3c; background: transparent; border: none; font-size: 12px; font-weight: bold; }
+                QPushButton:hover { color: #ff6b6b; }
+            """)
+            del_btn.clicked.connect(lambda checked, idx=i: self._remove_pending(idx))
+            rl.addWidget(del_btn)
+
+            self.pending_layout.addWidget(row)
+
+    def _remove_pending(self, index: int):
+        """대기열에서 항목 제거"""
+        if 0 <= index < len(self._pending_records):
+            self._pending_records.pop(index)
+            if not self._pending_records:
+                self._clear_pending()
+            else:
+                self._update_apply_btn_text()
+                self._refresh_pending_display()
+
     def _apply_record(self):
-        """적용 버튼 클릭"""
+        """적용 버튼 클릭 (대기열 포함 일괄 등록)"""
         mode = self._current_mode
 
         if mode == "rescue":
@@ -540,43 +739,50 @@ class RescueTab(QWidget):
             self._apply_transfer_in()
 
     def _apply_rescue(self):
-        """구조 기록 추가"""
-        name = self.name_input.text().strip()
-        if not name:
-            name = self.dm.get_next_unknown_name()
+        """구조 기록 추가 (대기열 포함 일괄)"""
+        # 현재 입력도 포함
+        current = self._collect_current_input()
+        if current:
+            all_records = self._pending_records + [current]
+        else:
+            all_records = list(self._pending_records)
 
-        age = self.age_input.text().strip() if hasattr(self, 'age_input') else "미상"
-        if not age:
-            age = "미상"
+        if not all_records:
+            return
 
-        data = {
-            "type": "rescue",
-            "timestamp": self.time_input.text().strip(),
-            "location": self.location_input.text().strip(),
-            "name": name,
-            "gender": self.gender_combo.currentText(),
-            "age": age,
-            "severity": self.severity_combo.currentText(),
-            "initial_state": self.state_input.text().strip(),
-        }
-        record = self.dm.add_rescue_record(data)
-        ts = data['timestamp']
-        state = data.get('initial_state', '')
-        parts = [f"{name}({data['gender']}, {self._fmt_age(age)})", data['severity']]
-        if state:
-            parts.append(state)
-        msg = ", ".join(parts)
+        log_lines = []
+        ts = all_records[0].get("timestamp", "")
         prefix = f"{ts} " if ts else ""
-        self._emit_log(f"{prefix}[구조] {msg}")
 
-        # Clear inputs
+        for data in all_records:
+            name = data.get("name", "미상")
+            age = data.get("age", "미상")
+            state = data.get("initial_state", "")
+            self.dm.add_rescue_record(data)
+            parts = [f"{name}({data['gender']}, {self._fmt_age(age)})", data['severity']]
+            if state:
+                parts.append(state)
+            log_lines.append(", ".join(parts))
+
+        if len(log_lines) == 1:
+            self._emit_log(f"{prefix}[구조] {log_lines[0]}")
+        else:
+            body = "\n".join(f"  {i+1}. {line}" for i, line in enumerate(log_lines))
+            self._emit_log(f"{prefix}[구조 {len(log_lines)}명]\n{body}")
+
+        # Clear
+        self._clear_pending()
         self.time_input.clear()
-        self.location_input.clear()
-        self.name_input.clear()
+        if hasattr(self, 'location_input'):
+            self.location_input.clear()
+        if hasattr(self, 'name_input'):
+            self.name_input.clear()
         if hasattr(self, 'age_input'):
             self.age_input.clear()
-        self.state_input.clear()
-        self.severity_combo.setCurrentIndex(0)
+        if hasattr(self, 'state_input'):
+            self.state_input.clear()
+        if hasattr(self, 'severity_combo'):
+            self.severity_combo.setCurrentIndex(0)
 
         self._refresh_table()
         self.records_changed.emit()
@@ -643,55 +849,55 @@ class RescueTab(QWidget):
         self.records_changed.emit()
 
     def _apply_transfer_in(self):
-        """인수 기록 추가"""
-        name = self.name_input.text().strip()
-        if not name:
-            name = self.dm.get_next_unknown_name()
+        """인수 기록 추가 (대기열 포함 일괄)"""
+        # 현재 입력도 포함
+        current = self._collect_current_input()
+        if current:
+            if not current.get("transfer_target"):
+                self._show_toast("인수대상을 지정해주세요")
+                return
+            all_records = self._pending_records + [current]
+        else:
+            all_records = list(self._pending_records)
 
-        age = ""
-        if hasattr(self, 'age_input'):
-            age = self.age_input.text().strip()
-        elif hasattr(self, 'age_combo'):
-            age = self.age_combo.currentText()
-        if not age:
-            age = "미상"
-
-        transfer_target = self.transfer_target_input.text().strip()
-        if not transfer_target:
-            self._show_toast("인수대상을 지정해주세요")
+        if not all_records:
             return
 
-        data = {
-            "type": "transfer_in",
-            "timestamp": self.time_input.text().strip(),
-            "name": name,
-            "gender": self.gender_combo.currentText(),
-            "age": age,
-            "severity": self.severity_combo.currentText(),
-            "initial_state": self.state_input.text().strip(),
-            "treatment": "",
-            "transfer_target": transfer_target,
-        }
-        record = self.dm.add_rescue_record(data)
-        ts = data['timestamp']
-        state = data.get('initial_state', '')
-        parts = [f"{name}({data['gender']}, {self._fmt_age(age)})", data['severity']]
-        if state:
-            parts.append(state)
-        msg = ", ".join(parts)
+        transfer_target = all_records[0].get("transfer_target", "")
+        log_lines = []
+        ts = all_records[0].get("timestamp", "")
         prefix = f"{ts} " if ts else ""
-        self._emit_log(f"{prefix}[{transfer_target}으로부터 인수] {msg}")
 
-        # Clear inputs
+        for data in all_records:
+            data["treatment"] = ""
+            name = data.get("name", "미상")
+            age = data.get("age", "미상")
+            state = data.get("initial_state", "")
+            self.dm.add_rescue_record(data)
+            parts = [f"{name}({data['gender']}, {self._fmt_age(age)})", data['severity']]
+            if state:
+                parts.append(state)
+            log_lines.append(", ".join(parts))
+
+        if len(log_lines) == 1:
+            self._emit_log(f"{prefix}[{transfer_target}으로부터 인수] {log_lines[0]}")
+        else:
+            body = "\n".join(f"  {i+1}. {line}" for i, line in enumerate(log_lines))
+            self._emit_log(f"{prefix}[{transfer_target}으로부터 인수 {len(log_lines)}명]\n{body}")
+
+        # Clear
+        self._clear_pending()
         self.time_input.clear()
-        self.name_input.clear()
+        if hasattr(self, 'name_input'):
+            self.name_input.clear()
         if hasattr(self, 'age_input'):
             self.age_input.clear()
-        elif hasattr(self, 'age_combo'):
-            self.age_combo.setCurrentIndex(0)
-        self.state_input.clear()
-        self.transfer_target_input.clear()
-        self.severity_combo.setCurrentIndex(0)
+        if hasattr(self, 'state_input'):
+            self.state_input.clear()
+        if hasattr(self, 'transfer_target_input'):
+            self.transfer_target_input.clear()
+        if hasattr(self, 'severity_combo'):
+            self.severity_combo.setCurrentIndex(0)
 
         self._refresh_table()
         self.records_changed.emit()

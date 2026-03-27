@@ -295,6 +295,7 @@ class LogPanel(QWidget):
         self._font_size = _log_font_size
         self._multi_selected: list[LogEntryWidget] = []
         self._last_clicked_widget = None  # Shift 선택 기준점
+        self._deleted_stack: list = []  # Ctrl+Z 복원용 삭제 기록 스택
         self.setObjectName("logPanelVertical")
         self.setFocusPolicy(Qt.StrongFocus)
         self._setup_ui()
@@ -524,6 +525,7 @@ class LogPanel(QWidget):
     def _multi_delete(self):
         """선택된 항목 모두 삭제"""
         for w in self._multi_selected:
+            self._deleted_stack.append(w.log_entry.copy())
             self.dm.delete_log(w.log_entry)
         self._multi_selected.clear()
         self._multi_action_frame.hide()
@@ -546,18 +548,30 @@ class LogPanel(QWidget):
         return super().eventFilter(obj, event)
 
     def keyPressEvent(self, event: QKeyEvent):
-        """Del 키로 선택된 로그 삭제"""
+        """Del 키로 선택된 로그 삭제, Ctrl+Z로 복원"""
         if event.key() == Qt.Key_Delete:
             if self._multi_selected:
                 self._multi_delete()
                 return
-            # 단일 선택 (액션 열린 항목)
             for w in self.entry_widgets:
                 if w._actions_visible:
+                    self._deleted_stack.append(w.log_entry.copy())
                     self.dm.delete_log(w.log_entry)
                     self._rebuild_entries()
                     return
+        elif event.key() == Qt.Key_Z and event.modifiers() & Qt.ControlModifier:
+            self._undo_delete()
+            return
         super().keyPressEvent(event)
+
+    def _undo_delete(self):
+        """Ctrl+Z: 마지막 삭제된 로그 복원"""
+        if not self._deleted_stack:
+            return
+        entry = self._deleted_stack.pop()
+        self.dm.restore_log(entry)
+        self._rebuild_entries()
+        self._scroll_to_bottom()
 
     def _load_existing_logs(self):
         for log in self.dm.logs:
@@ -606,6 +620,7 @@ class LogPanel(QWidget):
         self._scroll_to_bottom()
 
     def _on_delete(self, log_entry):
+        self._deleted_stack.append(log_entry.copy())
         self.dm.delete_log(log_entry)
         self._rebuild_entries()
 

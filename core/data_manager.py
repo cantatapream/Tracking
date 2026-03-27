@@ -230,6 +230,17 @@ class DataManager:
             self.logs.remove(log_entry)
             self.save()
 
+    def restore_log(self, log_entry: dict):
+        """삭제된 로그 복원 (시간 순서에 맞게 삽입)"""
+        ts = log_entry.get("time_str", "")
+        insert_idx = len(self.logs)
+        for i, existing in enumerate(self.logs):
+            if existing.get("time_str", "") > ts:
+                insert_idx = i
+                break
+        self.logs.insert(insert_idx, log_entry)
+        self.save()
+
     # ---- 인원 ----
     def get_personnel_by_id(self, pid: str) -> Optional[Personnel]:
         for p in self.personnel:

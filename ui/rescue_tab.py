@@ -652,6 +652,19 @@ class RescueTab(QWidget):
         self._refresh_table()
         self.records_changed.emit()
 
+    def _record_history(self, record: dict, field: str, old_val, new_val):
+        """변경 이력 기록"""
+        if old_val == new_val:
+            return
+        if "_history" not in record:
+            record["_history"] = []
+        record["_history"].append({
+            "time": time.strftime("%m.%d %H:%M:%S"),
+            "field": field,
+            "old": str(old_val),
+            "new": str(new_val),
+        })
+
     def _toggle_sort(self, col: str):
         """헤더 클릭 시 정렬 토글"""
         if self._sort_col == col:
@@ -659,6 +672,12 @@ class RescueTab(QWidget):
         else:
             self._sort_col = col
             self._sort_asc = True
+        self._refresh_table()
+
+    def _reset_sort(self):
+        """정렬 초기화"""
+        self._sort_col = None
+        self._sort_asc = True
         self._refresh_table()
 
     def _sort_records(self, records: list) -> list:
@@ -678,7 +697,7 @@ class RescueTab(QWidget):
             return records
 
         # 중증도 정렬 우선순위
-        sev_order = {"긴급": 0, "응급": 1, "비응급": 2, "지연": 3}
+        sev_order = {"지연": 0, "긴급": 1, "응급": 2, "비응급": 3}
         type_order = {"rescue": 0, "transfer_out": 1, "transfer_in": 2}
 
         def sort_key(r):
@@ -760,7 +779,7 @@ class RescueTab(QWidget):
         header_grid.setSpacing(0)
 
         # 정렬 가능 컬럼
-        sortable = {"유형", "일시", "인계일시", "인수일시", "성별", "연령", "중증도", "인계", "인계대상", "인수대상", "인계/인수"}
+        sortable = {"유형", "일시", "인계일시", "인수일시", "성별", "연령", "중증도", "인계대상", "인수대상", "인계/인수"}
 
         col_widths = self._get_col_widths(columns)
         for i, col in enumerate(columns):
@@ -770,17 +789,13 @@ class RescueTab(QWidget):
                 sep.setStyleSheet("background: rgba(0, 212, 255, 0.08);")
                 header_grid.addWidget(sep)
 
-            # 정렬 화살표
-            arrow = ""
-            if self._sort_col == col:
-                arrow = " ▲" if self._sort_asc else " ▼"
-
             if col in sortable:
-                btn = QPushButton(col + arrow)
-                btn.setStyleSheet("""
-                    QPushButton { color: #00d4ff; font-size: 13px; font-weight: bold;
-                        background: transparent; border: none; padding: 0 2px; }
-                    QPushButton:hover { color: #ffffff; }
+                btn = QPushButton(col)
+                active_style = "text-decoration: underline;" if self._sort_col == col else ""
+                btn.setStyleSheet(f"""
+                    QPushButton {{ color: #00d4ff; font-size: 13px; font-weight: bold;
+                        background: transparent; border: none; padding: 0 2px; {active_style} }}
+                    QPushButton:hover {{ color: #ffffff; }}
                 """)
                 btn.setCursor(Qt.PointingHandCursor)
                 btn.clicked.connect(lambda checked, c=col: self._toggle_sort(c))
@@ -790,7 +805,7 @@ class RescueTab(QWidget):
                     btn.setFixedWidth(col_widths[i])
                     header_grid.addWidget(btn)
             else:
-                lbl = QLabel(col + arrow)
+                lbl = QLabel(col)
                 lbl.setStyleSheet("color: #00d4ff; font-size: 13px; font-weight: bold; background: transparent; border: none; padding: 0 2px;")
                 lbl.setAlignment(Qt.AlignCenter)
                 if col_widths[i] == -1:
@@ -798,6 +813,31 @@ class RescueTab(QWidget):
                 else:
                     lbl.setFixedWidth(col_widths[i])
                     header_grid.addWidget(lbl)
+
+        # 이력 헤더
+        sep = QFrame()
+        sep.setFixedWidth(1)
+        sep.setStyleSheet("background: rgba(0, 212, 255, 0.08);")
+        header_grid.addWidget(sep)
+        history_lbl = QLabel("이력")
+        history_lbl.setStyleSheet("color: #00d4ff; font-size: 13px; font-weight: bold; background: transparent; border: none; padding: 0 2px;")
+        history_lbl.setAlignment(Qt.AlignCenter)
+        history_lbl.setFixedWidth(30)
+        header_grid.addWidget(history_lbl)
+
+        # 정렬 초기화 버튼 (정렬 중일 때만 표시)
+        if self._sort_col:
+            reset_btn = QPushButton("↺")
+            reset_btn.setFixedSize(22, 22)
+            reset_btn.setStyleSheet("""
+                QPushButton { color: #5a7a9a; font-size: 14px; background: transparent; border: none; padding: 0; }
+                QPushButton:hover { color: #00d4ff; }
+            """)
+            reset_btn.setCursor(Qt.PointingHandCursor)
+            reset_btn.setToolTip("정렬 초기화")
+            reset_btn.clicked.connect(self._reset_sort)
+            header_grid.addWidget(reset_btn)
+
         self.table_layout.addWidget(header_frame)
 
         # Data rows
@@ -810,11 +850,11 @@ class RescueTab(QWidget):
     def _get_col_widths(self, columns: list) -> list:
         """컬럼별 너비 (-1은 stretch 대상)"""
         width_map = {
-            "유형": 45, "일시": 100, "인계일시": 100, "인수일시": 100,
-            "구조위치": 90, "이름": 70, "성별": 30, "연령": 35,
-            "중증도": 55, "최초상태": -1, "인수당시 상태": -1, "최초/인수당시 상태": -1,
-            "조치경과": -1, "인계": 30,
-            "인계대상": 90, "인수대상": 90, "인계/인수": 90,
+            "유형": 42, "일시": 90, "인계일시": 90, "인수일시": 90,
+            "구조위치": 80, "이름": 65, "성별": 28, "연령": 32,
+            "중증도": 52, "최초상태": -1, "인수당시 상태": -1, "최초/인수당시 상태": -1,
+            "조치경과": -1, "인계": 28,
+            "인계대상": 80, "인수대상": 80, "인계/인수": 80,
         }
         return [width_map.get(c, 80) for c in columns]
 
@@ -868,6 +908,8 @@ class RescueTab(QWidget):
                 combo.showPopup()
             def finish_combo_edit(index=None):
                 new_val = combo.currentText()
+                old_val = record.get(field, "")
+                self._record_history(record, field, old_val, new_val)
                 self.dm.update_rescue_record(record["id"], field, new_val)
                 if field == "severity":
                     sev_c = SEVERITY_COLORS.get(new_val, "#8faabe")
@@ -900,6 +942,8 @@ class RescueTab(QWidget):
                 if stack.currentIndex() != 1:
                     return
                 new_val = inp.text().strip()
+                old_val = record.get(field, "")
+                self._record_history(record, field, old_val, new_val)
                 if field == "transfer_target":
                     self._sync_transfer_target(record, new_val)
                 else:
@@ -952,8 +996,10 @@ class RescueTab(QWidget):
         )
         if dlg.exec() == QDialog.Accepted:
             new_text = dlg.get_text()
+            old_text = record.get(field, "")
+            self._record_history(record, field, old_text, new_text)
             self.dm.update_rescue_record(record["id"], field, new_text)
-            label_widget.setText(new_text)
+            label_widget.setText(new_text.split("\n")[0] if new_text else "")
             self.records_changed.emit()
 
     def _select_row(self, row_widget, record):
@@ -1082,7 +1128,84 @@ class RescueTab(QWidget):
                     lbl.setFixedWidth(w)
                 row_layout.addWidget(lbl, 1 if is_stretch else 0)
 
+        # 이력 버튼 (맨 오른쪽)
+        sep = QFrame()
+        sep.setFixedWidth(1)
+        sep.setStyleSheet("background: rgba(0, 212, 255, 0.08);")
+        row_layout.addWidget(sep)
+        history_btn = QPushButton("📋")
+        history_btn.setFixedSize(30, 24)
+        history_btn.setStyleSheet("""
+            QPushButton { background: transparent; border: none; font-size: 14px; padding: 0; }
+            QPushButton:hover { background: rgba(0,212,255,0.1); border-radius: 3px; }
+        """)
+        history_btn.setCursor(Qt.PointingHandCursor)
+        history_btn.clicked.connect(lambda checked, r=record: self._show_history(r))
+        row_layout.addWidget(history_btn)
+
         return row
+
+    def _show_history(self, record: dict):
+        """변경 이력 다이얼로그"""
+        name = record.get("name", "미상")
+        history = record.get("_history", [])
+
+        dlg = QDialog(self.window())
+        dlg.setWindowTitle(f"변경 이력 - {name}")
+        dlg.setFixedSize(400, 300)
+        dlg.setStyleSheet("""
+            QDialog { background: #0d1f3c; border: 2px solid rgba(0,212,255,0.5); border-radius: 8px; }
+            QLabel { background: transparent; border: none; color: #c8d6e5; }
+        """)
+        layout = QVBoxLayout(dlg)
+        layout.setSpacing(8)
+        layout.setContentsMargins(12, 10, 12, 10)
+
+        title = QLabel(f"{name} - 변경 이력")
+        title.setStyleSheet("color: #00d4ff; font-size: 15px; font-weight: bold;")
+        layout.addWidget(title)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        content = QWidget()
+        cl = QVBoxLayout(content)
+        cl.setContentsMargins(0, 0, 0, 0)
+        cl.setSpacing(4)
+
+        if not history:
+            lbl = QLabel("변경 이력이 없습니다.")
+            lbl.setStyleSheet("color: #5a7a9a; font-size: 12px;")
+            lbl.setAlignment(Qt.AlignCenter)
+            cl.addWidget(lbl)
+        else:
+            field_names = {"timestamp": "일시", "location": "구조위치", "name": "이름",
+                           "gender": "성별", "age": "연령", "severity": "중증도",
+                           "initial_state": "최초상태", "treatment": "조치경과",
+                           "transfer_target": "인계/인수대상", "transferred": "인계여부"}
+            for h in reversed(history):
+                field = field_names.get(h.get("field", ""), h.get("field", ""))
+                old_val = h.get("old", "")
+                new_val = h.get("new", "")
+                ts = h.get("time", "")
+                entry = QLabel(f"[{ts}] {field}: {old_val} → {new_val}")
+                entry.setStyleSheet("color: #c8d6e5; font-size: 12px; background: rgba(0,0,0,0.2); border-radius: 3px; padding: 4px;")
+                entry.setWordWrap(True)
+                cl.addWidget(entry)
+
+        cl.addStretch()
+        scroll.setWidget(content)
+        layout.addWidget(scroll, 1)
+
+        close_btn = QPushButton("닫기")
+        close_btn.setFixedSize(60, 28)
+        close_btn.clicked.connect(dlg.accept)
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        btn_row.addWidget(close_btn)
+        layout.addLayout(btn_row)
+
+        dlg.exec()
 
     def _delete_selected_record(self):
         """선택된 행 삭제 (확인 다이얼로그)"""

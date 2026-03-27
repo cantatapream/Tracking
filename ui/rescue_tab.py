@@ -679,7 +679,7 @@ class RescueTab(QWidget):
             return ["인수일시", "이름", "성별", "연령", "중증도", "인수당시 상태", "조치경과", "인수세력"]
         else:
             # all / current
-            return ["유형", "일시", "이름", "성별", "연령", "중증도", "최초상태", "조치경과", "비고"]
+            return ["유형", "일시", "이름", "성별", "연령", "중증도", "최초/인수당시 상태", "조치경과", "비고"]
 
     def _refresh_table(self):
         """테이블 갱신"""
@@ -710,7 +710,8 @@ class RescueTab(QWidget):
         col_widths = self._get_col_widths(columns)
         for i, col in enumerate(columns):
             lbl = QLabel(col)
-            lbl.setStyleSheet("color: #00d4ff; font-size: 13px; font-weight: bold; background: transparent; border: none;")
+            border_r = "border-right: 1px solid rgba(0, 212, 255, 0.08);" if i < len(columns) - 1 else ""
+            lbl.setStyleSheet(f"color: #00d4ff; font-size: 13px; font-weight: bold; background: transparent; border: none; {border_r} padding: 0 4px;")
             lbl.setAlignment(Qt.AlignCenter)
             if col_widths[i] == -1:
                 header_grid.addWidget(lbl, 1)
@@ -731,7 +732,7 @@ class RescueTab(QWidget):
         width_map = {
             "유형": 55, "일시": 100, "인계일시": 100, "인수일시": 100,
             "구조위치": 100, "이름": 80, "성별": 35, "연령": 40,
-            "중증도": 65, "최초상태": -1, "인수당시 상태": -1,
+            "중증도": 65, "최초상태": -1, "인수당시 상태": -1, "최초/인수당시 상태": -1,
             "조치경과": -1, "인계": 35,
             "인계대상": 100, "인수세력": 100, "비고": 100,
         }
@@ -744,51 +745,47 @@ class RescueTab(QWidget):
             stack.setFixedWidth(width)
         stack.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
 
-        # --- Page 0: 표시 모드 (더블클릭 시 편집 전환) ---
+        # 텍스트 정렬: 최초상태/인수당시상태/조치경과는 왼쪽, 나머지는 가운데
+        align = Qt.AlignLeft | Qt.AlignVCenter if field in ("initial_state", "treatment") else Qt.AlignCenter
+
+        # --- Page 0: 표시 모드 ---
         if field == "severity":
             sev_color = SEVERITY_COLORS.get(display_text, "#8faabe")
             lbl = QLabel(display_text)
             lbl.setStyleSheet(f"color: {sev_color}; font-size: 13px; font-weight: bold; background: transparent; border: none;")
         else:
-            lbl = QLabel(display_text if display_text else "")
+            # 첫 줄만 표시 (여러 줄 데이터 방지)
+            first_line = (display_text or "").split("\n")[0]
+            lbl = QLabel(first_line)
             lbl.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: bold; background: transparent; border: none;")
-        lbl.setAlignment(Qt.AlignCenter)
+        lbl.setAlignment(align)
+        lbl.setWordWrap(False)
+        lbl.setTextFormat(Qt.PlainText)
         stack.addWidget(lbl)
 
-        # --- Page 1: 편집 모드 ---
-        edit_frame = QFrame()
-        edit_frame.setStyleSheet("QFrame { background: transparent; border: none; }")
-        ef_layout = QHBoxLayout(edit_frame)
-        ef_layout.setContentsMargins(0, 0, 0, 0)
-        ef_layout.setSpacing(2)
-
-        # 더블클릭 핸들러를 저장할 변수
+        # --- 편집 모드 ---
         start_edit_fn = None
 
         if edit_type == "dialog":
             start_edit_fn = lambda: self._edit_field_dialog(record, field, lbl)
-            stack.addWidget(edit_frame)
         elif edit_type == "combo":
+            edit_frame = QFrame()
+            edit_frame.setStyleSheet("QFrame { background: transparent; border: none; }")
+            ef_layout = QHBoxLayout(edit_frame)
+            ef_layout.setContentsMargins(0, 0, 0, 0)
+            ef_layout.setSpacing(0)
             combo = QComboBox()
             combo.addItems(options or [])
             combo.setFixedHeight(22)
             combo.setStyleSheet("QComboBox { background: #0a1628; color: #e0e8f0; border: 1px solid #00d4ff; border-radius: 3px; font-size: 12px; padding: 1px; }")
             ef_layout.addWidget(combo, 1)
-            ok_btn = QPushButton("확인")
-            ok_btn.setFixedSize(32, 20)
-            ok_btn.setStyleSheet("""
-                QPushButton { background: rgba(0,212,255,0.2); color: #00d4ff; border: 1px solid #00d4ff;
-                              border-radius: 3px; font-size: 10px; font-weight: bold; }
-                QPushButton:hover { background: rgba(0,212,255,0.4); }
-            """)
-            ef_layout.addWidget(ok_btn)
             stack.addWidget(edit_frame)
 
             def start_combo_edit():
                 combo.setCurrentText(lbl.text())
                 stack.setCurrentIndex(1)
                 combo.showPopup()
-            def finish_combo_edit():
+            def finish_combo_edit(index=None):
                 new_val = combo.currentText()
                 self.dm.update_rescue_record(record["id"], field, new_val)
                 if field == "severity":
@@ -799,8 +796,14 @@ class RescueTab(QWidget):
                 self.records_changed.emit()
 
             start_edit_fn = start_combo_edit
-            ok_btn.clicked.connect(finish_combo_edit)
+            # 드롭다운에서 선택하면 바로 반영
+            combo.activated.connect(finish_combo_edit)
         else:
+            edit_frame = QFrame()
+            edit_frame.setStyleSheet("QFrame { background: transparent; border: none; }")
+            ef_layout = QHBoxLayout(edit_frame)
+            ef_layout.setContentsMargins(0, 0, 0, 0)
+            ef_layout.setSpacing(0)
             inp = QLineEdit()
             inp.setFixedHeight(22)
             inp.setStyleSheet("QLineEdit { background: #0a1628; color: #e0e8f0; border: 1px solid #00d4ff; border-radius: 3px; font-size: 12px; padding: 1px; }")
@@ -831,7 +834,6 @@ class RescueTab(QWidget):
         # 더블클릭으로 편집 시작
         if start_edit_fn:
             fn = start_edit_fn
-            orig_event = lbl.mouseDoubleClickEvent
             lbl.mouseDoubleClickEvent = lambda e: fn()
 
         return stack
@@ -890,7 +892,7 @@ class RescueTab(QWidget):
             # 새 행 선택
             row_widget.setStyleSheet("""
                 QFrame { background: rgba(0, 212, 255, 0.1); border-bottom: 1px solid rgba(0, 212, 255, 0.12);
-                         border-left: 3px solid #00d4ff; border-radius: 0; }
+                         border-radius: 0; }
             """)
             self._selected_record = record
             self._selected_row_widget = row_widget
@@ -924,12 +926,20 @@ class RescueTab(QWidget):
             "중증도": ("severity", "combo", ["지연", "긴급", "응급", "비응급"]),
             "최초상태": ("initial_state", "dialog", None),
             "인수당시 상태": ("initial_state", "dialog", None),
+            "최초/인수당시 상태": ("initial_state", "dialog", None),
             "조치경과": ("treatment", "dialog", None),
             "인계대상": ("transfer_target", "text", None),
             "인수세력": ("transfer_target", "text", None),
         }
 
         for i, col in enumerate(columns):
+            # 세로 구분선 (첫 번째 컬럼 제외)
+            if i > 0:
+                sep = QFrame()
+                sep.setFixedWidth(1)
+                sep.setStyleSheet("background: rgba(0, 212, 255, 0.08);")
+                row_layout.addWidget(sep)
+
             w = col_widths[i]
             is_stretch = (w == -1)
 

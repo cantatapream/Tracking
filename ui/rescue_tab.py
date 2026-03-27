@@ -207,7 +207,14 @@ class RescueTab(QWidget):
 
         panel_layout.addLayout(filter_row)
 
-        # === Table area (scrollable) ===
+        # === 고정 헤더 ===
+        self.header_container = QWidget()
+        self.header_layout = QVBoxLayout(self.header_container)
+        self.header_layout.setContentsMargins(0, 0, 0, 0)
+        self.header_layout.setSpacing(0)
+        panel_layout.addWidget(self.header_container)
+
+        # === Table area (scrollable, 데이터만) ===
         self.table_scroll = QScrollArea()
         self.table_scroll.setWidgetResizable(True)
         self.table_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -595,6 +602,7 @@ class RescueTab(QWidget):
         timestamp = self.time_input.text().strip()
         transfer_target = self.transfer_target_input.text().strip()
         if not transfer_target:
+            self._show_toast("인계대상을 입력해주세요")
             return
 
         # Create transfer_out record
@@ -650,6 +658,7 @@ class RescueTab(QWidget):
 
         transfer_target = self.transfer_target_input.text().strip()
         if not transfer_target:
+            self._show_toast("인수대상을 지정해주세요")
             return
 
         data = {
@@ -686,6 +695,20 @@ class RescueTab(QWidget):
 
         self._refresh_table()
         self.records_changed.emit()
+
+    def _show_toast(self, message: str):
+        """토스트 메시지 표시"""
+        from PySide6.QtCore import QTimer
+        toast = QLabel(message, self)
+        toast.setStyleSheet("""
+            QLabel { background: rgba(231, 76, 60, 0.9); color: #ffffff; font-size: 13px;
+                     font-weight: bold; padding: 8px 16px; border-radius: 6px; }
+        """)
+        toast.setAlignment(Qt.AlignCenter)
+        toast.adjustSize()
+        toast.move((self.width() - toast.width()) // 2, 80)
+        toast.show()
+        QTimer.singleShot(2000, lambda: (toast.hide(), toast.deleteLater()))
 
     _FIELD_NAMES = {
         "timestamp": "일시", "location": "구조위치", "name": "이름",
@@ -821,6 +844,12 @@ class RescueTab(QWidget):
         self._selected_record = None
         self._selected_row_widget = None
         self.delete_btn.setEnabled(False)
+        # Clear header
+        while self.header_layout.count():
+            item = self.header_layout.takeAt(0)
+            w = item.widget()
+            if w:
+                w.setParent(None)
         # Clear table
         while self.table_layout.count():
             item = self.table_layout.takeAt(0)
@@ -888,7 +917,7 @@ class RescueTab(QWidget):
         history_lbl.setFixedWidth(30)
         header_grid.addWidget(history_lbl)
 
-        self.table_layout.addWidget(header_frame)
+        self.header_layout.addWidget(header_frame)
 
         # Data rows
         for record in records:
@@ -1242,7 +1271,7 @@ class RescueTab(QWidget):
             lbl.setAlignment(Qt.AlignCenter)
             cl.addWidget(lbl)
         else:
-            for h in reversed(history):
+            for h in history:
                 raw_field = h.get("field", "")
                 field = self._FIELD_NAMES.get(raw_field, raw_field)
                 old_val = h.get("old", "")
@@ -1307,6 +1336,10 @@ class RescueTab(QWidget):
         btn_row.addStretch()
         btn_row.addWidget(close_btn)
         layout.addLayout(btn_row)
+
+        # 스크롤을 맨 아래로
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(50, lambda: scroll.verticalScrollBar().setValue(scroll.verticalScrollBar().maximum()))
 
         dlg.exec()
 

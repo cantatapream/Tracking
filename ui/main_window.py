@@ -521,8 +521,8 @@ class MainWindow(QMainWindow):
                      border-radius: 8px; padding: 4px; }
         """)
         card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(8, 6, 8, 6)
-        card_layout.setSpacing(6)
+        card_layout.setContentsMargins(8, 3, 8, 3)
+        card_layout.setSpacing(3)
 
         # 헤더 행: 제목 + 총원 뱃지
         header_row = QHBoxLayout()
@@ -545,8 +545,8 @@ class MainWindow(QMainWindow):
         card_layout.addWidget(header_frame)
 
         grid = QGridLayout()
-        grid.setSpacing(6)
-        grid.setContentsMargins(0, 2, 0, 2)
+        grid.setSpacing(2)
+        grid.setContentsMargins(0, 1, 0, 1)
 
         severity_info = [
             ("지연", "#8faabe", 0, 0), ("긴급", "#e74c3c", 0, 1),
@@ -572,9 +572,9 @@ class MainWindow(QMainWindow):
             cell_frames[sev_name] = cell_frame
 
         card_layout.addLayout(grid)
-        card.setProperty("severity_labels", labels)
-        card.setProperty("severity_frames", cell_frames)
-        card.setProperty("total_badge", total_badge)
+        card._severity_labels = labels
+        card._severity_frames = cell_frames
+        card._total_badge = total_badge
         return card
 
     def _update_rescue_summary(self):
@@ -586,20 +586,25 @@ class MainWindow(QMainWindow):
             data = summary.get(card_title, {})
             by_severity = data.get("by_severity", {})
             names_by_sev = data.get("names_by_severity", {})
-            labels = card_widget.property("severity_labels")
-            frames = card_widget.property("severity_frames")
-            if labels:
-                for sev_name, count_lbl in labels.items():
-                    count = by_severity.get(sev_name, 0)
-                    count_lbl.setText(f"{count}명")
-            if frames:
-                for sev_name, frame in frames.items():
-                    name_list = names_by_sev.get(sev_name, [])
-                    if name_list:
-                        frame.setToolTip("\n".join(name_list))
-                    else:
-                        frame.setToolTip("")
-            total_badge = card_widget.property("total_badge")
+            labels = getattr(card_widget, '_severity_labels', {})
+            frames = getattr(card_widget, '_severity_frames', {})
+            for sev_name, count_lbl in labels.items():
+                count = by_severity.get(sev_name, 0)
+                count_lbl.setText(f"{count}명")
+            for sev_name, frame in frames.items():
+                name_list = names_by_sev.get(sev_name, [])
+                if name_list:
+                    # 2열 형식: 이름1 | 이름2
+                    rows = []
+                    for j in range(0, len(name_list), 2):
+                        if j + 1 < len(name_list):
+                            rows.append(f"{name_list[j]}  |  {name_list[j+1]}")
+                        else:
+                            rows.append(name_list[j])
+                    frame.setToolTip("\n".join(rows))
+                else:
+                    frame.setToolTip("")
+            total_badge = getattr(card_widget, '_total_badge', None)
             if total_badge:
                 total_badge.setText(f"{data.get('total', 0)}명")
 

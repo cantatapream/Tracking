@@ -747,13 +747,13 @@ class RescueTab(QWidget):
                 row_layout.addWidget(badge)
             elif col in ("일시", "인계일시", "인수일시"):
                 lbl = QLabel(record.get("timestamp", ""))
-                lbl.setStyleSheet("color: #8faabe; font-size: 13px; background: transparent; border: none;")
+                lbl.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: bold; background: transparent; border: none;")
                 lbl.setAlignment(Qt.AlignCenter)
                 lbl.setFixedWidth(w)
                 row_layout.addWidget(lbl)
             elif col == "위치":
                 lbl = QLabel(record.get("location", ""))
-                lbl.setStyleSheet("color: #c8d6e5; font-size: 13px; background: transparent; border: none;")
+                lbl.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: bold; background: transparent; border: none;")
                 lbl.setAlignment(Qt.AlignCenter)
                 lbl.setFixedWidth(w)
                 row_layout.addWidget(lbl)
@@ -765,13 +765,13 @@ class RescueTab(QWidget):
                 row_layout.addWidget(lbl)
             elif col == "성별":
                 lbl = QLabel(record.get("gender", ""))
-                lbl.setStyleSheet("color: #c8d6e5; font-size: 13px; background: transparent; border: none;")
+                lbl.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: bold; background: transparent; border: none;")
                 lbl.setAlignment(Qt.AlignCenter)
                 lbl.setFixedWidth(w)
                 row_layout.addWidget(lbl)
             elif col == "연령":
                 lbl = QLabel(record.get("age", ""))
-                lbl.setStyleSheet("color: #c8d6e5; font-size: 13px; background: transparent; border: none;")
+                lbl.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: bold; background: transparent; border: none;")
                 lbl.setAlignment(Qt.AlignCenter)
                 lbl.setFixedWidth(w)
                 row_layout.addWidget(lbl)
@@ -783,7 +783,7 @@ class RescueTab(QWidget):
                 row_layout.addWidget(lbl)
             elif col in ("최초상태", "인수당시상태", "상태"):
                 lbl = QLabel(record.get("initial_state", ""))
-                lbl.setStyleSheet("color: #c8d6e5; font-size: 13px; background: transparent; border: none;")
+                lbl.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: bold; background: transparent; border: none;")
                 lbl.setAlignment(Qt.AlignCenter)
                 lbl.setFixedWidth(w)
                 row_layout.addWidget(lbl)
@@ -817,7 +817,7 @@ class RescueTab(QWidget):
                 row_layout.addWidget(lbl)
             elif col in ("인계대상", "인수세력"):
                 lbl = QLabel(record.get("transfer_target", ""))
-                lbl.setStyleSheet("color: #c8d6e5; font-size: 13px; background: transparent; border: none;")
+                lbl.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: bold; background: transparent; border: none;")
                 lbl.setAlignment(Qt.AlignCenter)
                 lbl.setFixedWidth(w)
                 row_layout.addWidget(lbl)
@@ -832,7 +832,7 @@ class RescueTab(QWidget):
                 elif rec_type in ("transfer_out", "transfer_in"):
                     text = record.get("transfer_target", "")
                 lbl = QLabel(text)
-                lbl.setStyleSheet("color: #8faabe; font-size: 13px; background: transparent; border: none;")
+                lbl.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: bold; background: transparent; border: none;")
                 lbl.setAlignment(Qt.AlignCenter)
                 lbl.setFixedWidth(w)
                 row_layout.addWidget(lbl)

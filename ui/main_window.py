@@ -526,16 +526,16 @@ class MainWindow(QMainWindow):
 
         title_label = QLabel(title)
         title_label.setStyleSheet("""
-            color: #00d4ff; font-size: 13px; font-weight: bold;
+            color: #00d4ff; font-size: 15px; font-weight: bold;
             font-family: "HY헤드라인M", "HYHeadLineM", "Malgun Gothic", sans-serif;
             background: transparent; border: none;
-            border-bottom: 1px solid rgba(0, 212, 255, 0.12); padding-bottom: 2px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.12); padding-bottom: 3px;
         """)
         card_layout.addWidget(title_label)
 
         grid = QGridLayout()
-        grid.setSpacing(2)
-        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setSpacing(4)
+        grid.setContentsMargins(0, 2, 0, 2)
 
         severity_info = [
             ("지연", "#333333", 0, 0), ("긴급", "#e74c3c", 0, 1),
@@ -544,12 +544,12 @@ class MainWindow(QMainWindow):
         labels = {}
         for sev_name, sev_color, row, col in severity_info:
             cell = QHBoxLayout()
-            cell.setSpacing(2)
+            cell.setSpacing(4)
             name_lbl = QLabel(sev_name)
-            name_lbl.setStyleSheet(f"color: {sev_color}; font-size: 11px; font-weight: bold; background: transparent; border: none;")
+            name_lbl.setStyleSheet(f"color: {sev_color}; font-size: 13px; font-weight: bold; background: transparent; border: none;")
             cell.addWidget(name_lbl)
             count_lbl = QLabel("0명")
-            count_lbl.setStyleSheet("color: #8faabe; font-size: 11px; background: transparent; border: none;")
+            count_lbl.setStyleSheet("color: #c8d6e5; font-size: 13px; font-weight: bold; background: transparent; border: none;")
             count_lbl.setAlignment(Qt.AlignRight)
             cell.addWidget(count_lbl)
             grid.addLayout(cell, row, col)

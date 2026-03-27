@@ -660,7 +660,7 @@ class RescueTab(QWidget):
         elif f == "transfer_out":
             return ["인계일시", "이름", "성별", "연령", "중증도", "최초상태", "조치경과", "인계대상"]
         elif f == "transfer_in":
-            return ["인수일시", "이름", "성별", "연령", "중증도", "인수당시상태", "조치경과", "인수세력"]
+            return ["인수일시", "이름", "성별", "연령", "중증도", "인수당시 상태", "조치경과", "인수세력"]
         else:
             # all / current
             return ["유형", "일시", "이름", "성별", "연령", "중증도", "최초상태", "조치경과", "비고"]
@@ -684,8 +684,8 @@ class RescueTab(QWidget):
                      border-radius: 0; }
         """)
         header_grid = QHBoxLayout(header_frame)
-        header_grid.setContentsMargins(8, 6, 8, 6)
-        header_grid.setSpacing(4)
+        header_grid.setContentsMargins(8, 4, 8, 4)
+        header_grid.setSpacing(2)
 
         col_widths = self._get_col_widths(columns)
         for i, col in enumerate(columns):
@@ -711,7 +711,7 @@ class RescueTab(QWidget):
         width_map = {
             "유형": 55, "일시": 100, "인계일시": 100, "인수일시": 100,
             "구조위치": 100, "이름": 80, "성별": 35, "연령": 40,
-            "중증도": 65, "최초상태": -1, "인수당시상태": -1,
+            "중증도": 65, "최초상태": -1, "인수당시 상태": -1,
             "조치경과": -1, "인계": 35,
             "인계대상": 100, "인수세력": 100, "비고": 100,
         }
@@ -724,6 +724,8 @@ class RescueTab(QWidget):
         stack = QStackedWidget()
         if not stretch and width > 0:
             stack.setFixedWidth(width)
+
+        stack.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
 
         # --- Page 0: 표시 모드 ---
         display_frame = QFrame()
@@ -746,7 +748,7 @@ class RescueTab(QWidget):
         df_layout.addWidget(lbl, 1)
 
         edit_btn = QPushButton("수정")
-        edit_btn.setFixedSize(36, 20)
+        edit_btn.setFixedSize(32, 18)
         edit_btn.setStyleSheet("""
             QPushButton { background: rgba(0,212,255,0.15); color: #00d4ff; border: 1px solid rgba(0,212,255,0.4);
                           border-radius: 3px; font-size: 10px; font-weight: bold; padding: 0; }
@@ -774,11 +776,11 @@ class RescueTab(QWidget):
         elif edit_type == "combo":
             combo = QComboBox()
             combo.addItems(options or [])
-            combo.setFixedHeight(26)
-            combo.setStyleSheet("QComboBox { background: #0a1628; color: #e0e8f0; border: 1px solid #00d4ff; border-radius: 3px; font-size: 12px; padding: 2px; }")
+            combo.setFixedHeight(22)
+            combo.setStyleSheet("QComboBox { background: #0a1628; color: #e0e8f0; border: 1px solid #00d4ff; border-radius: 3px; font-size: 12px; padding: 1px; }")
             ef_layout.addWidget(combo, 1)
             ok_btn = QPushButton("확인")
-            ok_btn.setFixedSize(36, 24)
+            ok_btn.setFixedSize(32, 20)
             ok_btn.setStyleSheet("""
                 QPushButton { background: rgba(0,212,255,0.2); color: #00d4ff; border: 1px solid #00d4ff;
                               border-radius: 3px; font-size: 10px; font-weight: bold; }
@@ -805,11 +807,11 @@ class RescueTab(QWidget):
         else:
             # 텍스트 인라인 편집
             inp = QLineEdit()
-            inp.setFixedHeight(26)
-            inp.setStyleSheet("QLineEdit { background: #0a1628; color: #e0e8f0; border: 1px solid #00d4ff; border-radius: 3px; font-size: 12px; padding: 2px; }")
+            inp.setFixedHeight(22)
+            inp.setStyleSheet("QLineEdit { background: #0a1628; color: #e0e8f0; border: 1px solid #00d4ff; border-radius: 3px; font-size: 12px; padding: 1px; }")
             ef_layout.addWidget(inp, 1)
             ok_btn = QPushButton("확인")
-            ok_btn.setFixedSize(36, 24)
+            ok_btn.setFixedSize(32, 20)
             ok_btn.setStyleSheet("""
                 QPushButton { background: rgba(0,212,255,0.2); color: #00d4ff; border: 1px solid #00d4ff;
                               border-radius: 3px; font-size: 10px; font-weight: bold; }
@@ -873,13 +875,13 @@ class RescueTab(QWidget):
         """테이블 행 위젯 생성"""
         row = QFrame()
         row.setStyleSheet("""
-            QFrame { background: transparent; border-bottom: 1px solid rgba(26, 45, 74, 0.4);
+            QFrame { background: transparent; border-bottom: 1px solid rgba(0, 212, 255, 0.12);
                      border-radius: 0; }
             QFrame:hover { background: rgba(0, 212, 255, 0.04); }
         """)
         row_layout = QHBoxLayout(row)
-        row_layout.setContentsMargins(8, 5, 8, 5)
-        row_layout.setSpacing(4)
+        row_layout.setContentsMargins(8, 2, 8, 2)
+        row_layout.setSpacing(2)
 
         rec_type = record.get("type", "rescue")
 
@@ -894,7 +896,7 @@ class RescueTab(QWidget):
             "연령": ("age", "text", None),
             "중증도": ("severity", "combo", ["지연", "긴급", "응급", "비응급"]),
             "최초상태": ("initial_state", "dialog", None),
-            "인수당시상태": ("initial_state", "dialog", None),
+            "인수당시 상태": ("initial_state", "dialog", None),
             "조치경과": ("treatment", "dialog", None),
             "인계대상": ("transfer_target", "text", None),
             "인수세력": ("transfer_target", "text", None),

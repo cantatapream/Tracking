@@ -1271,7 +1271,7 @@ class RescueTab(QWidget):
             lbl.setAlignment(Qt.AlignCenter)
             cl.addWidget(lbl)
         else:
-            for h in reversed(history):
+            for h in history:
                 raw_field = h.get("field", "")
                 field = self._FIELD_NAMES.get(raw_field, raw_field)
                 old_val = h.get("old", "")
@@ -1336,6 +1336,10 @@ class RescueTab(QWidget):
         btn_row.addStretch()
         btn_row.addWidget(close_btn)
         layout.addLayout(btn_row)
+
+        # 스크롤을 맨 아래로
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(50, lambda: scroll.verticalScrollBar().setValue(scroll.verticalScrollBar().maximum()))
 
         dlg.exec()
 

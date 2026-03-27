@@ -718,36 +718,21 @@ class RescueTab(QWidget):
         return [width_map.get(c, 80) for c in columns]
 
     def _make_editable_cell(self, record, field, display_text, width, stretch=False, edit_type="text", options=None):
-        """인라인 편집 가능한 셀 생성 - 클릭 시 바로 편집 모드 진입"""
+        """인라인 편집 가능한 셀 생성 - 더블클릭 시 편집 모드 진입"""
         stack = QStackedWidget()
         if not stretch and width > 0:
             stack.setFixedWidth(width)
         stack.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
 
-        # --- Page 0: 표시 모드 (클릭 시 편집 전환) ---
+        # --- Page 0: 표시 모드 (더블클릭 시 편집 전환) ---
         if field == "severity":
             sev_color = SEVERITY_COLORS.get(display_text, "#8faabe")
-            lbl = QPushButton(display_text)
-            lbl.setStyleSheet(f"""
-                QPushButton {{ color: {sev_color}; font-size: 13px; font-weight: bold;
-                    background: transparent; border: none; padding: 0; text-align: center; }}
-                QPushButton:hover {{ background: rgba(0,212,255,0.06); border-radius: 3px; }}
-            """)
-        elif edit_type == "dialog":
-            lbl = QPushButton(display_text if display_text else "")
-            lbl.setStyleSheet("""
-                QPushButton { color: #ffffff; font-size: 13px; font-weight: bold;
-                    background: transparent; border: none; padding: 0; text-align: center; }
-                QPushButton:hover { background: rgba(0,212,255,0.06); border-radius: 3px; }
-            """)
+            lbl = QLabel(display_text)
+            lbl.setStyleSheet(f"color: {sev_color}; font-size: 13px; font-weight: bold; background: transparent; border: none;")
         else:
-            lbl = QPushButton(display_text)
-            lbl.setStyleSheet("""
-                QPushButton { color: #ffffff; font-size: 13px; font-weight: bold;
-                    background: transparent; border: none; padding: 0; text-align: center; }
-                QPushButton:hover { background: rgba(0,212,255,0.06); border-radius: 3px; }
-            """)
-        lbl.setCursor(Qt.PointingHandCursor)
+            lbl = QLabel(display_text if display_text else "")
+            lbl.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: bold; background: transparent; border: none;")
+        lbl.setAlignment(Qt.AlignCenter)
         stack.addWidget(lbl)
 
         # --- Page 1: 편집 모드 ---
@@ -757,8 +742,11 @@ class RescueTab(QWidget):
         ef_layout.setContentsMargins(0, 0, 0, 0)
         ef_layout.setSpacing(2)
 
+        # 더블클릭 핸들러를 저장할 변수
+        start_edit_fn = None
+
         if edit_type == "dialog":
-            lbl.clicked.connect(lambda: self._edit_field_dialog(record, field, lbl))
+            start_edit_fn = lambda: self._edit_field_dialog(record, field, lbl)
             stack.addWidget(edit_frame)
         elif edit_type == "combo":
             combo = QComboBox()
@@ -785,16 +773,12 @@ class RescueTab(QWidget):
                 self.dm.update_rescue_record(record["id"], field, new_val)
                 if field == "severity":
                     sev_c = SEVERITY_COLORS.get(new_val, "#8faabe")
-                    lbl.setStyleSheet(f"""
-                        QPushButton {{ color: {sev_c}; font-size: 13px; font-weight: bold;
-                            background: transparent; border: none; padding: 0; text-align: center; }}
-                        QPushButton:hover {{ background: rgba(0,212,255,0.06); border-radius: 3px; }}
-                    """)
+                    lbl.setStyleSheet(f"color: {sev_c}; font-size: 13px; font-weight: bold; background: transparent; border: none;")
                 lbl.setText(new_val)
                 stack.setCurrentIndex(0)
                 self.records_changed.emit()
 
-            lbl.clicked.connect(start_combo_edit)
+            start_edit_fn = start_combo_edit
             ok_btn.clicked.connect(finish_combo_edit)
         else:
             inp = QLineEdit()
@@ -809,6 +793,8 @@ class RescueTab(QWidget):
                 inp.setFocus()
                 inp.selectAll()
             def finish_text_edit():
+                if stack.currentIndex() != 1:
+                    return
                 new_val = inp.text().strip()
                 if field == "transfer_target":
                     self._sync_transfer_target(record, new_val)
@@ -818,9 +804,15 @@ class RescueTab(QWidget):
                 stack.setCurrentIndex(0)
                 self.records_changed.emit()
 
-            lbl.clicked.connect(start_text_edit)
+            start_edit_fn = start_text_edit
             inp.returnPressed.connect(finish_text_edit)
             inp.editingFinished.connect(finish_text_edit)
+
+        # 더블클릭으로 편집 시작
+        if start_edit_fn:
+            fn = start_edit_fn
+            orig_event = lbl.mouseDoubleClickEvent
+            lbl.mouseDoubleClickEvent = lambda e: fn()
 
         return stack
 

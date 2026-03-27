@@ -1135,7 +1135,7 @@ class RescueTab(QWidget):
         def names_by_severity(rec_list):
             names = {}
             for s in severities:
-                names[s] = [f"{r.get('name', '미상')}({r.get('age', '미상')})"
+                names[s] = [f"{r.get('name', '미상')}({r.get('gender', '')}, {r.get('age', '미상')})"
                             for r in rec_list if r.get("severity") == s]
             return names
 

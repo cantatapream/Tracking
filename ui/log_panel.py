@@ -426,19 +426,17 @@ class LogPanel(QWidget):
 
     # ---- 다중 선택 ----
     def _on_entry_clicked(self, widget: LogEntryWidget, event):
-        """로그 항목 클릭 처리 (단일/Shift 다중 선택)"""
+        """로그 항목 클릭 처리 (단일/Shift 범위/Ctrl 개별 다중 선택)"""
         if event.modifiers() & Qt.ShiftModifier and self._last_clicked_widget:
             # Shift+클릭: 범위 선택
             start_idx = self._get_widget_index(self._last_clicked_widget)
             end_idx = self._get_widget_index(widget)
             if start_idx is not None and end_idx is not None:
                 lo, hi = min(start_idx, end_idx), max(start_idx, end_idx)
-                # 기존 다중 선택 해제
                 for w in self._multi_selected:
                     w.set_multi_selected(False)
                     w.close_actions()
                 self._multi_selected.clear()
-                # 범위 내 항목 선택 (위치별 테두리 구분)
                 count = hi - lo + 1
                 for i in range(lo, hi + 1):
                     w = self.entry_widgets[i]
@@ -455,6 +453,21 @@ class LogPanel(QWidget):
                     self._multi_selected.append(w)
                 self._update_multi_action_bar()
                 return
+        elif event.modifiers() & Qt.ControlModifier:
+            # Ctrl+클릭: 개별 토글 선택
+            self._last_clicked_widget = widget
+            if widget in self._multi_selected:
+                widget.set_multi_selected(False)
+                widget.close_actions()
+                self._multi_selected.remove(widget)
+            else:
+                widget.set_multi_selected(True, "single")
+                widget.close_actions()
+                self._multi_selected.append(widget)
+            # 위치별 테두리 갱신
+            self._update_multi_positions()
+            self._update_multi_action_bar()
+            return
         else:
             # 일반 클릭: 다중 선택 해제 + 단일 액션 토글
             if self._multi_selected:
@@ -462,6 +475,27 @@ class LogPanel(QWidget):
             self._last_clicked_widget = widget
             widget._toggle_actions()
             self._close_other_actions(widget)
+
+    def _update_multi_positions(self):
+        """다중 선택된 항목의 위치별 테두리 갱신"""
+        if len(self._multi_selected) <= 1:
+            for w in self._multi_selected:
+                w.set_multi_selected(True, "single")
+            return
+        indices = sorted(self._get_widget_index(w) for w in self._multi_selected if self._get_widget_index(w) is not None)
+        idx_set = set(indices)
+        for w in self._multi_selected:
+            idx = self._get_widget_index(w)
+            if idx is None:
+                continue
+            if len(idx_set) == 1:
+                w.set_multi_selected(True, "single")
+            elif idx == min(idx_set):
+                w.set_multi_selected(True, "first")
+            elif idx == max(idx_set):
+                w.set_multi_selected(True, "last")
+            else:
+                w.set_multi_selected(True, "middle")
 
     def _get_widget_index(self, widget):
         try:

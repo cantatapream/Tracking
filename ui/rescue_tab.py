@@ -89,6 +89,8 @@ class RescueTab(QWidget):
         self._selected_record = None   # 현재 선택된 행의 record
         self._selected_row_widget = None  # 현재 선택된 행 위젯
         self._active_edit_stack = None  # 현재 편집 중인 스택 위젯
+        self._sort_col = None  # 현재 정렬 컬럼
+        self._sort_asc = True  # 오름차순 여부
         self._setup_ui()
 
     def _setup_ui(self):
@@ -650,24 +652,73 @@ class RescueTab(QWidget):
         self._refresh_table()
         self.records_changed.emit()
 
+    def _toggle_sort(self, col: str):
+        """헤더 클릭 시 정렬 토글"""
+        if self._sort_col == col:
+            self._sort_asc = not self._sort_asc
+        else:
+            self._sort_col = col
+            self._sort_asc = True
+        self._refresh_table()
+
+    def _sort_records(self, records: list) -> list:
+        """현재 정렬 설정에 따라 레코드 정렬"""
+        if not self._sort_col:
+            return records
+
+        # 컬럼→데이터필드 매핑
+        col_field = {
+            "유형": "type", "일시": "timestamp", "인계일시": "timestamp", "인수일시": "timestamp",
+            "성별": "gender", "연령": "age", "중증도": "severity",
+            "인계": "transferred", "인계대상": "transfer_target",
+            "인수대상": "transfer_target", "인계/인수": "transfer_target",
+        }
+        field = col_field.get(self._sort_col)
+        if not field:
+            return records
+
+        # 중증도 정렬 우선순위
+        sev_order = {"긴급": 0, "응급": 1, "비응급": 2, "지연": 3}
+        type_order = {"rescue": 0, "transfer_out": 1, "transfer_in": 2}
+
+        def sort_key(r):
+            val = r.get(field, "")
+            if field == "severity":
+                return sev_order.get(val, 99)
+            elif field == "type":
+                return type_order.get(val, 99)
+            elif field == "age":
+                try:
+                    return int(val) if val and val != "미상" else 9999
+                except ValueError:
+                    return 9999
+            elif field == "transferred":
+                return 0 if val else 1
+            return str(val or "")
+
+        return sorted(records, key=sort_key, reverse=not self._sort_asc)
+
     def _get_filtered_records(self) -> list:
         """현재 필터에 따른 레코드 반환"""
         f = self._current_filter
         records = self.dm.rescue_records
 
         if f == "all":
-            return list(records)
+            result = list(records)
         elif f == "current":
-            return [r for r in records
-                    if (r["type"] == "rescue" and not r.get("transferred", False))
-                    or r["type"] == "transfer_in"]
+            result = [r for r in records
+                      if (r["type"] == "rescue" and not r.get("transferred", False))
+                      or r["type"] == "transfer_in"]
         elif f == "rescue":
-            return [r for r in records if r["type"] == "rescue"]
+            result = [r for r in records if r["type"] == "rescue"]
         elif f == "transfer_out":
-            return [r for r in records if r["type"] == "transfer_out"]
+            result = [r for r in records if r["type"] == "transfer_out"]
         elif f == "transfer_in":
-            return [r for r in records if r["type"] == "transfer_in"]
-        return list(records)
+            result = [r for r in records if r["type"] == "transfer_in"]
+        else:
+            result = list(records)
+
+        return self._sort_records(result)
 
     def _get_columns_for_filter(self) -> list:
         """현재 필터에 따른 컬럼 목록"""
@@ -708,6 +759,9 @@ class RescueTab(QWidget):
         header_grid.setContentsMargins(8, 4, 8, 4)
         header_grid.setSpacing(0)
 
+        # 정렬 가능 컬럼
+        sortable = {"유형", "일시", "인계일시", "인수일시", "성별", "연령", "중증도", "인계", "인계대상", "인수대상", "인계/인수"}
+
         col_widths = self._get_col_widths(columns)
         for i, col in enumerate(columns):
             if i > 0:
@@ -715,14 +769,35 @@ class RescueTab(QWidget):
                 sep.setFixedWidth(1)
                 sep.setStyleSheet("background: rgba(0, 212, 255, 0.08);")
                 header_grid.addWidget(sep)
-            lbl = QLabel(col)
-            lbl.setStyleSheet("color: #00d4ff; font-size: 13px; font-weight: bold; background: transparent; border: none; padding: 0 2px;")
-            lbl.setAlignment(Qt.AlignCenter)
-            if col_widths[i] == -1:
-                header_grid.addWidget(lbl, 1)
+
+            # 정렬 화살표
+            arrow = ""
+            if self._sort_col == col:
+                arrow = " ▲" if self._sort_asc else " ▼"
+
+            if col in sortable:
+                btn = QPushButton(col + arrow)
+                btn.setStyleSheet("""
+                    QPushButton { color: #00d4ff; font-size: 13px; font-weight: bold;
+                        background: transparent; border: none; padding: 0 2px; }
+                    QPushButton:hover { color: #ffffff; }
+                """)
+                btn.setCursor(Qt.PointingHandCursor)
+                btn.clicked.connect(lambda checked, c=col: self._toggle_sort(c))
+                if col_widths[i] == -1:
+                    header_grid.addWidget(btn, 1)
+                else:
+                    btn.setFixedWidth(col_widths[i])
+                    header_grid.addWidget(btn)
             else:
-                lbl.setFixedWidth(col_widths[i])
-                header_grid.addWidget(lbl)
+                lbl = QLabel(col + arrow)
+                lbl.setStyleSheet("color: #00d4ff; font-size: 13px; font-weight: bold; background: transparent; border: none; padding: 0 2px;")
+                lbl.setAlignment(Qt.AlignCenter)
+                if col_widths[i] == -1:
+                    header_grid.addWidget(lbl, 1)
+                else:
+                    lbl.setFixedWidth(col_widths[i])
+                    header_grid.addWidget(lbl)
         self.table_layout.addWidget(header_frame)
 
         # Data rows

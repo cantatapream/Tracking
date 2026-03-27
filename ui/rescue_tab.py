@@ -405,10 +405,10 @@ class RescueTab(QWidget):
         row1.addWidget(self.severity_combo)
         self.input_main_layout.addLayout(row1)
 
-        # 2줄: 인수당시상태 | 인수세력
+        # 2줄: 인수당시상태 | 인수대상
         row2 = QHBoxLayout()
         row2.setSpacing(8)
-        row2.addWidget(self._make_label("인수세력"))
+        row2.addWidget(self._make_label("인수대상"))
         self.transfer_target_input = QLineEdit()
         self.transfer_target_input.setPlaceholderText("")
         self.transfer_target_input.setFixedHeight(34)
@@ -676,10 +676,10 @@ class RescueTab(QWidget):
         elif f == "transfer_out":
             return ["인계일시", "이름", "성별", "연령", "중증도", "최초상태", "조치경과", "인계대상"]
         elif f == "transfer_in":
-            return ["인수일시", "이름", "성별", "연령", "중증도", "인수당시 상태", "조치경과", "인수세력"]
+            return ["인수일시", "이름", "성별", "연령", "중증도", "인수당시 상태", "조치경과", "인수대상"]
         else:
             # all / current
-            return ["유형", "일시", "이름", "성별", "연령", "중증도", "최초/인수당시 상태", "조치경과", "비고"]
+            return ["유형", "일시", "구조위치", "이름", "성별", "연령", "중증도", "최초/인수당시 상태", "조치경과", "인계/인수"]
 
     def _refresh_table(self):
         """테이블 갱신"""
@@ -705,13 +705,17 @@ class RescueTab(QWidget):
         """)
         header_grid = QHBoxLayout(header_frame)
         header_grid.setContentsMargins(8, 4, 8, 4)
-        header_grid.setSpacing(2)
+        header_grid.setSpacing(0)
 
         col_widths = self._get_col_widths(columns)
         for i, col in enumerate(columns):
+            if i > 0:
+                sep = QFrame()
+                sep.setFixedWidth(1)
+                sep.setStyleSheet("background: rgba(0, 212, 255, 0.08);")
+                header_grid.addWidget(sep)
             lbl = QLabel(col)
-            border_r = "border-right: 1px solid rgba(0, 212, 255, 0.08);" if i < len(columns) - 1 else ""
-            lbl.setStyleSheet(f"color: #00d4ff; font-size: 13px; font-weight: bold; background: transparent; border: none; {border_r} padding: 0 4px;")
+            lbl.setStyleSheet("color: #00d4ff; font-size: 13px; font-weight: bold; background: transparent; border: none; padding: 0 2px;")
             lbl.setAlignment(Qt.AlignCenter)
             if col_widths[i] == -1:
                 header_grid.addWidget(lbl, 1)
@@ -730,11 +734,11 @@ class RescueTab(QWidget):
     def _get_col_widths(self, columns: list) -> list:
         """컬럼별 너비 (-1은 stretch 대상)"""
         width_map = {
-            "유형": 55, "일시": 100, "인계일시": 100, "인수일시": 100,
-            "구조위치": 100, "이름": 80, "성별": 35, "연령": 40,
-            "중증도": 65, "최초상태": -1, "인수당시 상태": -1, "최초/인수당시 상태": -1,
-            "조치경과": -1, "인계": 35,
-            "인계대상": 100, "인수세력": 100, "비고": 100,
+            "유형": 45, "일시": 100, "인계일시": 100, "인수일시": 100,
+            "구조위치": 90, "이름": 70, "성별": 30, "연령": 35,
+            "중증도": 55, "최초상태": -1, "인수당시 상태": -1, "최초/인수당시 상태": -1,
+            "조치경과": -1, "인계": 30,
+            "인계대상": 90, "인수대상": 90, "인계/인수": 90,
         }
         return [width_map.get(c, 80) for c in columns]
 
@@ -743,7 +747,8 @@ class RescueTab(QWidget):
         stack = QStackedWidget()
         if not stretch and width > 0:
             stack.setFixedWidth(width)
-        stack.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        stack.setFixedHeight(24)
+        stack.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
 
         # 텍스트 정렬: 최초상태/인수당시상태/조치경과는 왼쪽, 나머지는 가운데
         align = Qt.AlignLeft | Qt.AlignVCenter if field in ("initial_state", "treatment") else Qt.AlignCenter
@@ -910,7 +915,7 @@ class RescueTab(QWidget):
         row.mousePressEvent = lambda e, r=record, w=row: self._select_row(w, r)
         row_layout = QHBoxLayout(row)
         row_layout.setContentsMargins(8, 2, 8, 2)
-        row_layout.setSpacing(2)
+        row_layout.setSpacing(0)
 
         rec_type = record.get("type", "rescue")
 
@@ -929,7 +934,7 @@ class RescueTab(QWidget):
             "최초/인수당시 상태": ("initial_state", "dialog", None),
             "조치경과": ("treatment", "dialog", None),
             "인계대상": ("transfer_target", "text", None),
-            "인수세력": ("transfer_target", "text", None),
+            "인수대상": ("transfer_target", "text", None),
         }
 
         for i, col in enumerate(columns):
@@ -963,15 +968,14 @@ class RescueTab(QWidget):
                 lbl.setAlignment(Qt.AlignCenter)
                 lbl.setFixedWidth(w)
                 row_layout.addWidget(lbl)
-            elif col == "비고":
+            elif col == "인계/인수":
                 text = ""
-                if rec_type == "rescue":
-                    if record.get("transferred"):
-                        text = f"→{record.get('transfer_target', '')}"
-                    else:
-                        text = record.get("location", "")
-                elif rec_type in ("transfer_out", "transfer_in"):
-                    text = record.get("transfer_target", "")
+                if rec_type == "transfer_out":
+                    text = f"→{record.get('transfer_target', '')}"
+                elif rec_type == "transfer_in":
+                    text = f"←{record.get('transfer_target', '')}"
+                elif rec_type == "rescue" and record.get("transferred"):
+                    text = f"→{record.get('transfer_target', '')}"
                 lbl = QLabel(text)
                 lbl.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: bold; background: transparent; border: none;")
                 lbl.setAlignment(Qt.AlignCenter)

@@ -94,9 +94,6 @@ class RescueTab(QWidget):
         self._sort_asc = True  # 오름차순 여부
         self._pending_records = []  # 추가 대기열
         self._refreshing = False  # 테이블 갱신 중 플래그
-        self._row_cache = {}  # record_id → row_widget 캐시
-        self._cached_columns = {}  # filter_key → columns
-        self._cached_col_widths = {}  # filter_key → col_widths
         self._setup_ui()
 
     def _setup_ui(self):
@@ -1070,7 +1067,7 @@ class RescueTab(QWidget):
         if hasattr(self, 'etc_input'):
             self.etc_input.clear()
         self._populate_passenger_combo()
-        self._append_records(all_records)
+        self._refresh_table()  # 인계 시 원본 record 상태 변경되므로 전체 갱신
         self.records_changed.emit()
 
     def _apply_transfer_in(self):
@@ -1368,14 +1365,6 @@ class RescueTab(QWidget):
             self.add_btn.setEnabled(True)
             self._refreshing = False
 
-    def _invalidate_cache(self):
-        """캐시 무효화 (데이터 변경 시)"""
-        for w in self._row_cache.values():
-            w.hide()
-            w.setParent(None)
-            w.deleteLater()
-        self._row_cache.clear()
-
     def _refresh_table_inner(self):
         # 선택 초기화
         self._selected_record = None
@@ -1386,16 +1375,15 @@ class RescueTab(QWidget):
             item = self.header_layout.takeAt(0)
             w = item.widget()
             if w:
-                w.hide()
                 w.setParent(None)
                 w.deleteLater()
-        # Detach table rows (캐시에 있으면 재활용)
+        # Clear table
         while self.table_layout.count():
             item = self.table_layout.takeAt(0)
             w = item.widget()
             if w:
                 w.setParent(None)
-                w.hide()
+                w.deleteLater()
 
         records = self._get_filtered_records()
         columns = self._get_columns_for_filter()
@@ -1459,30 +1447,18 @@ class RescueTab(QWidget):
 
         self.header_layout.addWidget(header_frame)
 
-        # Data rows (캐시 활용)
-        cache_key_prefix = f"{self._current_filter}_{self._sort_col}_{self._sort_asc}"
+        # Data rows
         total = len(records)
         progress = None
-        created_count = 0
+        if total >= 15:
+            progress = self._show_progress("로딩 중...", total)
 
         for idx, record in enumerate(records):
-            rec_id = record.get("id", "")
-            cache_key = f"{cache_key_prefix}_{rec_id}"
-            cached = self._row_cache.get(cache_key)
-            if cached and not cached.isHidden() is False:
-                # 캐시에서 재활용
-                cached.show()
-                self.table_layout.addWidget(cached)
-            else:
-                # 새로 생성 (많으면 프로그레스바)
-                if created_count == 0 and (total - idx) >= 10:
-                    progress = self._show_progress("로딩 중...", total - idx)
-                row_widget = self._create_row_widget(record, columns, col_widths)
-                self._row_cache[cache_key] = row_widget
-                self.table_layout.addWidget(row_widget)
-                created_count += 1
-                if progress:
-                    progress.setValue(created_count)
+            row_widget = self._create_row_widget(record, columns, col_widths)
+            self.table_layout.addWidget(row_widget)
+            if progress:
+                progress.setValue(idx + 1)
+                if idx % 5 == 0:  # 5개마다 UI 갱신 (매번 하면 오히려 느림)
                     QApplication.processEvents()
 
         if progress:
@@ -1521,17 +1497,6 @@ class RescueTab(QWidget):
 
         self.table_layout.addStretch()
 
-    def _remove_row_by_record(self, record_id: str):
-        """특정 레코드의 행만 제거 (전체 새로고침 없이)"""
-        for i in range(self.table_layout.count()):
-            item = self.table_layout.itemAt(i)
-            w = item.widget() if item else None
-            if w and hasattr(w, 'mousePressEvent') and hasattr(w, '_record_id'):
-                if w._record_id == record_id:
-                    self.table_layout.takeAt(i)
-                    w.hide()
-                    w.deleteLater()
-                    return
 
     def _get_col_widths(self, columns: list) -> list:
         """컬럼별 너비 (-1은 stretch 대상)"""
@@ -2062,25 +2027,14 @@ class RescueTab(QWidget):
             self.dm.delete_rescue_record(rec_id)
             self._emit_log(f"[삭제] 인수 기록 - {name}")
 
-        # 선택된 행만 제거
-        if self._selected_row_widget:
-            self._selected_row_widget.hide()
-            self._selected_row_widget.setParent(None)
-            self._selected_row_widget.deleteLater()
-        # 인계된 구조 기록 삭제 시 연결된 인계 행도 제거
-        if rec_type == "rescue" and record.get("transferred", False):
-            for r in list(self.dm.rescue_records):
-                pass  # 이미 위에서 삭제됨
-            # 화면에서도 제거
-            self._remove_row_by_record(rec_id)
         self._selected_record = None
         self._selected_row_widget = None
         self.delete_btn.setEnabled(False)
+        self._refresh_table()
         self.records_changed.emit()
 
     def refresh(self):
         """외부에서 호출 가능한 갱신"""
-        self._invalidate_cache()
         if self._current_mode == "transfer_out":
             self._populate_passenger_combo()
         self._refresh_table()

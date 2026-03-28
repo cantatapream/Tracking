@@ -578,7 +578,7 @@ class MainWindow(QMainWindow):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(6)
         btn_style = """
-            QPushButton { background: rgba(0,212,255,0.1); color: #00d4ff; font-size: 13px; font-weight: bold;
+            QPushButton { background: rgba(0,212,255,0.1); color: #00d4ff; font-size: 13px;
                           border: 1px solid rgba(0,212,255,0.3); border-radius: 4px; padding: 4px 10px; }
             QPushButton:hover { background: rgba(0,212,255,0.25); }
         """

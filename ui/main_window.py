@@ -235,7 +235,8 @@ class MainWindow(QMainWindow):
 
         # 구조현황 요약 카드 (구조 탭 활성화 시 표시)
         self.rescue_summary_widget = QWidget()
-        self.rescue_summary_widget.setStyleSheet("background: transparent; border: none;")
+        self.rescue_summary_widget.setObjectName("rescueSummaryArea")
+        self.rescue_summary_widget.setStyleSheet("#rescueSummaryArea { background: transparent; border: none; }")
         rs_layout = QVBoxLayout(self.rescue_summary_widget)
         rs_layout.setContentsMargins(8, 4, 8, 4)
         rs_layout.setSpacing(6)
@@ -542,7 +543,8 @@ class MainWindow(QMainWindow):
         header_row.addWidget(total_badge)
 
         header_frame = QFrame()
-        header_frame.setStyleSheet("QFrame { background: transparent; border: none; border-bottom: 1px solid rgba(0, 212, 255, 0.12); } QLabel#countBadge { background: rgba(0,212,255,0.15); color: #00d4ff; border: 1px solid rgba(0,212,255,0.3); border-radius: 10px; padding: 2px 8px; font-size: 13px; font-weight: bold; }")
+        header_frame.setObjectName("rescueCardHeader")
+        header_frame.setStyleSheet("#rescueCardHeader { background: transparent; border: none; border-bottom: 1px solid rgba(0, 212, 255, 0.12); } QLabel#countBadge { background: rgba(0,212,255,0.15); color: #00d4ff; border: 1px solid rgba(0,212,255,0.3); border-radius: 10px; padding: 2px 8px; font-size: 13px; font-weight: bold; }")
         header_frame.setLayout(header_row)
         card_layout.addWidget(header_frame)
 
@@ -558,7 +560,8 @@ class MainWindow(QMainWindow):
         cell_frames = {}
         for sev_name, sev_color, row, col in severity_info:
             cell_frame = QFrame()
-            cell_frame.setStyleSheet("QFrame { background: transparent; border: none; } QFrame:hover { background: rgba(255,255,255,0.05); border-radius: 3px; }")
+            cell_frame.setObjectName("sevCell")
+            cell_frame.setStyleSheet("#sevCell { background: transparent; border: none; } #sevCell:hover { background: rgba(255,255,255,0.05); border-radius: 3px; }")
             cell_layout = QHBoxLayout(cell_frame)
             cell_layout.setContentsMargins(2, 1, 2, 1)
             cell_layout.setSpacing(4)

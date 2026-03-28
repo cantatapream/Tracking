@@ -985,7 +985,7 @@ class RescueTab(QWidget):
         if hasattr(self, 'severity_combo'):
             self.severity_combo.setCurrentIndex(0)
 
-        self._refresh_table()
+        self._append_records(all_records)
         self.records_changed.emit()
 
     def _apply_transfer_out(self):
@@ -1067,7 +1067,7 @@ class RescueTab(QWidget):
         if hasattr(self, 'etc_input'):
             self.etc_input.clear()
         self._populate_passenger_combo()
-        self._refresh_table()
+        self._append_records(all_records)
         self.records_changed.emit()
 
     def _apply_transfer_in(self):
@@ -1125,7 +1125,7 @@ class RescueTab(QWidget):
         if hasattr(self, 'severity_combo'):
             self.severity_combo.setCurrentIndex(0)
 
-        self._refresh_table()
+        self._append_records(all_records)
         self.records_changed.emit()
 
     def _show_progress(self, title: str, maximum: int) -> QDialog:
@@ -1468,6 +1468,48 @@ class RescueTab(QWidget):
 
         self.table_layout.addStretch()
 
+    def _append_records(self, new_records: list):
+        """새 레코드를 현재 테이블에 추가 (전체 새로고침 없이)"""
+        columns = self._get_columns_for_filter()
+        col_widths = self._get_col_widths(columns)
+        # stretch 앞의 기존 마지막 항목 제거 (addStretch으로 추가된 것)
+        last = self.table_layout.count() - 1
+        if last >= 0:
+            item = self.table_layout.itemAt(last)
+            if item and not item.widget():
+                self.table_layout.takeAt(last)
+
+        for record in new_records:
+            # 현재 필터에 해당하는지 확인
+            f = self._current_filter
+            if f == "rescue" and record.get("type") != "rescue":
+                continue
+            if f == "transfer_out" and record.get("type") != "transfer_out":
+                continue
+            if f == "transfer_in" and record.get("type") != "transfer_in":
+                continue
+            if f == "current":
+                if not ((record["type"] == "rescue" and not record.get("transferred", False))
+                        or record["type"] == "transfer_in"):
+                    continue
+
+            row_widget = self._create_row_widget(record, columns, col_widths)
+            self.table_layout.addWidget(row_widget)
+
+        self.table_layout.addStretch()
+
+    def _remove_row_by_record(self, record_id: str):
+        """특정 레코드의 행만 제거 (전체 새로고침 없이)"""
+        for i in range(self.table_layout.count()):
+            item = self.table_layout.itemAt(i)
+            w = item.widget() if item else None
+            if w and hasattr(w, 'mousePressEvent') and hasattr(w, '_record_id'):
+                if w._record_id == record_id:
+                    self.table_layout.takeAt(i)
+                    w.hide()
+                    w.deleteLater()
+                    return
+
     def _get_col_widths(self, columns: list) -> list:
         """컬럼별 너비 (-1은 stretch 대상)"""
         width_map = {
@@ -1671,6 +1713,7 @@ class RescueTab(QWidget):
                      border-radius: 0; }
             QFrame:hover { background: rgba(0, 212, 255, 0.04); }
         """)
+        row._record_id = record.get("id", "")
         row.setCursor(Qt.PointingHandCursor)
         row.mouseReleaseEvent = lambda e, r=record, w=row: self._select_row(w, r)
         row_layout = QHBoxLayout(row)
@@ -1996,10 +2039,20 @@ class RescueTab(QWidget):
             self.dm.delete_rescue_record(rec_id)
             self._emit_log(f"[삭제] 인수 기록 - {name}")
 
+        # 선택된 행만 제거
+        if self._selected_row_widget:
+            self._selected_row_widget.hide()
+            self._selected_row_widget.setParent(None)
+            self._selected_row_widget.deleteLater()
+        # 인계된 구조 기록 삭제 시 연결된 인계 행도 제거
+        if rec_type == "rescue" and record.get("transferred", False):
+            for r in list(self.dm.rescue_records):
+                pass  # 이미 위에서 삭제됨
+            # 화면에서도 제거
+            self._remove_row_by_record(rec_id)
         self._selected_record = None
         self._selected_row_widget = None
         self.delete_btn.setEnabled(False)
-        self._refresh_table()
         self.records_changed.emit()
 
     def refresh(self):

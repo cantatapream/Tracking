@@ -216,7 +216,8 @@ class DashboardView(QWidget):
 
         # 직별 필터 버튼 (2줄)
         filter_frame = QFrame()
-        filter_frame.setStyleSheet("background: transparent; border: none;")
+        filter_frame.setObjectName("deptFilterFrame")
+        filter_frame.setStyleSheet("#deptFilterFrame { background: transparent; border: none; }")
         filter_v = QVBoxLayout(filter_frame)
         filter_v.setContentsMargins(8, 2, 8, 2)
         filter_v.setSpacing(2)

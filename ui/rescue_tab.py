@@ -1594,7 +1594,8 @@ class RescueTab(QWidget):
             QFrame:hover { background: rgba(0, 212, 255, 0.04); }
         """)
         row.setCursor(Qt.PointingHandCursor)
-        row.mousePressEvent = lambda e, r=record, w=row: self._select_row(w, r)
+        orig_press = row.mousePressEvent
+        row.mousePressEvent = lambda e, r=record, w=row, op=orig_press: (self._select_row(w, r), op(e))
         row_layout = QHBoxLayout(row)
         row_layout.setContentsMargins(8, 2, 8, 2)
         row_layout.setSpacing(0)

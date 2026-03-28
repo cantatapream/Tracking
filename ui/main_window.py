@@ -577,21 +577,12 @@ class MainWindow(QMainWindow):
         # 개괄/상세 현황 버튼
         btn_row = QHBoxLayout()
         btn_row.setSpacing(6)
-        btn_style = """
-            QPushButton { background: rgba(0,212,255,0.1); color: #00d4ff; font-size: 13px; font-weight: bold;
-                          border: 1px solid rgba(0,212,255,0.3); border-radius: 4px; padding: 4px 10px; }
-            QPushButton:hover { background: rgba(0,212,255,0.25); }
-        """
         brief_btn = QPushButton("개괄 현황")
-        brief_btn.setFixedHeight(28)
-        brief_btn.setStyleSheet(btn_style)
         brief_btn.setCursor(Qt.PointingHandCursor)
         brief_btn.clicked.connect(lambda: self._copy_rescue_summary(title, "brief"))
         btn_row.addStretch()
         btn_row.addWidget(brief_btn)
         detail_btn = QPushButton("상세 현황")
-        detail_btn.setFixedHeight(28)
-        detail_btn.setStyleSheet(btn_style)
         detail_btn.setCursor(Qt.PointingHandCursor)
         detail_btn.clicked.connect(lambda: self._copy_rescue_summary(title, "detail"))
         btn_row.addWidget(detail_btn)

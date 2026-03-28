@@ -517,8 +517,9 @@ class MainWindow(QMainWindow):
     def _create_rescue_summary_card(self, title: str) -> QFrame:
         """구조현황 요약 카드 생성"""
         card = QFrame()
+        card.setObjectName("rescueSummaryCard")
         card.setStyleSheet("""
-            QFrame { background: rgba(13, 31, 60, 0.85); border: 1px solid #1a2d4a;
+            QFrame#rescueSummaryCard { background: rgba(13, 31, 60, 0.85); border: 1px solid #1a2d4a;
                      border-radius: 8px; padding: 4px; }
         """)
         card_layout = QVBoxLayout(card)

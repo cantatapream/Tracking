@@ -631,7 +631,7 @@ class MainWindow(QMainWindow):
         import time as _time
         now_str = _time.strftime("%m.%d %H:%M:%S")
         records = self.dm.rescue_records
-        severities = ["미정", "지연", "긴급", "응급", "비응급"]
+        severities = ["지연", "긴급", "응급", "비응급", "미정"]
 
         # 카드별 레코드 필터
         if card_title == "현재원":

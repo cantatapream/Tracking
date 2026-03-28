@@ -235,7 +235,8 @@ class MainWindow(QMainWindow):
 
         # 구조현황 요약 카드 (구조 탭 활성화 시 표시)
         self.rescue_summary_widget = QWidget()
-        self.rescue_summary_widget.setStyleSheet("background: transparent; border: none;")
+        self.rescue_summary_widget.setObjectName("rescueSummaryArea")
+        self.rescue_summary_widget.setStyleSheet("#rescueSummaryArea { background: transparent; border: none; }")
         rs_layout = QVBoxLayout(self.rescue_summary_widget)
         rs_layout.setContentsMargins(8, 4, 8, 4)
         rs_layout.setSpacing(6)

@@ -94,6 +94,9 @@ class RescueTab(QWidget):
         self._sort_asc = True  # 오름차순 여부
         self._pending_records = []  # 추가 대기열
         self._refreshing = False  # 테이블 갱신 중 플래그
+        self._row_cache = {}  # record_id → row_widget 캐시
+        self._cached_columns = {}  # filter_key → columns
+        self._cached_col_widths = {}  # filter_key → col_widths
         self._setup_ui()
 
     def _setup_ui(self):
@@ -1365,6 +1368,14 @@ class RescueTab(QWidget):
             self.add_btn.setEnabled(True)
             self._refreshing = False
 
+    def _invalidate_cache(self):
+        """캐시 무효화 (데이터 변경 시)"""
+        for w in self._row_cache.values():
+            w.hide()
+            w.setParent(None)
+            w.deleteLater()
+        self._row_cache.clear()
+
     def _refresh_table_inner(self):
         # 선택 초기화
         self._selected_record = None
@@ -1378,14 +1389,13 @@ class RescueTab(QWidget):
                 w.hide()
                 w.setParent(None)
                 w.deleteLater()
-        # Clear table
+        # Detach table rows (캐시에 있으면 재활용)
         while self.table_layout.count():
             item = self.table_layout.takeAt(0)
             w = item.widget()
             if w:
-                w.hide()
                 w.setParent(None)
-                w.deleteLater()
+                w.hide()
 
         records = self._get_filtered_records()
         columns = self._get_columns_for_filter()
@@ -1449,18 +1459,31 @@ class RescueTab(QWidget):
 
         self.header_layout.addWidget(header_frame)
 
-        # Data rows (프로그레스바 표시)
+        # Data rows (캐시 활용)
+        cache_key_prefix = f"{self._current_filter}_{self._sort_col}_{self._sort_asc}"
         total = len(records)
         progress = None
-        if total >= 10:
-            progress = self._show_progress("로딩 중...", total)
+        created_count = 0
 
         for idx, record in enumerate(records):
-            row_widget = self._create_row_widget(record, columns, col_widths)
-            self.table_layout.addWidget(row_widget)
-            if progress:
-                progress.setValue(idx + 1)
-                QApplication.processEvents()
+            rec_id = record.get("id", "")
+            cache_key = f"{cache_key_prefix}_{rec_id}"
+            cached = self._row_cache.get(cache_key)
+            if cached and not cached.isHidden() is False:
+                # 캐시에서 재활용
+                cached.show()
+                self.table_layout.addWidget(cached)
+            else:
+                # 새로 생성 (많으면 프로그레스바)
+                if created_count == 0 and (total - idx) >= 10:
+                    progress = self._show_progress("로딩 중...", total - idx)
+                row_widget = self._create_row_widget(record, columns, col_widths)
+                self._row_cache[cache_key] = row_widget
+                self.table_layout.addWidget(row_widget)
+                created_count += 1
+                if progress:
+                    progress.setValue(created_count)
+                    QApplication.processEvents()
 
         if progress:
             progress.close()
@@ -2057,6 +2080,7 @@ class RescueTab(QWidget):
 
     def refresh(self):
         """외부에서 호출 가능한 갱신"""
+        self._invalidate_cache()
         if self._current_mode == "transfer_out":
             self._populate_passenger_combo()
         self._refresh_table()

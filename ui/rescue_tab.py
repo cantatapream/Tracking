@@ -1067,7 +1067,7 @@ class RescueTab(QWidget):
         if hasattr(self, 'etc_input'):
             self.etc_input.clear()
         self._populate_passenger_combo()
-        self._append_records(all_records)
+        self._refresh_table()  # 인계 시 원본 record 상태 변경되므로 전체 갱신
         self.records_changed.emit()
 
     def _apply_transfer_in(self):
@@ -1375,7 +1375,6 @@ class RescueTab(QWidget):
             item = self.header_layout.takeAt(0)
             w = item.widget()
             if w:
-                w.hide()
                 w.setParent(None)
                 w.deleteLater()
         # Clear table
@@ -1383,7 +1382,6 @@ class RescueTab(QWidget):
             item = self.table_layout.takeAt(0)
             w = item.widget()
             if w:
-                w.hide()
                 w.setParent(None)
                 w.deleteLater()
 
@@ -1449,10 +1447,10 @@ class RescueTab(QWidget):
 
         self.header_layout.addWidget(header_frame)
 
-        # Data rows (프로그레스바 표시)
+        # Data rows
         total = len(records)
         progress = None
-        if total >= 10:
+        if total >= 15:
             progress = self._show_progress("로딩 중...", total)
 
         for idx, record in enumerate(records):
@@ -1460,7 +1458,8 @@ class RescueTab(QWidget):
             self.table_layout.addWidget(row_widget)
             if progress:
                 progress.setValue(idx + 1)
-                QApplication.processEvents()
+                if idx % 5 == 0:  # 5개마다 UI 갱신 (매번 하면 오히려 느림)
+                    QApplication.processEvents()
 
         if progress:
             progress.close()
@@ -1498,17 +1497,6 @@ class RescueTab(QWidget):
 
         self.table_layout.addStretch()
 
-    def _remove_row_by_record(self, record_id: str):
-        """특정 레코드의 행만 제거 (전체 새로고침 없이)"""
-        for i in range(self.table_layout.count()):
-            item = self.table_layout.itemAt(i)
-            w = item.widget() if item else None
-            if w and hasattr(w, 'mousePressEvent') and hasattr(w, '_record_id'):
-                if w._record_id == record_id:
-                    self.table_layout.takeAt(i)
-                    w.hide()
-                    w.deleteLater()
-                    return
 
     def _get_col_widths(self, columns: list) -> list:
         """컬럼별 너비 (-1은 stretch 대상)"""
@@ -2039,20 +2027,10 @@ class RescueTab(QWidget):
             self.dm.delete_rescue_record(rec_id)
             self._emit_log(f"[삭제] 인수 기록 - {name}")
 
-        # 선택된 행만 제거
-        if self._selected_row_widget:
-            self._selected_row_widget.hide()
-            self._selected_row_widget.setParent(None)
-            self._selected_row_widget.deleteLater()
-        # 인계된 구조 기록 삭제 시 연결된 인계 행도 제거
-        if rec_type == "rescue" and record.get("transferred", False):
-            for r in list(self.dm.rescue_records):
-                pass  # 이미 위에서 삭제됨
-            # 화면에서도 제거
-            self._remove_row_by_record(rec_id)
         self._selected_record = None
         self._selected_row_widget = None
         self.delete_btn.setEnabled(False)
+        self._refresh_table()
         self.records_changed.emit()
 
     def refresh(self):

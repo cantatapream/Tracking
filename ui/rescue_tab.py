@@ -1105,10 +1105,10 @@ class RescueTab(QWidget):
             log_lines.append(info)
 
         if len(log_lines) == 1:
-            self._emit_log(f"{prefix}[{transfer_target}으로부터 인수] {log_lines[0]}")
+            self._emit_log(f"{prefix}[{transfer_target}에서 인수] {log_lines[0]}")
         else:
             body = "\n".join(f"  {i+1}. {line}" for i, line in enumerate(log_lines))
-            self._emit_log(f"{prefix}[{transfer_target}으로부터 인수 {len(log_lines)}명]\n{body}")
+            self._emit_log(f"{prefix}[{transfer_target}에서 인수 {len(log_lines)}명]\n{body}")
 
         # Clear
         self._clear_pending()

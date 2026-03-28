@@ -227,16 +227,6 @@ class DashboardView(QWidget):
         row1_depts = ["전체", "항해", "안전", "병기", "기관"]
         row2_depts = ["구조", "행정", "통신", "조리"]
 
-        btn_style = """
-            QPushButton {
-                font-size: 12px; padding: 3px 8px; border-radius: 4px;
-                border: 1px solid #1e3a5f; background: rgba(15, 35, 65, 0.6);
-                color: #8faabe; font-weight: bold;
-            }
-            QPushButton:hover { border-color: rgba(0, 212, 255, 0.4); color: #c8d6e5; }
-            QPushButton:checked { background: rgba(0, 212, 255, 0.2); border: 1px solid #00d4ff; color: #00d4ff; }
-        """
-
         for row_depts in [row1_depts, row2_depts]:
             row_layout = QHBoxLayout()
             row_layout.setSpacing(4)
@@ -244,7 +234,6 @@ class DashboardView(QWidget):
                 btn = QPushButton(dept)
                 btn.setCheckable(True)
                 btn.setFixedHeight(26)
-                btn.setStyleSheet(btn_style)
                 if dept == "전체":
                     btn.setChecked(True)
                 btn.clicked.connect(lambda checked, d=dept, b=btn: self._on_dept_filter(d, b))

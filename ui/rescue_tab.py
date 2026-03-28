@@ -784,12 +784,13 @@ class RescueTab(QWidget):
             info.setStyleSheet("color: #c8d6e5; font-size: 12px; border: none;")
             rl.addWidget(info, 1)
 
-            # 삭제 버튼
-            del_btn = QPushButton("✕")
-            del_btn.setFixedSize(20, 20)
+            # 삭제 버튼 (❌ 이모지)
+            del_btn = QPushButton("❌")
+            del_btn.setFixedSize(24, 24)
+            del_btn.setCursor(Qt.PointingHandCursor)
             del_btn.setStyleSheet("""
-                QPushButton { color: #e74c3c; background: transparent; border: none; font-size: 12px; font-weight: bold; }
-                QPushButton:hover { color: #ff6b6b; }
+                QPushButton { background: transparent; border: none; font-size: 13px; padding: 0; margin: 0; }
+                QPushButton:hover { background: rgba(231,76,60,0.2); border-radius: 4px; }
             """)
             del_btn.clicked.connect(lambda checked, idx=i: self._remove_pending(idx))
             rl.addWidget(del_btn)
@@ -853,6 +854,68 @@ class RescueTab(QWidget):
             return True
         return False
 
+    def _fmt_multiline(self, text: str, numbering: str = "num") -> str:
+        """여러 줄 텍스트를 번호 매기기. numbering: 'num'=1.2.3, 'ga'=가)나)다), 'sub_num'=1)2)3)"""
+        lines = [l.strip() for l in text.strip().split("\n") if l.strip()]
+        if len(lines) <= 1:
+            return text.strip()
+        ga_list = ["가", "나", "다", "라", "마", "바", "사", "아", "자", "차", "카", "타", "파", "하"]
+        if numbering == "ga":
+            return " ".join(f"{ga_list[i]}) {l}" if i < len(ga_list) else f"{i+1}) {l}" for i, l in enumerate(lines))
+        elif numbering == "sub_num":
+            return " ".join(f"{i+1}) {l}" for i, l in enumerate(lines))
+        else:
+            return " ".join(f"{i+1}. {l}" for i, l in enumerate(lines))
+
+    def _fmt_state_inline(self, state: str, label: str, numbering: str = "num") -> str:
+        """상태를 인라인 형식으로: '라벨 : 내용' 또는 여러줄이면 번호매기기"""
+        if not state:
+            return ""
+        return f"{label} : {self._fmt_multiline(state, numbering)}"
+
+    def _fmt_transfer_detail_single(self, state: str, treatment: str, etc: str, state_label: str) -> str:
+        """인계 단독: 상세 항목 (1. 최초상태, 2. 조치경과, 3. 기타사항)"""
+        lines = []
+        idx = 1
+        if state:
+            state_lines = [l.strip() for l in state.strip().split("\n") if l.strip()]
+            if len(state_lines) <= 1:
+                lines.append(f"  {idx}. {state_label} : {state.strip()}")
+            else:
+                lines.append(f"  {idx}. {state_label}")
+                ga = ["가", "나", "다", "라", "마", "바", "사", "아", "자", "차"]
+                for j, sl in enumerate(state_lines):
+                    g = ga[j] if j < len(ga) else str(j+1)
+                    lines.append(f"    {g}. {sl}")
+            idx += 1
+        if treatment:
+            lines.append(f"  {idx}. 조치경과 : {self._fmt_multiline(treatment, 'ga')}")
+            idx += 1
+        if etc:
+            lines.append(f"  {idx}. {etc}")
+        return "\n".join(lines)
+
+    def _fmt_transfer_detail_multi(self, state: str, treatment: str, etc: str, state_label: str) -> str:
+        """인계 다수: 상세 항목 (가. 최초상태, 나. 조치경과, 다. 기타사항)"""
+        lines = []
+        ga = ["가", "나", "다", "라", "마", "바"]
+        idx = 0
+        if state:
+            state_lines = [l.strip() for l in state.strip().split("\n") if l.strip()]
+            if len(state_lines) <= 1:
+                lines.append(f"    {ga[idx]}. {state_label} : {state.strip()}")
+            else:
+                lines.append(f"    {ga[idx]}. {state_label}")
+                for j, sl in enumerate(state_lines):
+                    lines.append(f"      {j+1}) {sl}")
+            idx += 1
+        if treatment:
+            lines.append(f"    {ga[idx]}. 조치경과 : {self._fmt_multiline(treatment, 'sub_num')}")
+            idx += 1
+        if etc:
+            lines.append(f"    {ga[idx]}. {etc}")
+        return "\n".join(lines)
+
     def _apply_rescue(self):
         """구조 기록 추가 (대기열 포함 일괄)"""
         # 대기열이 있으면 현재 입력은 실제 입력이 있을 때만 포함
@@ -881,10 +944,11 @@ class RescueTab(QWidget):
             age = data.get("age", "미상")
             state = data.get("initial_state", "")
             self.dm.add_rescue_record(data)
-            parts = [f"{name}({data['gender']}, {self._fmt_age(age)})", data['severity']]
+            info = f"{name}({data['gender']}, {self._fmt_age(age)}), {data['severity']}"
             if state:
-                parts.append(state)
-            log_lines.append(", ".join(parts))
+                numbering = "num" if len(all_records) == 1 else "ga"
+                info += f", {self._fmt_state_inline(state, '상태', numbering)}"
+            log_lines.append(info)
 
         if len(log_lines) == 1:
             self._emit_log(f"{prefix}[구조] {log_lines[0]}")
@@ -950,27 +1014,35 @@ class RescueTab(QWidget):
                 self.dm.update_rescue_record(source_id, "transfer_target", transfer_target)
                 self.dm.update_rescue_record(source_id, "transfer_timestamp", ts)
 
-            parts = [f"{data['name']}({data['gender']}, {self._fmt_age(data['age'])})", data['severity']]
+            # 상태 라벨 결정
             state = data.get("initial_state", "")
-            if state:
-                # 원본이 인수 기록이면 "인수당시 상태", 아니면 "최초상태"
-                source_type = ""
-                if source_id:
-                    for sr in self.dm.rescue_records:
-                        if sr.get("id") == source_id:
-                            source_type = sr.get("type", "")
-                            break
-                state_label = "인수당시 상태" if source_type == "transfer_in" else "최초상태"
-                parts.append(f"{state_label} : {state}")
-            if etc:
-                parts.append(etc)
-            log_lines.append(", ".join(parts))
+            treatment = data.get("treatment", "")
+            source_type = ""
+            if source_id:
+                for sr in self.dm.rescue_records:
+                    if sr.get("id") == source_id:
+                        source_type = sr.get("type", "")
+                        break
+            state_label = "인수당시 상태" if source_type == "transfer_in" else "최초상태"
+
+            info = f"{data['name']}({data['gender']}, {self._fmt_age(data['age'])}), {data['severity']}"
+            log_lines.append({"info": info, "state": state, "treatment": treatment, "etc": etc, "state_label": state_label})
 
         if len(log_lines) == 1:
-            self._emit_log(f"{prefix}[{transfer_target}에 인계] {log_lines[0]}")
+            d = log_lines[0]
+            detail = self._fmt_transfer_detail_single(d["state"], d["treatment"], d["etc"], d["state_label"])
+            msg = f"{prefix}[{transfer_target}에 인계] {d['info']}"
+            if detail:
+                msg += f"\n{detail}"
+            self._emit_log(msg)
         else:
-            body = "\n".join(f"  {i+1}. {line}" for i, line in enumerate(log_lines))
-            self._emit_log(f"{prefix}[{transfer_target}에 인계 {len(log_lines)}명]\n{body}")
+            lines = []
+            for i, d in enumerate(log_lines):
+                lines.append(f"  {i+1}. {d['info']}")
+                detail = self._fmt_transfer_detail_multi(d["state"], d["treatment"], d["etc"], d["state_label"])
+                if detail:
+                    lines.append(detail)
+            self._emit_log(f"{prefix}[{transfer_target}에 인계 {len(log_lines)}명]\n" + "\n".join(lines))
 
         # Clear
         self._clear_pending()
@@ -1012,10 +1084,11 @@ class RescueTab(QWidget):
             age = data.get("age", "미상")
             state = data.get("initial_state", "")
             self.dm.add_rescue_record(data)
-            parts = [f"{name}({data['gender']}, {self._fmt_age(age)})", data['severity']]
+            info = f"{name}({data['gender']}, {self._fmt_age(age)}), {data['severity']}"
             if state:
-                parts.append(state)
-            log_lines.append(", ".join(parts))
+                numbering = "num" if len(all_records) == 1 else "ga"
+                info += f", {self._fmt_state_inline(state, '인수당시 상태', numbering)}"
+            log_lines.append(info)
 
         if len(log_lines) == 1:
             self._emit_log(f"{prefix}[{transfer_target}으로부터 인수] {log_lines[0]}")

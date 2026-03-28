@@ -889,10 +889,18 @@ class RescueTab(QWidget):
                     lines.append(f"    {g}. {sl}")
             idx += 1
         if treatment:
-            lines.append(f"  {idx}. 조치경과 : {self._fmt_multiline(treatment, 'ga')}")
+            treat_lines = [l.strip() for l in treatment.strip().split("\n") if l.strip()]
+            if len(treat_lines) <= 1:
+                lines.append(f"  {idx}. 조치경과 : {treatment.strip()}")
+            else:
+                lines.append(f"  {idx}. 조치경과")
+                ga = ["가", "나", "다", "라", "마", "바", "사", "아", "자", "차"]
+                for j, tl in enumerate(treat_lines):
+                    g = ga[j] if j < len(ga) else str(j+1)
+                    lines.append(f"    {g}. {tl}")
             idx += 1
         if etc:
-            lines.append(f"  {idx}. {etc}")
+            lines.append(f"  {idx}. 기타사항 : {etc}")
         return "\n".join(lines)
 
     def _fmt_transfer_detail_multi(self, state: str, treatment: str, etc: str, state_label: str) -> str:
@@ -910,10 +918,16 @@ class RescueTab(QWidget):
                     lines.append(f"      {j+1}) {sl}")
             idx += 1
         if treatment:
-            lines.append(f"    {ga[idx]}. 조치경과 : {self._fmt_multiline(treatment, 'sub_num')}")
+            treat_lines = [l.strip() for l in treatment.strip().split("\n") if l.strip()]
+            if len(treat_lines) <= 1:
+                lines.append(f"    {ga[idx]}. 조치경과 : {treatment.strip()}")
+            else:
+                lines.append(f"    {ga[idx]}. 조치경과")
+                for j, tl in enumerate(treat_lines):
+                    lines.append(f"      {j+1}) {tl}")
             idx += 1
         if etc:
-            lines.append(f"    {ga[idx]}. {etc}")
+            lines.append(f"    {ga[idx]}. 기타사항 : {etc}")
         return "\n".join(lines)
 
     def _apply_rescue(self):

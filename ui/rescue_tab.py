@@ -5,7 +5,8 @@ import time
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QLineEdit, QComboBox, QFrame, QScrollArea, QSizePolicy,
-    QGridLayout, QTextEdit, QDialog, QStackedWidget
+    QGridLayout, QTextEdit, QDialog, QStackedWidget, QProgressBar,
+    QApplication
 )
 from PySide6.QtCore import Qt, Signal
 from core.data_manager import DataManager
@@ -1127,6 +1128,39 @@ class RescueTab(QWidget):
         self._refresh_table()
         self.records_changed.emit()
 
+    def _show_progress(self, title: str, maximum: int) -> QDialog:
+        """화면 중앙 프로그레스바 다이얼로그"""
+        dlg = QDialog(self, Qt.FramelessWindowHint)
+        dlg.setFixedSize(260, 70)
+        dlg.setStyleSheet("""
+            QDialog { background: rgba(13, 31, 60, 0.95); border: 1px solid #00d4ff; border-radius: 8px; }
+            QLabel { color: #00d4ff; font-size: 13px; font-weight: bold; background: transparent; border: none; }
+        """)
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(16, 10, 16, 10)
+        layout.setSpacing(6)
+        lbl = QLabel(title)
+        lbl.setAlignment(Qt.AlignCenter)
+        layout.addWidget(lbl)
+        bar = QProgressBar()
+        bar.setRange(0, maximum)
+        bar.setValue(0)
+        bar.setFixedHeight(16)
+        bar.setStyleSheet("""
+            QProgressBar { background: #0a1628; border: 1px solid #1e3a5f; border-radius: 4px; text-align: center; color: #00d4ff; font-size: 10px; }
+            QProgressBar::chunk { background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #00d4ff, stop:1 #0088aa); border-radius: 3px; }
+        """)
+        layout.addWidget(bar)
+        # setValue를 dialog에 직접 연결
+        dlg.setValue = bar.setValue
+        dlg.setModal(True)
+        # 화면 중앙에 위치
+        parent_rect = self.window().geometry()
+        dlg.move(parent_rect.center().x() - 130, parent_rect.center().y() - 35)
+        dlg.show()
+        QApplication.processEvents()
+        return dlg
+
     def _show_toast(self, message: str):
         """토스트 메시지 표시"""
         from PySide6.QtCore import QTimer
@@ -1300,7 +1334,7 @@ class RescueTab(QWidget):
         if f == "rescue":
             return ["일시", "구조위치", "이름", "성별", "연령", "중증도", "최초상태", "조치경과", "인계대상"]
         elif f == "transfer_out":
-            return ["인계일시", "이름", "성별", "연령", "중증도", "최초상태", "조치경과", "인계대상"]
+            return ["인계일시", "이름", "성별", "연령", "중증도", "최초/인수당시 상태", "조치경과", "인계대상"]
         elif f == "transfer_in":
             return ["인수일시", "이름", "성별", "연령", "중증도", "인수당시 상태", "조치경과", "인수대상"]
         else:
@@ -1415,10 +1449,22 @@ class RescueTab(QWidget):
 
         self.header_layout.addWidget(header_frame)
 
-        # Data rows
-        for record in records:
+        # Data rows (프로그레스바 표시)
+        total = len(records)
+        progress = None
+        if total >= 10:
+            progress = self._show_progress("로딩 중...", total)
+
+        for idx, record in enumerate(records):
             row_widget = self._create_row_widget(record, columns, col_widths)
             self.table_layout.addWidget(row_widget)
+            if progress:
+                progress.setValue(idx + 1)
+                QApplication.processEvents()
+
+        if progress:
+            progress.close()
+            progress.deleteLater()
 
         self.table_layout.addStretch()
 

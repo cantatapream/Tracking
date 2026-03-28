@@ -714,7 +714,15 @@ class MainWindow(QMainWindow):
 
                 # 상세 항목
                 detail_idx = 1
-                state_label = "인수당시 상태" if rec_type == "transfer_in" else "최초상태"
+                # 원본 레코드 타입 확인 (인계 시 source가 transfer_in이면 인수당시 상태)
+                source_id = rec.get("source_record_id", "")
+                orig_type = rec_type
+                if source_id:
+                    for sr in self.dm.rescue_records:
+                        if sr.get("id") == source_id:
+                            orig_type = sr.get("type", rec_type)
+                            break
+                state_label = "인수당시 상태" if (rec_type == "transfer_in" or orig_type == "transfer_in") else "최초상태"
 
                 # 1) 일시
                 if ts:

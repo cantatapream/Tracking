@@ -573,9 +573,37 @@ class MainWindow(QMainWindow):
             cell_frames[sev_name] = cell_frame
 
         card_layout.addLayout(grid)
+
+        # 개괄/상세 현황 버튼
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(4)
+        brief_btn = QPushButton("개괄 현황")
+        brief_btn.setFixedHeight(22)
+        brief_btn.setStyleSheet("""
+            QPushButton { background: rgba(0,212,255,0.1); color: #00d4ff; font-size: 10px;
+                          border: 1px solid rgba(0,212,255,0.3); border-radius: 3px; padding: 0 6px; }
+            QPushButton:hover { background: rgba(0,212,255,0.25); }
+        """)
+        brief_btn.setCursor(Qt.PointingHandCursor)
+        brief_btn.clicked.connect(lambda: self._copy_rescue_summary(title, "brief"))
+        btn_row.addWidget(brief_btn)
+        detail_btn = QPushButton("상세 현황")
+        detail_btn.setFixedHeight(22)
+        detail_btn.setStyleSheet("""
+            QPushButton { background: rgba(0,212,255,0.1); color: #00d4ff; font-size: 10px;
+                          border: 1px solid rgba(0,212,255,0.3); border-radius: 3px; padding: 0 6px; }
+            QPushButton:hover { background: rgba(0,212,255,0.25); }
+        """)
+        detail_btn.setCursor(Qt.PointingHandCursor)
+        detail_btn.clicked.connect(lambda: self._copy_rescue_summary(title, "detail"))
+        btn_row.addWidget(detail_btn)
+        btn_row.addStretch()
+        card_layout.addLayout(btn_row)
+
         card._severity_labels = labels
         card._severity_frames = cell_frames
         card._total_badge = total_badge
+        card._card_title = title
         return card
 
     def _update_rescue_summary(self):
@@ -593,6 +621,141 @@ class MainWindow(QMainWindow):
             total_badge = getattr(card_widget, '_total_badge', None)
             if total_badge:
                 total_badge.setText(f"{data.get('total', 0)}명")
+
+    def _copy_rescue_summary(self, card_title: str, mode: str):
+        """개괄/상세 현황 클립보드 복사"""
+        import time as _time
+        now_str = _time.strftime("%m.%d %H:%M:%S")
+        records = self.dm.rescue_records
+        severities = ["지연", "긴급", "응급", "비응급"]
+
+        # 카드별 레코드 필터
+        if card_title == "현재원":
+            recs = [r for r in records
+                    if (r["type"] == "rescue" and not r.get("transferred", False))
+                    or r["type"] == "transfer_in"]
+        elif card_title == "본함구조":
+            recs = [r for r in records if r["type"] == "rescue"]
+        elif card_title == "인계현황":
+            recs = [r for r in records if r["type"] == "transfer_out"]
+        elif card_title == "인수현황":
+            recs = [r for r in records if r["type"] == "transfer_in"]
+        else:
+            recs = list(records)
+
+        if mode == "brief":
+            text = self._fmt_brief_summary(now_str, card_title, recs, severities)
+        else:
+            text = self._fmt_detail_summary(now_str, card_title, recs, severities)
+
+        clipboard = QApplication.clipboard()
+        clipboard.setText(text)
+        # 토스트
+        self._show_main_toast(f"{card_title} {('개괄' if mode == 'brief' else '상세')} 현황이 복사되었습니다.")
+
+    def _show_main_toast(self, message: str):
+        from PySide6.QtCore import QTimer as _QTimer
+        toast = QLabel(message, self)
+        toast.setStyleSheet("QLabel { background: rgba(0,212,255,0.9); color: #0d1f3c; font-size: 13px; font-weight: bold; padding: 8px 16px; border-radius: 6px; }")
+        toast.setAlignment(Qt.AlignCenter)
+        toast.adjustSize()
+        toast.move((self.width() - toast.width()) // 2, self.height() // 2)
+        toast.show()
+        _QTimer.singleShot(2000, lambda: (toast.hide(), toast.deleteLater()))
+
+    def _fmt_brief_summary(self, now_str, title, recs, severities):
+        lines = [f"{now_str} 기준 {title} 개괄 현황"]
+        for i, sev in enumerate(severities):
+            sev_recs = [r for r in recs if r.get("severity") == sev]
+            total = len(sev_recs)
+            male = sum(1 for r in sev_recs if r.get("gender") == "남")
+            female = sum(1 for r in sev_recs if r.get("gender") == "여")
+            lines.append(f"{i+1}. {sev} {total}명(남 {male}명, 여 {female}명)")
+        return "\n".join(lines)
+
+    def _fmt_detail_summary(self, now_str, title, recs, severities):
+        ga = ["가", "나", "다", "라", "마", "바", "사", "아", "자", "차", "카", "타", "파", "하"]
+        lines = [f"{now_str} 기준 {title} 상세 현황"]
+
+        for i, sev in enumerate(severities):
+            sev_recs = [r for r in recs if r.get("severity") == sev]
+            lines.append(f"{i+1}. {sev} {len(sev_recs)}명")
+            for j, rec in enumerate(sev_recs):
+                g = ga[j] if j < len(ga) else str(j+1)
+                rec_type = rec.get("type", "rescue")
+                name = rec.get("name", "미상")
+                gender = rec.get("gender", "")
+                age = rec.get("age", "미상")
+                age_display = "연령 미상" if not age or age == "미상" else age
+                ts = rec.get("timestamp", "")
+                location = rec.get("location", "")
+                state = rec.get("initial_state", "")
+                treatment = rec.get("treatment", "")
+                transfer_target = rec.get("transfer_target", "")
+                transferred = rec.get("transferred", False)
+                transfer_ts = rec.get("transfer_timestamp", "")
+
+                # 이름 라인: 인계 완료/인수 출처 표시
+                name_extra = ""
+                if title == "본함구조" and transferred and transfer_target:
+                    name_extra = f", {transfer_target}에 {transfer_ts}에 인계 완료" if transfer_ts else f", {transfer_target}에 인계 완료"
+                elif title == "인계현황" and transferred:
+                    pass  # 인계현황은 이미 인계된 것
+                elif title == "인수현황" and transfer_target:
+                    name_extra = f", {transfer_target}에서 {ts}에 인수" if ts else f", {transfer_target}에서 인수"
+
+                # 본함구조의 인계 완료 표시
+                if title == "본함구조" and transferred and transfer_target:
+                    lines.append(f"  {g}. {name}({gender}, {age_display}, {transfer_target}에 {transfer_ts + '에 ' if transfer_ts else ''}인계 완료)")
+                elif title == "인수현황" and transfer_target:
+                    lines.append(f"  {g}. {name}({gender}, {age_display}, {transfer_target}에서 {ts + '에 ' if ts else ''}인수)")
+                else:
+                    lines.append(f"  {g}. {name}({gender}, {age_display})")
+
+                # 상세 항목
+                detail_idx = 1
+                state_label = "인수당시 상태" if rec_type == "transfer_in" else "최초상태"
+
+                # 1) 일시
+                if ts:
+                    if rec_type == "transfer_in" and transfer_target:
+                        lines.append(f"    {detail_idx}) {transfer_target}에서 인수일시 : {ts}")
+                    elif rec_type == "rescue":
+                        lines.append(f"    {detail_idx}) 구조일시 : {ts}")
+                    elif rec_type == "transfer_out":
+                        lines.append(f"    {detail_idx}) 인계일시 : {ts}")
+                    detail_idx += 1
+
+                # 2) 구조위치 (구조만)
+                if location and rec_type == "rescue":
+                    lines.append(f"    {detail_idx}) 구조위치 : {location}")
+                    detail_idx += 1
+
+                # 3) 최초상태/인수당시 상태
+                if state:
+                    state_lines_list = [l.strip() for l in state.strip().split("\n") if l.strip()]
+                    if len(state_lines_list) <= 1:
+                        lines.append(f"    {detail_idx}) {state_label} : {state.strip()}")
+                    else:
+                        lines.append(f"    {detail_idx}) {state_label}")
+                        for k, sl in enumerate(state_lines_list):
+                            sg = ga[k] if k < len(ga) else str(k+1)
+                            lines.append(f"      {sg}) {sl}")
+                    detail_idx += 1
+
+                # 4) 조치경과
+                if treatment:
+                    treat_lines_list = [l.strip() for l in treatment.strip().split("\n") if l.strip()]
+                    if len(treat_lines_list) <= 1:
+                        lines.append(f"    {detail_idx}) 조치경과 : {treatment.strip()}")
+                    else:
+                        lines.append(f"    {detail_idx}) 조치경과")
+                        for k, tl in enumerate(treat_lines_list):
+                            tg = ga[k] if k < len(ga) else str(k+1)
+                            lines.append(f"      {tg}) {tl}")
+                    detail_idx += 1
+
+        return "\n".join(lines)
 
     def closeEvent(self, event):
         self.dm.save()

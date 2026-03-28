@@ -338,6 +338,21 @@ class LogPanel(QWidget):
         """)
         self._title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         title_h.addWidget(self._title_label)
+
+        # 로그 필터 드롭다운
+        from PySide6.QtWidgets import QComboBox
+        self._log_filter_combo = QComboBox()
+        self._log_filter_combo.addItems(["전체", "대시보드", "구조현황"])
+        self._log_filter_combo.setFixedHeight(24)
+        self._log_filter_combo.setFixedWidth(90)
+        self._log_filter_combo.setStyleSheet("""
+            QComboBox { background: #0a1628; color: #00d4ff; border: 1px solid #1e3a5f;
+                        border-radius: 4px; font-size: 11px; padding: 2px 6px; }
+            QComboBox::drop-down { border: none; }
+        """)
+        self._log_filter_combo.currentIndexChanged.connect(self._on_log_filter_changed)
+        self._current_log_filter = "all"  # all / dashboard / rescue
+        title_h.addWidget(self._log_filter_combo)
         title_h.addStretch()
 
         export_btn = QPushButton("내보내기")
@@ -670,6 +685,28 @@ class LogPanel(QWidget):
         else:
             self.dm._log_base_name_getter = None
 
+    def _on_log_filter_changed(self, index):
+        """로그 필터 변경"""
+        filter_map = {0: "all", 1: "dashboard", 2: "rescue"}
+        self._current_log_filter = filter_map.get(index, "all")
+        self._rebuild_entries()
+
+    def _should_show_log(self, log_entry: dict) -> bool:
+        """현재 필터에 따라 로그 표시 여부"""
+        if self._current_log_filter == "all":
+            return True
+        log_type = log_entry.get("type", "")
+        source = log_entry.get("source", "")
+        # 메모와 날짜 구분선은 항상 표시
+        if log_type in ("memo", "date_separator"):
+            return True
+        # source 기준 필터
+        if self._current_log_filter == "dashboard":
+            return source == "dashboard" or source == ""
+        elif self._current_log_filter == "rescue":
+            return source == "rescue"
+        return True
+
     def _load_existing_logs(self):
         for log in self.dm.logs:
             self._add_entry_widget(log)
@@ -677,6 +714,9 @@ class LogPanel(QWidget):
         self._scroll_to_bottom()
 
     def _add_entry_widget(self, log_entry: dict):
+        if not self._should_show_log(log_entry):
+            return
+
         if log_entry.get("type") == "date_separator":
             sep = QLabel(log_entry.get("message", ""))
             sep.setAlignment(Qt.AlignCenter)

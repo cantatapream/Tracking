@@ -1236,7 +1236,7 @@ class RescueTab(QWidget):
             base_name = getter()
             if base_name:
                 message = f"{base_name})\n{message}"
-        self.dm.add_log(message)
+        self.dm.add_log(message, source="rescue")
         self.log_message.emit(message)
 
     def _record_history(self, record: dict, field: str, old_val, new_val):

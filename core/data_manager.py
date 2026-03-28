@@ -187,7 +187,7 @@ class DataManager:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
     # ---- 로그 ----
-    def add_log(self, message: str, log_type: str = "auto"):
+    def add_log(self, message: str, log_type: str = "auto", source: str = ""):
         ts = time.time()
         current_date = time.strftime("%y.%m.%d", time.localtime(ts))
 
@@ -213,6 +213,7 @@ class DataManager:
             "time_str": time.strftime("%H:%M:%S"),
             "message": message,
             "type": log_type,
+            "source": source,
         }
         self.logs.append(entry)
         self.save()
@@ -270,7 +271,7 @@ class DataManager:
         if target_location == "base":
             target_name = "본함"
         log_msg = f"{target_name}으로 {', '.join(names)} 이동 조치"
-        self.add_log(log_msg)
+        self.add_log(log_msg, source="dashboard")
         self.save()
         return log_msg
 
@@ -322,7 +323,7 @@ class DataManager:
         old_name = self.get_location_display_name(old_loc)
         new_name = self.get_location_display_name(target_location)
         log_msg = f"{person.name} {person.rank} : {old_name} → {new_name}"
-        self.add_log(log_msg)
+        self.add_log(log_msg, source="dashboard")
         self.save()
         return log_msg
 
@@ -351,7 +352,7 @@ class DataManager:
             log_msg = f"{name_list}{count_str} 본함 복귀"
         else:
             log_msg = f"{name_list}{count_str} → {target_name}"
-        self.add_log(log_msg)
+        self.add_log(log_msg, source="dashboard")
         self.save()
         return log_msg
 
@@ -387,9 +388,9 @@ class DataManager:
                 if assignee_id:
                     person = self.get_personnel_by_id(assignee_id)
                     pname = person.name if person else assignee_id
-                    self.add_log(f"장비 '{e.name}' 담당자 지정: {pname}")
+                    self.add_log(f"장비 '{e.name}' 담당자 지정: {pname}", source="dashboard")
                 else:
-                    self.add_log(f"장비 '{e.name}' 담당자 해제")
+                    self.add_log(f"장비 '{e.name}' 담당자 해제", source="dashboard")
                 self.save()
                 return old
         return None

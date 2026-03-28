@@ -584,7 +584,7 @@ class MainWindow(QMainWindow):
             QPushButton {
                 background: qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #1e3a5f,stop:1 #152d4a);
                 color: #c8d6e5; border: 1px solid #2a4a6f; border-radius: 6px;
-                padding: 4px 10px; font-size: 12px; font-weight: bold; text-align: center;
+                padding: 4px 10px; font-size: 13px; font-weight: bold; text-align: center;
             }
             QPushButton:hover { background: qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #2a4a6f,stop:1 #1e3a5f); border-color: #00d4ff; }
         """
@@ -631,7 +631,7 @@ class MainWindow(QMainWindow):
         import time as _time
         now_str = _time.strftime("%m.%d %H:%M:%S")
         records = self.dm.rescue_records
-        severities = ["미정", "지연", "긴급", "응급", "비응급"]
+        severities = ["지연", "긴급", "응급", "비응급", "미정"]
 
         # 카드별 레코드 필터
         if card_title == "현재원":

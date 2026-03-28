@@ -1289,7 +1289,7 @@ class RescueTab(QWidget):
             return records
 
         # 중증도 정렬 우선순위
-        sev_order = {"미정": 0, "지연": 1, "긴급": 2, "응급": 3, "비응급": 4}
+        sev_order = {"지연": 0, "긴급": 1, "응급": 2, "비응급": 3, "미정": 4}
         type_order = {"rescue": 0, "transfer_out": 1, "transfer_in": 2}
 
         def sort_key(r):

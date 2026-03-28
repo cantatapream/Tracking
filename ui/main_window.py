@@ -718,7 +718,7 @@ class MainWindow(QMainWindow):
                 source_id = rec.get("source_record_id", "")
                 orig_type = rec_type
                 if source_id:
-                    for sr in records:
+                    for sr in self.dm.rescue_records:
                         if sr.get("id") == source_id:
                             orig_type = sr.get("type", rec_type)
                             break

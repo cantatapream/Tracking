@@ -13,6 +13,7 @@ from core.data_manager import DataManager
 
 
 SEVERITY_COLORS = {
+    "미정": "#ffffff",
     "지연": "#8faabe",
     "긴급": "#e74c3c",
     "응급": "#f39c12",
@@ -341,7 +342,7 @@ class RescueTab(QWidget):
         grid.addWidget(self.age_input, 1, 3)
 
         self.severity_combo = QComboBox()
-        self.severity_combo.addItems(["지연", "긴급", "응급", "비응급"])
+        self.severity_combo.addItems(["미정", "지연", "긴급", "응급", "비응급"])
         self.severity_combo.setFixedWidth(80)
         self.severity_combo.setFixedHeight(34)
         grid.addWidget(self.severity_combo, 1, 4)
@@ -442,7 +443,7 @@ class RescueTab(QWidget):
         row1.addWidget(self.age_input)
         row1.addWidget(self._make_label("중증도"))
         self.severity_combo = QComboBox()
-        self.severity_combo.addItems(["지연", "긴급", "응급", "비응급"])
+        self.severity_combo.addItems(["미정", "지연", "긴급", "응급", "비응급"])
         self.severity_combo.setFixedWidth(80)
         self.severity_combo.setFixedHeight(34)
         row1.addWidget(self.severity_combo)
@@ -1288,7 +1289,7 @@ class RescueTab(QWidget):
             return records
 
         # 중증도 정렬 우선순위
-        sev_order = {"지연": 0, "긴급": 1, "응급": 2, "비응급": 3}
+        sev_order = {"미정": 0, "지연": 1, "긴급": 2, "응급": 3, "비응급": 4}
         type_order = {"rescue": 0, "transfer_out": 1, "transfer_in": 2}
 
         def sort_key(r):
@@ -1721,7 +1722,7 @@ class RescueTab(QWidget):
             "이름": ("name", "text", None),
             "성별": ("gender", "combo", ["남", "여"]),
             "연령": ("age", "text", None),
-            "중증도": ("severity", "combo", ["지연", "긴급", "응급", "비응급"]),
+            "중증도": ("severity", "combo", ["미정", "지연", "긴급", "응급", "비응급"]),
             "최초상태": ("initial_state", "dialog", None),
             "인수당시 상태": ("initial_state", "dialog", None),
             "최초/인수당시 상태": ("initial_state", "dialog", None),
@@ -2045,7 +2046,7 @@ class RescueTab(QWidget):
     def get_summary_data(self) -> dict:
         """사이드바 요약 카드용 데이터"""
         records = self.dm.rescue_records
-        severities = ["지연", "긴급", "응급", "비응급"]
+        severities = ["미정", "지연", "긴급", "응급", "비응급"]
 
         def count_by_severity(rec_list):
             counts = {}

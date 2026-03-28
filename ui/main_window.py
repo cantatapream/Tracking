@@ -555,6 +555,7 @@ class MainWindow(QMainWindow):
         severity_info = [
             ("지연", "#8faabe", 0, 0), ("긴급", "#e74c3c", 0, 1),
             ("응급", "#f39c12", 1, 0), ("비응급", "#2ecc71", 1, 1),
+            ("미정", "#ffffff", 2, 0),
         ]
         labels = {}
         cell_frames = {}
@@ -630,7 +631,7 @@ class MainWindow(QMainWindow):
         import time as _time
         now_str = _time.strftime("%m.%d %H:%M:%S")
         records = self.dm.rescue_records
-        severities = ["지연", "긴급", "응급", "비응급"]
+        severities = ["미정", "지연", "긴급", "응급", "비응급"]
 
         # 카드별 레코드 필터
         if card_title == "현재원":

@@ -954,11 +954,13 @@ class RescueTab(QWidget):
         ts = all_records[0].get("timestamp", "")
         prefix = f"{ts} " if ts else ""
 
+        registered_records = []
         for data in all_records:
             name = data.get("name", "미상")
             age = data.get("age", "미상")
             state = data.get("initial_state", "")
-            self.dm.add_rescue_record(data)
+            record = self.dm.add_rescue_record(data)
+            registered_records.append(record)
             info = f"{name}({data['gender']}, {self._fmt_age(age)}), {data['severity']}"
             if state:
                 numbering = "num" if len(all_records) == 1 else "ga"
@@ -985,7 +987,7 @@ class RescueTab(QWidget):
         if hasattr(self, 'severity_combo'):
             self.severity_combo.setCurrentIndex(0)
 
-        self._append_records(all_records)
+        self._append_records(registered_records)
         self.records_changed.emit()
 
     def _apply_transfer_out(self):
@@ -1093,12 +1095,14 @@ class RescueTab(QWidget):
         ts = all_records[0].get("timestamp", "")
         prefix = f"{ts} " if ts else ""
 
+        registered_records = []
         for data in all_records:
             data["treatment"] = ""
             name = data.get("name", "미상")
             age = data.get("age", "미상")
             state = data.get("initial_state", "")
-            self.dm.add_rescue_record(data)
+            record = self.dm.add_rescue_record(data)
+            registered_records.append(record)
             info = f"{name}({data['gender']}, {self._fmt_age(age)}), {data['severity']}"
             if state:
                 numbering = "num" if len(all_records) == 1 else "ga"
@@ -1125,7 +1129,7 @@ class RescueTab(QWidget):
         if hasattr(self, 'severity_combo'):
             self.severity_combo.setCurrentIndex(0)
 
-        self._append_records(all_records)
+        self._append_records(registered_records)
         self.records_changed.emit()
 
     def _show_progress(self, title: str, maximum: int) -> QDialog:

@@ -555,6 +555,7 @@ class MainWindow(QMainWindow):
         severity_info = [
             ("지연", "#8faabe", 0, 0), ("긴급", "#e74c3c", 0, 1),
             ("응급", "#f39c12", 1, 0), ("비응급", "#2ecc71", 1, 1),
+            ("미정", "#ffffff", 2, 0),
         ]
         labels = {}
         cell_frames = {}
@@ -578,15 +579,25 @@ class MainWindow(QMainWindow):
 
         card_layout.addLayout(grid)
 
-        # 개괄/상세 현황 버튼
+        # 개괄/상세 현황 버튼 (사이드바 QPushButton 스타일 override 필요)
+        sidebar_btn_override = """
+            QPushButton {
+                background: qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #1e3a5f,stop:1 #152d4a);
+                color: #c8d6e5; border: 1px solid #2a4a6f; border-radius: 6px;
+                padding: 4px 10px; font-size: 12px; font-weight: bold; text-align: center;
+            }
+            QPushButton:hover { background: qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #2a4a6f,stop:1 #1e3a5f); border-color: #00d4ff; }
+        """
         btn_row = QHBoxLayout()
         btn_row.setSpacing(6)
         brief_btn = QPushButton("개괄 현황")
+        brief_btn.setStyleSheet(sidebar_btn_override)
         brief_btn.setCursor(Qt.PointingHandCursor)
         brief_btn.clicked.connect(lambda: self._copy_rescue_summary(title, "brief"))
         btn_row.addStretch()
         btn_row.addWidget(brief_btn)
         detail_btn = QPushButton("상세 현황")
+        detail_btn.setStyleSheet(sidebar_btn_override)
         detail_btn.setCursor(Qt.PointingHandCursor)
         detail_btn.clicked.connect(lambda: self._copy_rescue_summary(title, "detail"))
         btn_row.addWidget(detail_btn)
@@ -620,7 +631,7 @@ class MainWindow(QMainWindow):
         import time as _time
         now_str = _time.strftime("%m.%d %H:%M:%S")
         records = self.dm.rescue_records
-        severities = ["지연", "긴급", "응급", "비응급"]
+        severities = ["미정", "지연", "긴급", "응급", "비응급"]
 
         # 카드별 레코드 필터
         if card_title == "현재원":

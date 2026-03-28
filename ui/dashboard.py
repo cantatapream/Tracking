@@ -235,6 +235,7 @@ class DashboardView(QWidget):
                 btn = QPushButton(dept)
                 btn.setCheckable(True)
                 btn.setFixedHeight(26)
+                btn.setStyleSheet("font-size: 12px; padding: 3px 8px;")
                 if dept == "전체":
                     btn.setChecked(True)
                 btn.clicked.connect(lambda checked, d=dept, b=btn: self._on_dept_filter(d, b))

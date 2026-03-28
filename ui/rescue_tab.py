@@ -1298,28 +1298,46 @@ class RescueTab(QWidget):
         if self._refreshing:
             return
         self._refreshing = True
+        # 필터/모드 버튼 비활성화 (빠른 연타 방지)
+        for btn in self.filter_buttons.values():
+            btn.setEnabled(False)
+        for btn in self.mode_buttons.values():
+            btn.setEnabled(False)
+        self.delete_btn.setEnabled(False)
+        self.apply_btn.setEnabled(False)
+        self.add_btn.setEnabled(False)
         try:
             self._refresh_table_inner()
         finally:
+            for btn in self.filter_buttons.values():
+                btn.setEnabled(True)
+            for btn in self.mode_buttons.values():
+                btn.setEnabled(True)
+            self.apply_btn.setEnabled(True)
+            self.add_btn.setEnabled(True)
             self._refreshing = False
 
     def _refresh_table_inner(self):
         # 선택 초기화
         self._selected_record = None
         self._selected_row_widget = None
-        self.delete_btn.setEnabled(False)
+        self._active_edit_stack = None
         # Clear header
         while self.header_layout.count():
             item = self.header_layout.takeAt(0)
             w = item.widget()
             if w:
+                w.hide()
                 w.setParent(None)
+                w.deleteLater()
         # Clear table
         while self.table_layout.count():
             item = self.table_layout.takeAt(0)
             w = item.widget()
             if w:
+                w.hide()
                 w.setParent(None)
+                w.deleteLater()
 
         records = self._get_filtered_records()
         columns = self._get_columns_for_filter()
@@ -1594,8 +1612,7 @@ class RescueTab(QWidget):
             QFrame:hover { background: rgba(0, 212, 255, 0.04); }
         """)
         row.setCursor(Qt.PointingHandCursor)
-        orig_press = row.mousePressEvent
-        row.mousePressEvent = lambda e, r=record, w=row, op=orig_press: (self._select_row(w, r), op(e))
+        row.mouseReleaseEvent = lambda e, r=record, w=row: self._select_row(w, r)
         row_layout = QHBoxLayout(row)
         row_layout.setContentsMargins(8, 2, 8, 2)
         row_layout.setSpacing(0)

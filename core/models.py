@@ -123,8 +123,8 @@ DEFAULT_VESSELS = {
     "patrol_RIB-2": {"name": "단정 2 (RIB-2)", "type": "patrol"},
     "patrol_RIB-3": {"name": "단정 3 (RIB-3)", "type": "patrol"},
     "patrol_RIB-4": {"name": "단정 4 (RIB-4)", "type": "patrol"},
-    "vessel_VESSEL-A": {"name": "중국어선 A (CH-VESSEL A)", "type": "vessel"},
-    "vessel_VESSEL-B": {"name": "중국어선 B (CH-VESSEL B)", "type": "vessel"},
+    "vessel_VESSEL-A": {"name": "등선 대상 선박 A", "type": "vessel"},
+    "vessel_VESSEL-B": {"name": "등선 대상 선박 B", "type": "vessel"},
 }
 
 DEFAULT_PERSONNEL = [
@@ -132,7 +132,7 @@ DEFAULT_PERSONNEL = [
     Personnel(id="P002", name="이영호", rank="경감", department="본함"),
     Personnel(id="P003", name="최유진", rank="경위", department="본함"),
     Personnel(id="P004", name="박도윤", rank="경장", department="본함"),
-    Personnel(id="P005", name="강민재", rank="상사", department="본함"),
+    Personnel(id="P005", name="강민재", rank="경사", department="본함"),
     Personnel(id="P006", name="이대우", rank="경장", department="본함"),
     Personnel(id="P007", name="박근서", rank="순경", department="본함"),
     Personnel(id="P008", name="최완수", rank="순경", department="본함"),
@@ -140,7 +140,7 @@ DEFAULT_PERSONNEL = [
     Personnel(id="P010", name="서시봉", rank="순경", department="본함"),
     Personnel(id="P011", name="김연석", rank="순경", department="본함"),
     Personnel(id="P012", name="강차욱", rank="경장", department="본함"),
-    Personnel(id="P013", name="강동원", rank="하사", department="본함"),
+    Personnel(id="P013", name="강동원", rank="순경", department="본함"),
     Personnel(id="P014", name="정해인", rank="경위", department="본함"),
-    Personnel(id="P015", name="박서준", rank="상사", department="본함"),
+    Personnel(id="P015", name="박서준", rank="경사", department="본함"),
 ]

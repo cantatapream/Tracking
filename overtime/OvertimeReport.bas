@@ -27,7 +27,7 @@ Private Const SH_RESULT As String = "집계결과"
 Private Const SH_LOG    As String = "처리내역"
 
 ' ---- 탐색 범위 상한 ----
-Private Const HDR_ROWS  As Long = 25
+Private Const HDR_ROWS  As Long = 30
 Private Const HDR_COLS  As Long = 120
 Private Const MAX_ROWS  As Long = 5000
 Private Const MAX_COLS  As Long = 250
@@ -102,7 +102,7 @@ Private Sub ProcessFile(ByVal sPath As String, dctMonth As Object, _
     Dim wb As Workbook
     Dim ws As Worksheet, wsT As Worksheet
     Dim colCand As Collection
-    Dim sName As String, sKey As String, ship As String
+    Dim sName As String, sKey As String, ship As String, sYmSrc As String
     Dim yr As Long, mo As Long, nPer As Long
     Dim dWork As Double, dOT As Double
 
@@ -110,7 +110,7 @@ Private Sub ProcessFile(ByVal sPath As String, dctMonth As Object, _
 
     ' 집계 파일 자신은 건너뛴다
     If StrComp(sPath, ThisWorkbook.FullName, vbTextCompare) = 0 Then
-        colLog.Add Array(sName, "", "", "", "", "", "", "", "집계 파일 자신 - 건너뜀")
+        colLog.Add Array(sName, "", "", "", "", "", "", "", "", "집계 파일 자신 - 건너뜀")
         Exit Sub
     End If
 
@@ -126,7 +126,7 @@ Private Sub ProcessFile(ByVal sPath As String, dctMonth As Object, _
     Next ws
 
     If colCand.Count = 0 Then
-        colLog.Add Array(sName, "", "", "", "", "", "", "", "산출내역서 시트 없음")
+        colLog.Add Array(sName, "", "", "", "", "", "", "", "", "산출내역서 시트 없음")
         GoTo CloseIt
     ElseIf colCand.Count = 1 Then
         Set wsT = colCand(1)
@@ -134,22 +134,32 @@ Private Sub ProcessFile(ByVal sPath As String, dctMonth As Object, _
         ' 2) 후보가 여러 개면 시트명 규칙으로 하나를 고른다
         Set wsT = PickSheetByName(colCand)
         If wsT Is Nothing Then
-            colLog.Add Array(sName, CandNames(colCand), "", "", "", "", "", "", _
+            colLog.Add Array(sName, CandNames(colCand), "", "", "", "", "", "", "", _
                              "대상 시트 판별 실패 - 확인 필요")
             GoTo CloseIt
         End If
     End If
 
     ' 3) 시트에서 값 추출
-    ScanSheet wsT, yr, mo, ship, dWork, dOT, nPer
+    ScanSheet wsT, yr, mo, ship, dWork, dOT, nPer, sYmSrc
+
+    ' 시트에서 못 찾은 것은 파일명 / 경로에서 보충한다
+    If mo = 0 Then
+        mo = MonthFromName(sName)
+        If mo > 0 Then sYmSrc = AppendSrc(sYmSrc, "월:파일명")
+    End If
+    If yr = 0 Then
+        yr = FindYear(sPath, True)
+        If yr > 0 Then sYmSrc = AppendSrc(sYmSrc, "연:경로")
+    End If
 
     If nPer = 0 Then
-        colLog.Add Array(sName, wsT.Name, "", "", ship, 0, 0, 0, "급여 세부내용 없음")
+        colLog.Add Array(sName, wsT.Name, "", "", sYmSrc, ship, 0, 0, 0, "급여 세부내용 없음")
         GoTo CloseIt
     End If
 
     If yr = 0 Or mo = 0 Then
-        colLog.Add Array(sName, wsT.Name, yr, mo, ship, nPer, dWork, dOT, _
+        colLog.Add Array(sName, wsT.Name, yr, mo, sYmSrc, ship, nPer, dWork, dOT, _
                          "연월 확인 필요 - 집계 제외")
         GoTo CloseIt
     End If
@@ -157,14 +167,14 @@ Private Sub ProcessFile(ByVal sPath As String, dctMonth As Object, _
     ' 4) 같은 연월 + 같은 함정이 두 번 들어오면 중복으로 보고 제외
     sKey = Format$(yr, "0000") & "-" & Format$(mo, "00") & "|" & ship
     If dctSeen.Exists(sKey) Then
-        colLog.Add Array(sName, wsT.Name, yr, mo, ship, nPer, dWork, dOT, _
+        colLog.Add Array(sName, wsT.Name, yr, mo, sYmSrc, ship, nPer, dWork, dOT, _
                          "중복 - 집계 제외 (" & dctSeen(sKey) & ")")
         GoTo CloseIt
     End If
     dctSeen.Add sKey, sName
 
     AddMonth dctMonth, yr, mo, dWork, dOT, nPer
-    colLog.Add Array(sName, wsT.Name, yr, mo, ship, nPer, dWork, dOT, "정상")
+    colLog.Add Array(sName, wsT.Name, yr, mo, sYmSrc, ship, nPer, dWork, dOT, "정상")
 
 CloseIt:
     On Error Resume Next
@@ -173,7 +183,7 @@ CloseIt:
     Exit Sub
 
 EH:
-    colLog.Add Array(sName, "", "", "", "", "", "", "", "오류 - " & Err.Description)
+    colLog.Add Array(sName, "", "", "", "", "", "", "", "", "오류 - " & Err.Description)
     On Error Resume Next
     If Not wb Is Nothing Then wb.Close SaveChanges:=False
 End Sub
@@ -211,21 +221,42 @@ End Function
 '   - 정확히 하나만 남을 때에만 채택
 '==================================================================
 Private Function PickSheetByName(colCand As Collection) As Worksheet
+    Dim ws As Worksheet
+
+    ' 1순위: 시트명에 "경비함정"
+    Set ws = MatchOneSheet(colCand, 1)
+    ' 2순위: "초과근무수당" / "초간근무수당" (합계, 내역 은 제외)
+    If ws Is Nothing Then Set ws = MatchOneSheet(colCand, 2)
+
+    Set PickSheetByName = ws
+End Function
+
+
+' 규칙에 맞는 시트가 정확히 하나일 때만 돌려준다
+Private Function MatchOneSheet(colCand As Collection, ByVal nMode As Long) As Worksheet
     Dim ws As Worksheet, hit As Worksheet
-    Dim s As String
     Dim n As Long
 
     For Each ws In colCand
-        s = Norm(ws.Name)
-        If (InStr(s, "초과근무수당") > 0 Or InStr(s, "초간근무수당") > 0) Then
-            If InStr(s, "합계") = 0 And InStr(s, "내역") = 0 Then
-                n = n + 1
-                Set hit = ws
-            End If
+        If SheetNameMatches(Norm(ws.Name), nMode) Then
+            n = n + 1
+            Set hit = ws
         End If
     Next ws
 
-    If n = 1 Then Set PickSheetByName = hit
+    If n = 1 Then Set MatchOneSheet = hit
+End Function
+
+
+Private Function SheetNameMatches(ByVal s As String, ByVal nMode As Long) As Boolean
+    Select Case nMode
+        Case 1
+            SheetNameMatches = (InStr(s, "경비함정") > 0)
+        Case 2
+            If InStr(s, "초과근무수당") > 0 Or InStr(s, "초간근무수당") > 0 Then
+                SheetNameMatches = (InStr(s, "합계") = 0 And InStr(s, "내역") = 0)
+            End If
+    End Select
 End Function
 
 
@@ -244,13 +275,13 @@ End Function
 '==================================================================
 Private Sub ScanSheet(ws As Worksheet, ByRef yr As Long, ByRef mo As Long, _
                       ByRef ship As String, ByRef dWork As Double, _
-                      ByRef dOT As Double, ByRef nPer As Long)
+                      ByRef dOT As Double, ByRef nPer As Long, ByRef ymSrc As String)
     Dim v As Variant
     Dim nR As Long, nC As Long
     Dim r As Long, c As Long, rHdr As Long
     Dim s As String
 
-    yr = 0: mo = 0: ship = "": dWork = 0: dOT = 0: nPer = 0
+    yr = 0: mo = 0: ship = "": dWork = 0: dOT = 0: nPer = 0: ymSrc = ""
 
     nR = ws.UsedRange.Row + ws.UsedRange.Rows.Count - 1
     nC = ws.UsedRange.Column + ws.UsedRange.Columns.Count - 1
@@ -268,16 +299,22 @@ Private Sub ScanSheet(ws As Worksheet, ByRef yr As Long, ByRef mo As Long, _
     nC = UBound(v, 2)
 
     ' ---- 1) 머리글에서 연월 / 함정 ----
+    ' 산정서마다 머리글 모양이 다르므로 아래 순서로 찾고, 어디서 찾았는지
+    ' ymSrc 에 남겨 [처리내역] 시트에서 확인할 수 있게 한다.
     rHdr = HDR_ROWS
     If rHdr > nR Then rHdr = nR
 
+    ' (1) "초과근무수당 일집계 현황(2025년 5월)"
     For r = 1 To rHdr
         For c = 1 To nC
             If VarType(v(r, c)) = vbString Then
                 s = Norm(v(r, c))
                 If Len(s) > 0 Then
                     If yr = 0 Then
-                        If InStr(s, K_PERIOD) > 0 Then ParseYM s, yr, mo
+                        If InStr(s, K_PERIOD) > 0 Then
+                            ParseYM s, yr, mo
+                            If yr > 0 Then ymSrc = "일집계현황"
+                        End If
                     End If
                     If Len(ship) = 0 Then
                         If InStr(s, K_TITLE) > 0 Then ship = ParseParen(s)
@@ -287,7 +324,7 @@ Private Sub ScanSheet(ws As Worksheet, ByRef yr As Long, ByRef mo As Long, _
         Next c
     Next r
 
-    ' 보조 1) 머리글 어디서든 "____년 __월" 형태를 찾는다
+    ' (2) 머리글 어디서든 "____년 __월" 형태
     If yr = 0 Then
         For r = 1 To rHdr
             For c = 1 To nC
@@ -295,7 +332,10 @@ Private Sub ScanSheet(ws As Worksheet, ByRef yr As Long, ByRef mo As Long, _
                     s = Norm(v(r, c))
                     If InStr(s, "년") > 0 And InStr(s, "월") > 0 Then
                         ParseYM s, yr, mo
-                        If yr > 0 Then Exit For
+                        If yr > 0 Then
+                            ymSrc = "머리글(년월)"
+                            Exit For
+                        End If
                     End If
                 End If
             Next c
@@ -303,8 +343,23 @@ Private Sub ScanSheet(ws As Worksheet, ByRef yr As Long, ByRef mo As Long, _
         Next r
     End If
 
-    ' 보조 2) 월은 시트명에서도 얻을 수 있다  (예: "5월 초간근무수당")
-    If mo = 0 Then mo = MonthFromName(ws.Name)
+    ' (3) 월: "1505함 5월 출동현황" 같은 머리글
+    If mo = 0 Then
+        mo = MonthInBlock(v, rHdr, nC)
+        If mo > 0 Then ymSrc = AppendSrc(ymSrc, "월:머리글")
+    End If
+
+    ' (4) 연도: 머리글의 네 자리 연도 (예: 관련근거 "1505함-0494-2024-05-00152")
+    If yr = 0 Then
+        yr = YearInBlock(v, rHdr, nC)
+        If yr > 0 Then ymSrc = AppendSrc(ymSrc, "연:머리글")
+    End If
+
+    ' (5) 월: 시트명  (예: "5월 초간근무수당")
+    If mo = 0 Then
+        mo = MonthFromName(ws.Name)
+        If mo > 0 Then ymSrc = AppendSrc(ymSrc, "월:시트명")
+    End If
 
     ' ---- 2) [급여 세부내용] 박스를 모두 찾아 합산 ----
     For r = 1 To nR
@@ -435,6 +490,86 @@ Private Sub ParseYM(ByVal s As String, ByRef yr As Long, ByRef mo As Long)
     yr = y
     mo = m
 End Sub
+
+
+ 머리글에서 "__월" 을 찾는다. "현황" 이 함께 있는 칸을 우선한다.
+Private Function MonthInBlock(v As Variant, ByVal rHdr As Long, ByVal nC As Long) As Long
+    Dim r As Long, c As Long, m As Long, best As Long
+    Dim s As String
+
+    For r = 1 To rHdr
+        For c = 1 To nC
+            If VarType(v(r, c)) = vbString Then
+                s = Norm(v(r, c))
+                If InStr(s, "월") > 0 Then
+                    m = MonthFromName(s)
+                    If m > 0 Then
+                        If InStr(s, "현황") > 0 Then
+                            MonthInBlock = m
+                            Exit Function
+                        End If
+                        If best = 0 Then best = m
+                    End If
+                End If
+            End If
+        Next c
+    Next r
+
+    MonthInBlock = best
+End Function
+
+
+' 머리글에서 네 자리 연도를 찾는다
+Private Function YearInBlock(v As Variant, ByVal rHdr As Long, ByVal nC As Long) As Long
+    Dim r As Long, c As Long, y As Long
+
+    For r = 1 To rHdr
+        For c = 1 To nC
+            If VarType(v(r, c)) = vbString Then
+                y = FindYear(CStr(v(r, c)), False)
+                If y > 0 Then
+                    YearInBlock = y
+                    Exit Function
+                End If
+            End If
+        Next c
+    Next r
+End Function
+
+
+' 앞뒤가 숫자가 아닌 네 자리 2000~2099 를 찾는다.
+' bFromRight 면 마지막 것을 돌려준다 (경로는 파일 쪽이 더 믿을 만하므로).
+Private Function FindYear(ByVal s As String, ByVal bFromRight As Boolean) As Long
+    Dim i As Long, n As Long, y As Long
+    Dim t As String
+
+    n = Len(s)
+    If n < 4 Then Exit Function
+
+    For i = 1 To n - 3
+        t = Mid$(s, i, 4)
+        If t Like "####" Then
+            If i = 1 Or Not (Mid$(s, i - 1, 1) Like "#") Then
+                If i + 4 > n Or Not (Mid$(s, i + 4, 1) Like "#") Then
+                    y = CLng(t)
+                    If y >= 2000 And y <= 2099 Then
+                        FindYear = y
+                        If Not bFromRight Then Exit Function
+                    End If
+                End If
+            End If
+        End If
+    Next i
+End Function
+
+
+Private Function AppendSrc(ByVal s As String, ByVal sAdd As String) As String
+    If Len(s) = 0 Then
+        AppendSrc = sAdd
+    Else
+        AppendSrc = s & " + " & sAdd
+    End If
+End Function
 
 
 ' "5월 초간근무수당" -> 5
@@ -662,48 +797,51 @@ Private Sub WriteLog(wsL As Worksheet, colLog As Collection, _
     Dim a As Variant
     Dim hdr As Variant
 
-    hdr = Array("파일명", "시트명", "연도", "월", "함정", "인원수", _
+    hdr = Array("파일명", "시트명", "연도", "월", "연월 출처", "함정", "인원수", _
                 "총 근무시간", "시간외(시간)", "상태")
 
     lastR = wsL.Cells(wsL.Rows.Count, 1).End(xlUp).Row
     If lastR < 1 Then lastR = 1
-    wsL.Range(wsL.Cells(1, 1), wsL.Cells(lastR + 5, 9)).Clear
+    wsL.Range(wsL.Cells(1, 1), wsL.Cells(lastR + 5, 10)).Clear
 
     For c = 0 To UBound(hdr)
         wsL.Cells(1, c + 1).Value = hdr(c)
     Next c
-    With wsL.Range(wsL.Cells(1, 1), wsL.Cells(1, 9))
+    With wsL.Range(wsL.Cells(1, 1), wsL.Cells(1, 10))
         .Font.Bold = True
         .HorizontalAlignment = xlCenter
         .Interior.Color = RGB(221, 235, 247)
     End With
-    DrawBorder wsL.Range(wsL.Cells(1, 1), wsL.Cells(1, 9))
+    DrawBorder wsL.Range(wsL.Cells(1, 1), wsL.Cells(1, 10))
 
     r = 2
     For i = 1 To colLog.Count
         a = colLog(i)
-        For c = 0 To 8
+        For c = 0 To 9
             wsL.Cells(r, c + 1).Value = a(c)
         Next c
-        If a(8) = "정상" Then
+        If a(9) = "정상" Then
             nOK = nOK + 1
         Else
             nNG = nNG + 1
-            wsL.Cells(r, 9).Font.Color = RGB(192, 0, 0)
+            wsL.Cells(r, 10).Font.Color = RGB(192, 0, 0)
         End If
-        DrawBorder wsL.Range(wsL.Cells(r, 1), wsL.Cells(r, 9))
+        DrawBorder wsL.Range(wsL.Cells(r, 1), wsL.Cells(r, 10))
         r = r + 1
     Next i
 
     If r > 2 Then
-        wsL.Range(wsL.Cells(2, 7), wsL.Cells(r - 1, 8)).NumberFormat = "#,##0.0"
+        wsL.Range(wsL.Cells(2, 8), wsL.Cells(r - 1, 9)).NumberFormat = "#,##0.0"
     End If
 
     wsL.Columns("A").ColumnWidth = 42
-    wsL.Columns("B").ColumnWidth = 20
-    wsL.Columns("C:F").ColumnWidth = 8
-    wsL.Columns("G:H").ColumnWidth = 14
-    wsL.Columns("I").ColumnWidth = 34
+    wsL.Columns("B").ColumnWidth = 22
+    wsL.Columns("C:D").ColumnWidth = 8
+    wsL.Columns("E").ColumnWidth = 16
+    wsL.Columns("F").ColumnWidth = 10
+    wsL.Columns("G").ColumnWidth = 8
+    wsL.Columns("H:I").ColumnWidth = 14
+    wsL.Columns("J").ColumnWidth = 34
 End Sub
 
 

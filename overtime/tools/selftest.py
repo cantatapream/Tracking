@@ -18,7 +18,7 @@ DAY_COL0 = 6          # day columns start at F, as in the real sheet
 BLOCK_H = 8           # rows per person
 
 
-def _person_block(ws, row, seq, name, box_col, days, total_work, ot_raw, ot_paid):
+def _person_block(ws, row, seq, name, box_col, days, total_work, ot_sum_col, ot_box):
     """One person: the daily grid on the left, the 급여 세부내용 box on the right."""
     ws.cell(row, 1, seq)
     ws.cell(row, 3, name)
@@ -30,9 +30,9 @@ def _person_block(ws, row, seq, name, box_col, days, total_work, ot_raw, ot_paid
     for d in range(days):                      # plausible daily numbers
         ws.cell(row + 1, DAY_COL0 + d, 8)
     ws.cell(row + 1, sum_col, total_work)      # 근무시간 합계
-    ws.cell(row + 3, sum_col, ot_raw)          # 시간외 합계 (실적 원값)
+    ws.cell(row + 3, sum_col, ot_sum_col)      # 시간외 합계 열 (읽지 않는 쪽)
 
-    # 급여 세부내용 박스
+    # 급여 세부내용 박스 -- 집계가 읽는 유일한 곳
     ws.cell(row, box_col, "급여 세부내용")
     ws.merge_cells(start_row=row, start_column=box_col, end_row=row, end_column=box_col + 1)
     ws.cell(row + 1, box_col, "총 근무시간")
@@ -40,7 +40,7 @@ def _person_block(ws, row, seq, name, box_col, days, total_work, ot_raw, ot_paid
     ws.cell(row + 2, box_col, total_work)
     ws.cell(row + 2, box_col + 1, 120)
     ws.cell(row + 3, box_col, "시간외(시간)")
-    ws.cell(row + 3, box_col + 1, ot_paid)     # 상한이 적용된 지급 기준 값
+    ws.cell(row + 3, box_col + 1, ot_box)      # 집계 대상은 이 값
     ws.cell(row + 4, box_col, "야간(시간)")
     ws.cell(row + 4, box_col + 1, 56)
     ws.cell(row + 5, box_col, "휴일(일수)")
@@ -65,8 +65,8 @@ def make_sample(path, year, month, ship, people, sheet_name, decoy=False):
     ws.cell(10, DAY_COL0 + days, "합계")
 
     row = 11
-    for seq, (name, work, ot_raw, ot_paid) in enumerate(people, start=1):
-        _person_block(ws, row, seq, name, box_col, days, work, ot_raw, ot_paid)
+    for seq, (name, work, ot_sum_col, ot_box) in enumerate(people, start=1):
+        _person_block(ws, row, seq, name, box_col, days, work, ot_sum_col, ot_box)
         row += BLOCK_H
 
     if decoy:
@@ -218,7 +218,8 @@ def scan_file(path):
 
 
 def main():
-    # 현관용(3번)처럼 시간외 실적(108)과 지급 기준(100)이 다른 사람을 포함시킨다
+    # 왼쪽 합계 열과 박스 값이 다른 사람을 일부러 섞는다.
+    # 합계 열을 잘못 읽으면 시간외가 308 로 나오므로 바로 잡힌다.
     may = [("김근홍", 220, 100, 100), ("최영필", 232, 100, 100), ("현관용", 208, 108, 100)]
     feb = [("김근홍", 190, 96, 96), ("최영필", 205, 130, 100)]
 

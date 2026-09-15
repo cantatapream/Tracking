@@ -507,7 +507,7 @@ Private Sub WriteResult(dct As Object, colLog As Collection, ByVal nFile As Long
     Dim keys As Variant, tmp As Variant, a As Variant
     Dim i As Long, j As Long, r As Long, lastR As Long
     Dim k As String, curY As String
-    Dim yW As Double, yO As Double, tW As Double, tO As Double
+    Dim yrWork As Double, yrOT As Double, totWork As Double, totOT As Double
     Dim nOK As Long, nNG As Long
 
     Set ws = EnsureSheet(SH_RESULT)
@@ -570,9 +570,9 @@ Private Sub WriteResult(dct As Object, colLog As Collection, ByVal nFile As Long
         a = dct(k)
 
         If Len(curY) > 0 And curY <> Left$(k, 4) Then
-            WriteSubtotal ws, r, curY, yW, yO
+            WriteSubtotal ws, r, curY, yrWork, yrOT
             r = r + 1
-            yW = 0: yO = 0
+            yrWork = 0: yrOT = 0
         End If
         curY = Left$(k, 4)
 
@@ -583,12 +583,12 @@ Private Sub WriteResult(dct As Object, colLog As Collection, ByVal nFile As Long
         ws.Range(ws.Cells(r, 1), ws.Cells(r, 2)).HorizontalAlignment = xlCenter
         DrawBorder ws.Range(ws.Cells(r, 1), ws.Cells(r, 4))
 
-        yW = yW + a(0): yO = yO + a(1)
-        tW = tW + a(0): tO = tO + a(1)
+        yrWork = yrWork + a(0): yrOT = yrOT + a(1)
+        totWork = totWork + a(0): totOT = totOT + a(1)
         r = r + 1
     Next i
 
-    WriteSubtotal ws, r, curY, yW, yO
+    WriteSubtotal ws, r, curY, yrWork, yrOT
     r = r + 1
 
     ' ---- 총 합계 ----
@@ -597,8 +597,8 @@ Private Sub WriteResult(dct As Object, colLog As Collection, ByVal nFile As Long
         .Value = "총 합계"
         .HorizontalAlignment = xlCenter
     End With
-    ws.Cells(r, 3).Value = tW
-    ws.Cells(r, 4).Value = tO
+    ws.Cells(r, 3).Value = totWork
+    ws.Cells(r, 4).Value = totOT
     With ws.Range(ws.Cells(r, 1), ws.Cells(r, 4))
         .Font.Bold = True
         .Interior.Color = RGB(252, 228, 214)
@@ -620,14 +620,14 @@ End Sub
 
 
 Private Sub WriteSubtotal(ws As Worksheet, ByVal r As Long, ByVal sYear As String, _
-                          ByVal dW As Double, ByVal dO As Double)
+                          ByVal dSumWork As Double, ByVal dSumOT As Double)
     With ws.Range(ws.Cells(r, 1), ws.Cells(r, 2))
         .Merge
         .Value = sYear & "년 합계"
         .HorizontalAlignment = xlCenter
     End With
-    ws.Cells(r, 3).Value = dW
-    ws.Cells(r, 4).Value = dO
+    ws.Cells(r, 3).Value = dSumWork
+    ws.Cells(r, 4).Value = dSumOT
     With ws.Range(ws.Cells(r, 1), ws.Cells(r, 4))
         .Font.Bold = True
         .Interior.Color = RGB(237, 237, 237)

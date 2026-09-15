@@ -148,6 +148,7 @@ python3 overtime/tools/build_xlsm.py
 - `vbaproject.py` — `vbaProject.bin` 조립
 - `build_xlsm.py` — 시트·버튼을 붙여 `.xlsm` 으로 포장
 - `selftest.py` — `sample/` 을 만들고 스캔 로직을 검증
+- `vbacheck.py` — VBA 예약어 충돌, 블록 짝, 인자 개수 등 정적 점검
 
 ---
 
